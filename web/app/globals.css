@@ -1,0 +1,178 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens — calm "paper & ink" palette.
+ * One restrained accent (sage teal) + one secondary (clay) used only to
+ * encode meaning in visualizations (positive vs negative, forward vs backward).
+ */
+:root {
+  --bg: #f8f7f3;
+  --surface: #ffffff;
+  --surface-2: #f1efe9;
+  --border: #e4e1d9;
+  --border-strong: #cfcbc0;
+  --text: #24272b;
+  --text-muted: #5f646b;
+  --text-faint: #8b8f94;
+  --accent: #3d7a6b;
+  --accent-strong: #2f6156;
+  --accent-soft: #e3efea;
+  --clay: #b56f55;
+  --clay-soft: #f5e6df;
+  --gold: #a8832f;
+  --gold-soft: #f4ecd8;
+  --code-bg: #f3f1ec;
+  --shadow: 0 1px 2px rgba(36, 39, 43, 0.04), 0 2px 8px rgba(36, 39, 43, 0.04);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #15181b;
+  --surface: #1b1f23;
+  --surface-2: #22272c;
+  --border: #2d3339;
+  --border-strong: #3c444b;
+  --text: #e6e3dc;
+  --text-muted: #a5a9ad;
+  --text-faint: #7a7f84;
+  --accent: #7fb7a6;
+  --accent-strong: #9ccbbc;
+  --accent-soft: #1f302c;
+  --clay: #d69a83;
+  --clay-soft: #3a2a24;
+  --gold: #d4b46a;
+  --gold-soft: #332c1c;
+  --code-bg: #1e2226;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-clay: var(--clay);
+  --color-clay-soft: var(--clay-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-code: var(--code-bg);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif-face), Georgia, serif;
+  --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+/* Long-form lesson typography */
+.prose-lesson {
+  font-size: 1.02rem;
+  line-height: 1.75;
+  color: var(--text);
+  /* identifiers like x.contiguous(memory_format=torch.channels_last) in plain text must not widen the page */
+  overflow-wrap: break-word;
+}
+.prose-lesson p { margin: 0.85rem 0; }
+.prose-lesson strong { font-weight: 600; }
+.prose-lesson a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.prose-lesson code.inline {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0.05rem 0.35rem;
+  border-radius: 5px;
+  overflow-wrap: anywhere; /* long identifiers like torch.nn.functional.… must not widen the page */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.prose-lesson ul, .prose-lesson ol { margin: 0.75rem 0 0.75rem 1.35rem; }
+.prose-lesson ul { list-style: disc; }
+.prose-lesson ol { list-style: decimal; }
+.prose-lesson li { margin: 0.3rem 0; }
+.prose-lesson li::marker { color: var(--text-faint); }
+
+.katex-inline-long {
+  display: inline-block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  vertical-align: middle;
+  padding: 0.1em 0;
+}
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
+/* Range inputs — quiet, accent-colored */
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+.sim-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s;
+}
+.sim-btn:hover { background: var(--surface-2); }
+.sim-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.sim-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.sim-btn.primary:hover { background: var(--accent-strong); }
+
+.field {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.field:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}

@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "web", "run", "start"],
+      "port": 3000
+    },
+    {
+      "name": "vision-api",
+      "runtimeExecutable": "projects/vision-analytics/.venv/Scripts/python.exe",
+      "runtimeArgs": ["projects/vision-analytics/scripts/dev_api.py", "--device", "auto"],
+      "port": 8100
+    },
+    {
+      "name": "vision-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "projects/vision-analytics/frontend", "run", "start"],
+      "port": 3100
+    }
+  ]
+}

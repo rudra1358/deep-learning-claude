@@ -1,0 +1,7 @@
+# Keep LF line endings on every platform. Lesson code blocks are compared byte-for-byte
+# against recorded output (web/scripts/check-lessons.mjs), so CRLF conversion would break them.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
