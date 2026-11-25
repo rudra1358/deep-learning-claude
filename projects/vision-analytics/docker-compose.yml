@@ -1,0 +1,51 @@
+# One-command start:   docker compose up --build                                  (CPU)
+#                      docker compose --profile gpu up --build mongo ml-gpu server (NVIDIA GPU)
+# Dashboard + API: http://localhost:4100
+#
+#   browser -> server (Express + built React app) -> ml (Python, ONNX Runtime)
+#                 |
+#               mongo (MongoDB: runs, history, analytics)
+#
+# server and ml share the "appdata" volume at the SAME path (/app/data): the server saves video
+# uploads there, the ML service reads them and writes frames.json / playback.webm next to them.
+services:
+  mongo:
+    image: mongo:7
+    volumes: [mongodata:/data/db]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      retries: 10
+
+  ml:
+    build: { context: ., dockerfile: ml-service/Dockerfile }
+    environment:
+      VA_DEVICE: cpu
+      VA_DEFAULT_MODEL: ${VA_DEFAULT_MODEL:-yolo11n-coco}
+    volumes: [appdata:/app/data]
+    # no published port: only the server talks to the ML service
+
+  ml-gpu:
+    build: { context: ., dockerfile: ml-service/Dockerfile.gpu }
+    environment:
+      VA_DEFAULT_MODEL: ${VA_DEFAULT_MODEL:-yolo11n-coco}
+    volumes: [appdata:/app/data]
+    networks: { default: { aliases: [ml] } }   # the server reaches it as http://ml:8100 too
+    deploy:
+      resources:
+        reservations:
+          devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+    profiles: ["gpu"]
+
+  server:
+    build: { context: ., dockerfile: server/Dockerfile }
+    environment:
+      MONGO_URL: mongodb://mongo:27017/vision
+      ML_URL: http://ml:8100
+    volumes: [appdata:/app/data]
+    ports: ["4100:4100"]
+    depends_on: { mongo: { condition: service_healthy } }
+
+volumes:
+  mongodata:
+  appdata:

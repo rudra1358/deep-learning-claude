@@ -1,0 +1,39 @@
+# docker compose up --build      ->  UI + API on http://localhost:4200   (ML service docs: http://localhost:8200/docs)
+#
+# Three containers, the three tiers of the app:
+#   mongo   MongoDB - documents, pages, chats (the system of record)
+#   ml      Python FastAPI - models + the FAISS search index (never called by the browser)
+#   server  Node/Express - the API the browser calls; also serves the built React app
+# server and ml share one volume (/app/data): the server saves an upload there, the ML service reads it.
+services:
+  mongo:
+    image: mongo:7
+    volumes: [mongodata:/data/db]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      retries: 10
+
+  ml:
+    build: { context: ., dockerfile: ml-service/Dockerfile }
+    environment:
+      DI_DATA_DIR: /app/data
+    volumes: [appdata:/app/data]            # uploads + FAISS index + chunk store survive restarts
+    ports: ["8200:8200"]                    # only for the /docs page; the browser never calls it
+    deploy: { resources: { limits: { memory: 6g } } }
+
+  server:
+    build: { context: ., dockerfile: server/Dockerfile }
+    environment:
+      MONGO_URL: mongodb://mongo:27017/docintel
+      ML_URL: http://ml:8200
+      DATA_DIR: /app/data
+    volumes: [appdata:/app/data]
+    ports: ["4200:4200"]
+    depends_on:
+      mongo: { condition: service_healthy }
+      ml: { condition: service_started }
+
+volumes:
+  mongodata:
+  appdata:

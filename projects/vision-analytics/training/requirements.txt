@@ -1,0 +1,10 @@
+# Training / evaluation / export (needs PyTorch). Install CUDA PyTorch first, e.g.
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+ultralytics>=8.3
+onnx>=1.16
+onnxslim
+onnxruntime-gpu[cuda,cudnn]>=1.20   # extras pull matching CUDA/cuDNN runtime wheels (ORT >=1.2x targets CUDA 13)
+pycocotools>=2.0.8
+pyyaml
+matplotlib
+pandas

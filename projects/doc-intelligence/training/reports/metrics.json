@@ -1,0 +1,431 @@
+{
+  "ner": {
+    "distilbert-conll2003": {
+      "test_f1": 0.8988,
+      "per_type": {
+        "LOC": {
+          "precision": 0.9243,
+          "recall": 0.9227,
+          "f1-score": 0.9235,
+          "support": 1668.0
+        },
+        "MISC": {
+          "precision": 0.7576,
+          "recall": 0.8191,
+          "f1-score": 0.7871,
+          "support": 702.0
+        },
+        "ORG": {
+          "precision": 0.8566,
+          "recall": 0.8916,
+          "f1-score": 0.8737,
+          "support": 1661.0
+        },
+        "PER": {
+          "precision": 0.9516,
+          "recall": 0.9487,
+          "f1-score": 0.9501,
+          "support": 1617.0
+        },
+        "micro avg": {
+          "precision": 0.8897,
+          "recall": 0.9081,
+          "f1-score": 0.8988,
+          "support": 5648.0
+        },
+        "macro avg": {
+          "precision": 0.8725,
+          "recall": 0.8955,
+          "f1-score": 0.8836,
+          "support": 5648.0
+        },
+        "weighted avg": {
+          "precision": 0.8915,
+          "recall": 0.9081,
+          "f1-score": 0.8995,
+          "support": 5648.0
+        }
+      },
+      "history": [
+        {
+          "epoch": 1,
+          "train_loss": 0.2049,
+          "minutes": 1.5,
+          "test_f1": 0.8788
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.029,
+          "minutes": 1.6,
+          "test_f1": 0.8852
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.0113,
+          "minutes": 1.6,
+          "test_f1": 0.8988
+        }
+      ],
+      "train_sentences": 14041,
+      "test_sentences": 3453
+    }
+  },
+  "classifier": {
+    "distilbert-agnews": {
+      "test_accuracy": 0.93,
+      "test_macro_f1": 0.93,
+      "labels": [
+        "World",
+        "Sports",
+        "Business",
+        "Sci/Tech"
+      ],
+      "confusion_matrix": [
+        [
+          1768,
+          19,
+          60,
+          53
+        ],
+        [
+          16,
+          1868,
+          11,
+          5
+        ],
+        [
+          59,
+          9,
+          1692,
+          140
+        ],
+        [
+          39,
+          8,
+          113,
+          1740
+        ]
+      ],
+      "per_class_f1": {
+        "World": 0.935,
+        "Sports": 0.9821,
+        "Business": 0.8962,
+        "Sci/Tech": 0.9067
+      },
+      "history": [
+        {
+          "epoch": 1,
+          "train_loss": 0.3754,
+          "minutes": 3.4,
+          "test_accuracy": 0.9192,
+          "test_macro_f1": 0.9191
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.1671,
+          "minutes": 3.4,
+          "test_accuracy": 0.93,
+          "test_macro_f1": 0.93
+        }
+      ],
+      "train_size": 30000,
+      "test_size": 7600
+    }
+  },
+  "retrieval": {
+    "chunk_size_sweep": {
+      "128": {
+        "recall@1": 0.7863,
+        "recall@3": 0.9184,
+        "recall@5": 0.9454,
+        "recall@10": 0.9735,
+        "recall@20": 0.987,
+        "mrr@10": 0.8562,
+        "ms_per_query": 25.2,
+        "questions": 1998,
+        "chunks": 1904
+      },
+      "256": {
+        "recall@1": 0.7653,
+        "recall@3": 0.9204,
+        "recall@5": 0.9494,
+        "recall@10": 0.98,
+        "recall@20": 0.9935,
+        "mrr@10": 0.8478,
+        "ms_per_query": 23.6,
+        "questions": 1998,
+        "chunks": 936
+      },
+      "384": {
+        "recall@1": 0.7477,
+        "recall@3": 0.9129,
+        "recall@5": 0.9525,
+        "recall@10": 0.9815,
+        "recall@20": 0.995,
+        "mrr@10": 0.836,
+        "ms_per_query": 24.5,
+        "questions": 1998,
+        "chunks": 622
+      }
+    },
+    "comparison_256": {
+      "chunks": 929,
+      "bm25": {
+        "recall@1": 0.8078,
+        "recall@3": 0.9209,
+        "recall@5": 0.9444,
+        "recall@10": 0.9655,
+        "recall@20": 0.9785,
+        "mrr@10": 0.867,
+        "ms_per_query": 0.8,
+        "questions": 1998
+      },
+      "dense-bge": {
+        "recall@1": 0.6496,
+        "recall@3": 0.8428,
+        "recall@5": 0.8914,
+        "recall@10": 0.9389,
+        "recall@20": 0.9695,
+        "mrr@10": 0.7537,
+        "ms_per_query": 20.6,
+        "questions": 1998
+      },
+      "hybrid": {
+        "recall@1": 0.7613,
+        "recall@3": 0.9164,
+        "recall@5": 0.9484,
+        "recall@10": 0.979,
+        "recall@20": 0.9915,
+        "mrr@10": 0.845,
+        "ms_per_query": 22.8,
+        "questions": 1998
+      },
+      "hybrid+rerank": {
+        "recall@1": 0.8509,
+        "recall@3": 0.954,
+        "recall@5": 0.966,
+        "recall@10": 0.984,
+        "recall@20": 0.9935,
+        "mrr@10": 0.9028,
+        "ms_per_query": 124.0,
+        "questions": 1998
+      },
+      "dense-minilm": {
+        "recall@1": 0.6206,
+        "recall@3": 0.8203,
+        "recall@5": 0.8764,
+        "recall@10": 0.9279,
+        "recall@20": 0.966,
+        "mrr@10": 0.7302,
+        "ms_per_query": 17.5,
+        "questions": 1998
+      }
+    }
+  },
+  "qa": {
+    "squad2": {
+      "questions": 2000,
+      "answerable": 1008,
+      "tune_split": 1000,
+      "report_split": 1000,
+      "oracle": {
+        "no_answer_margin": 0.75,
+        "ms_per_question": 9.0,
+        "tuned_on_first_half_reported_on_second": {
+          "EM": 80.3,
+          "F1": 83.41,
+          "F1_answerable": 81.27,
+          "accuracy_unanswerable": 85.66
+        },
+        "margin_0_reported_on_second": {
+          "EM": 80.0,
+          "F1": 83.27,
+          "F1_answerable": 82.95,
+          "accuracy_unanswerable": 83.61
+        },
+        "always_answer_reported_on_second": {
+          "EM": 42.7,
+          "F1": 46.26,
+          "F1_answerable": 90.35,
+          "accuracy_unanswerable": 0.0
+        }
+      },
+      "system": {
+        "no_answer_margin": 2.75,
+        "ms_per_question": 161.7,
+        "tuned_on_first_half_reported_on_second": {
+          "EM": 74.4,
+          "F1": 77.63,
+          "F1_answerable": 70.56,
+          "accuracy_unanswerable": 85.04
+        },
+        "margin_0_reported_on_second": {
+          "EM": 70.4,
+          "F1": 74.01,
+          "F1_answerable": 75.8,
+          "accuracy_unanswerable": 72.13
+        },
+        "always_answer_reported_on_second": {
+          "EM": 36.5,
+          "F1": 40.19,
+          "F1_answerable": 78.5,
+          "accuracy_unanswerable": 0.0
+        }
+      },
+      "tuned": {
+        "no_answer_margin": 2.75
+      }
+    },
+    "tuned": {
+      "no_answer_margin": 2.75
+    }
+  },
+  "summarization": {
+    "cnn_dailymail": {
+      "articles": 200,
+      "distilbart": {
+        "rouge1": 43.48,
+        "rouge2": 21.2,
+        "rougeLsum": 40.67,
+        "ms_per_article": 496.0
+      },
+      "lead3_baseline": {
+        "rouge1": 38.3,
+        "rouge2": 16.13,
+        "rougeLsum": 34.36
+      },
+      "example": {
+        "reference": "Lewis Hamilton held off the challenge from Nico Rosberg to win in China . But Rosberg was furious with his Mercedes team-mate after the Grand Prix . German accused Hamilton of compromising his race by\u00a0driving\u00a0too slowly . But Hamilton, who leads the championship, has denied any wrong-doing . Hamilton is already 17 points clear of Rosberg in race for the F1 title .",
+        "distilbart": "Lewis Hamilton won the Chinese Grand Prix in Shanghai to extend his lead at the top of the world championship . Nico Rosberg finished 2nd with Mercedes team-mate Lewis Hamilton 2nd . Rosberg accused Hamilton of compromising his strategy and leaving him under pressure from Ferrari's Sebastian Vettel . Hamilton denied he had done anything wrong following Rosberg's accusations . The spat has reopened the wounds from last year when both drivers tried to out-manoeuvre ."
+      }
+    }
+  },
+  "generation": {
+    "prompt_v1": {
+      "model": "Qwen/Qwen2.5-1.5B-Instruct",
+      "questions": 150,
+      "ms_per_question": 2556,
+      "answerable": {
+        "answer_contains_gold": 74.7,
+        "cited_at_least_one_source": 24.0,
+        "wrongly_refused": 0.0
+      },
+      "unanswerable": {
+        "refused_correctly": 13.3,
+        "hallucination_rate": 86.7
+      },
+      "examples": [
+        {
+          "question": "The Rhine forms an inland delta into which lake?",
+          "gold": [
+            "Lake Constance"
+          ],
+          "answer": "The Rhine forms an inland delta into Lake Constance."
+        },
+        {
+          "question": "What is the process by which the adaptive immune system is evaded by the chainging of non-essential epitopes called?",
+          "gold": [
+            "antigenic variation"
+          ],
+          "answer": "The process by which the adaptive immune system is evaded by the changing of non-essential epitopes is called antigenic variation."
+        },
+        {
+          "question": "What cannot be solved by mechanical application of mathematical steps?",
+          "gold": [],
+          "answer": "I could not find this in the documents."
+        },
+        {
+          "question": "n what meeting did Shirley lay out plans for 1765?",
+          "gold": [],
+          "answer": "Shirley laid out his plans for 1756 at a meeting in Albany in December 1755."
+        }
+      ],
+      "prompt": "v1",
+      "reader_gate": false
+    },
+    "prompt_v2": {
+      "model": "Qwen/Qwen2.5-1.5B-Instruct",
+      "prompt": "v2",
+      "reader_gate": false,
+      "questions": 150,
+      "ms_per_question": 2602,
+      "answerable": {
+        "answer_contains_gold": 78.7,
+        "cited_at_least_one_source": 40.0,
+        "wrongly_refused": 0.0
+      },
+      "unanswerable": {
+        "refused_correctly": 2.7,
+        "hallucination_rate": 97.3
+      },
+      "examples": [
+        {
+          "question": "The Rhine forms an inland delta into which lake?",
+          "gold": [
+            "Lake Constance"
+          ],
+          "answer": "The Rhine forms an inland delta into which Lake Constance is located."
+        },
+        {
+          "question": "What is the process by which the adaptive immune system is evaded by the chainging of non-essential epitopes called?",
+          "gold": [
+            "antigenic variation"
+          ],
+          "answer": "The process by which the adaptive immune system is evaded by the changing of non-essential epitopes is called antigenic variation. [1]"
+        },
+        {
+          "question": "What cannot be solved by mechanical application of mathematical steps?",
+          "gold": [],
+          "answer": "A computational problem is defined as a task that is in principle amenable to being solved by a computer, which is equivalent to stating that the problem may be solved by mechanical application of mathematical steps, such as an algorithm. Therefore, a computational problem cannot be solved by mechanical application of mathematical steps."
+        },
+        {
+          "question": "n what meeting did Shirley lay out plans for 1765?",
+          "gold": [],
+          "answer": "In December 1755, Shirley laid out his plans for 1756. [2]"
+        }
+      ]
+    },
+    "prompt_v2+reader_gate": {
+      "model": "Qwen/Qwen2.5-1.5B-Instruct",
+      "prompt": "v2",
+      "reader_gate": true,
+      "questions": 150,
+      "ms_per_question": 1623,
+      "answerable": {
+        "answer_contains_gold": 72.0,
+        "cited_at_least_one_source": 38.7,
+        "wrongly_refused": 8.0
+      },
+      "unanswerable": {
+        "refused_correctly": 76.0,
+        "hallucination_rate": 24.0
+      },
+      "examples": [
+        {
+          "question": "The Rhine forms an inland delta into which lake?",
+          "gold": [
+            "Lake Constance"
+          ],
+          "answer": "The Rhine forms an inland delta into which Lake Constance is located."
+        },
+        {
+          "question": "What is the process by which the adaptive immune system is evaded by the chainging of non-essential epitopes called?",
+          "gold": [
+            "antigenic variation"
+          ],
+          "answer": "The process by which the adaptive immune system is evaded by the changing of non-essential epitopes is called antigenic variation. [1]"
+        },
+        {
+          "question": "What cannot be solved by mechanical application of mathematical steps?",
+          "gold": [],
+          "answer": "I could not find this in the documents."
+        },
+        {
+          "question": "n what meeting did Shirley lay out plans for 1765?",
+          "gold": [],
+          "answer": "I could not find this in the documents."
+        }
+      ]
+    }
+  }
+}

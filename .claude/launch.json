@@ -8,16 +8,40 @@
       "port": 3000
     },
     {
-      "name": "vision-api",
+      "name": "vision-ml",
       "runtimeExecutable": "projects/vision-analytics/.venv/Scripts/python.exe",
       "runtimeArgs": ["projects/vision-analytics/scripts/dev_api.py", "--device", "auto"],
       "port": 8100
     },
     {
-      "name": "vision-web",
+      "name": "vision-server",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "projects/vision-analytics/frontend", "run", "start"],
+      "runtimeArgs": ["--prefix", "projects/vision-analytics/server", "start"],
+      "port": 4100
+    },
+    {
+      "name": "vision-client",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "projects/vision-analytics/client", "run", "dev"],
       "port": 3100
+    },
+    {
+      "name": "docs-ml",
+      "runtimeExecutable": "projects/vision-analytics/.venv/Scripts/python.exe",
+      "runtimeArgs": ["projects/doc-intelligence/scripts/dev_api.py"],
+      "port": 8200
+    },
+    {
+      "name": "docs-server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "projects/doc-intelligence/server", "start"],
+      "port": 4200
+    },
+    {
+      "name": "docs-client",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "projects/doc-intelligence/client", "run", "dev"],
+      "port": 3200
     }
   ]
 }

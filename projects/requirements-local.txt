@@ -1,0 +1,22 @@
+# Everything needed to run, train and test BOTH projects in one environment (install PyTorch first,
+# see README.md). Separate per-project files exist for Docker images, which need much less.
+
+# --- Document Intelligence (ml-service + training + tests) ---
+-r doc-intelligence/training/requirements.txt
+pytest>=8
+httpx>=0.27
+
+# --- Vision Analytics ---
+ultralytics>=8.3
+onnx>=1.16
+onnxslim
+pycocotools>=2.0.8
+scipy>=1.11
+opencv-python-headless>=4.9
+pandas
+matplotlib
+psycopg[binary]>=3.2
+# ONNX Runtime: the GPU build also runs on CPU. Its [cuda,cudnn] extras install the CUDA 13 libraries it
+# needs (PyTorch ships CUDA 12 ones). CPU-only machine? Replace this line with:  onnxruntime>=1.20
+# Do NOT install both onnxruntime and onnxruntime-gpu - they overwrite each other.
+onnxruntime-gpu[cuda,cudnn]>=1.20

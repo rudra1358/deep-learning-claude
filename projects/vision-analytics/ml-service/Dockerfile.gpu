@@ -1,0 +1,20 @@
+# GPU image: CUDA 12 + cuDNN 9 runtime so onnxruntime-gpu can use the CUDAExecutionProvider.
+# Needs the NVIDIA Container Toolkit on the host (docker compose --profile gpu up).
+FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04
+ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv libglib2.0-0 libgl1 curl \
+    && rm -rf /var/lib/apt/lists/*
+RUN python3 -m venv /venv
+ENV PATH=/venv/bin:$PATH
+WORKDIR /app
+COPY ml-service/requirements.txt .
+RUN sed -i 's/^onnxruntime>=/onnxruntime-gpu>=/' requirements.txt && pip install -r requirements.txt
+COPY ml-service/app ./ml-service/app
+COPY ml-service/inference ./ml-service/inference
+COPY models ./models
+COPY training/reports ./training/reports
+RUN mkdir -p /app/data
+WORKDIR /app/ml-service
+ENV VA_MODELS_DIR=/app/models VA_DATA_DIR=/app/data VA_METRICS_FILE=/app/training/reports/metrics.json VA_DEVICE=cuda
+EXPOSE 8100
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8100"]

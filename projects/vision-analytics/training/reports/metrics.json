@@ -1,0 +1,225 @@
+{
+  "coco_baseline": {
+    "yolo11n": {
+      "mAP50_95": 0.4061,
+      "mAP50": 0.5548,
+      "AP_small": 0.2135,
+      "AP_medium": 0.4749,
+      "AP_large": 0.5819,
+      "latency_ms": 14.8,
+      "params_M": 2.62
+    },
+    "yolo11s": {
+      "mAP50_95": 0.4782,
+      "mAP50": 0.6414,
+      "AP_small": 0.2847,
+      "AP_medium": 0.5623,
+      "AP_large": 0.6395,
+      "latency_ms": 18.0,
+      "params_M": 9.46
+    },
+    "faster_rcnn_r50_fpn_v2": {
+      "mAP50_95": 0.4943,
+      "mAP50": 0.704,
+      "AP_small": 0.3479,
+      "AP_medium": 0.5351,
+      "AP_large": 0.6357,
+      "latency_ms": 206.0,
+      "params_M": 43.71
+    }
+  },
+  "domain_gap": {
+    "yolo11n-coco-on-visdrone": {
+      "mAP50_95": 0.0784,
+      "mAP50": 0.1348,
+      "AP_small": 0.023,
+      "AP_medium": 0.122,
+      "AP_large": 0.446
+    },
+    "yolo11s-coco-on-visdrone": {
+      "mAP50_95": 0.1223,
+      "mAP50": 0.2021,
+      "AP_small": 0.0441,
+      "AP_medium": 0.1939,
+      "AP_large": 0.5583
+    }
+  },
+  "finetuned": {
+    "yolo11n-visdrone": {
+      "mAP50_95": 0.1638,
+      "mAP50": 0.2931,
+      "precision": 0.42,
+      "recall": 0.3214,
+      "per_class_AP50_95": {
+        "pedestrian": 0.1218,
+        "people": 0.071,
+        "bicycle": 0.0195,
+        "car": 0.468,
+        "van": 0.2249,
+        "truck": 0.1766,
+        "tricycle": 0.0985,
+        "awning-tricycle": 0.0522,
+        "bus": 0.2881,
+        "motor": 0.1177
+      },
+      "by_size": {
+        "mAP50_95": 0.1537,
+        "mAP50": 0.266,
+        "AP_small": 0.0702,
+        "AP_medium": 0.2394,
+        "AP_large": 0.4078
+      },
+      "shared_classes_for_domain_gap": {
+        "mAP50_95": 0.1936,
+        "mAP50": 0.3377,
+        "AP_small": 0.0892,
+        "AP_medium": 0.2929,
+        "AP_large": 0.4834
+      },
+      "confusion_matrix_png": "training/runs/yolo11n-visdrone-val/confusion_matrix_normalized.png"
+    },
+    "yolo11s-visdrone": {
+      "mAP50_95": 0.2075,
+      "mAP50": 0.3587,
+      "precision": 0.4886,
+      "recall": 0.3694,
+      "per_class_AP50_95": {
+        "pedestrian": 0.1696,
+        "people": 0.0942,
+        "bicycle": 0.0399,
+        "car": 0.523,
+        "van": 0.2925,
+        "truck": 0.2338,
+        "tricycle": 0.1333,
+        "awning-tricycle": 0.0742,
+        "bus": 0.3419,
+        "motor": 0.1722
+      },
+      "by_size": {
+        "mAP50_95": 0.1913,
+        "mAP50": 0.3217,
+        "AP_small": 0.0963,
+        "AP_medium": 0.3013,
+        "AP_large": 0.4835
+      },
+      "shared_classes_for_domain_gap": {
+        "mAP50_95": 0.2347,
+        "mAP50": 0.3952,
+        "AP_small": 0.1197,
+        "AP_medium": 0.3558,
+        "AP_large": 0.534
+      },
+      "confusion_matrix_png": "training/runs/yolo11s-visdrone-val/confusion_matrix_normalized.png"
+    }
+  },
+  "models": {
+    "yolo11n-coco": {
+      "onnx_mb": 10.2,
+      "parity": {
+        "raw_max_abs_diff_box_px": 0.00751,
+        "raw_max_abs_diff_score": 1.4e-05,
+        "reference_boxes": 148,
+        "onnx_boxes": 148,
+        "match_rate": 1.0,
+        "mean_iou_of_matches": 0.9982,
+        "max_score_diff": 5e-05
+      },
+      "latency_ms": {
+        "cpu_fp32": 55.57,
+        "cuda_fp32": 18.97,
+        "cpu_int8": 72.63,
+        "cuda_fp16": 21.61
+      },
+      "int8_parity": {
+        "raw_max_abs_diff_box_px": 414.69885,
+        "raw_max_abs_diff_score": 0.858434,
+        "reference_boxes": 65,
+        "onnx_boxes": 59,
+        "match_rate": 0.8,
+        "mean_iou_of_matches": 0.9692,
+        "max_score_diff": 0.31606
+      }
+    },
+    "yolo11s-coco": {
+      "onnx_mb": 36.3,
+      "parity": {
+        "raw_max_abs_diff_box_px": 0.00717,
+        "raw_max_abs_diff_score": 3.1e-05,
+        "reference_boxes": 145,
+        "onnx_boxes": 145,
+        "match_rate": 1.0,
+        "mean_iou_of_matches": 0.9984,
+        "max_score_diff": 5e-05
+      },
+      "latency_ms": {
+        "cpu_fp32": 103.27,
+        "cuda_fp32": 25.63,
+        "cpu_int8": 152.96,
+        "cuda_fp16": 23.13
+      },
+      "int8_parity": {
+        "raw_max_abs_diff_box_px": 406.82886,
+        "raw_max_abs_diff_score": 0.69713,
+        "reference_boxes": 59,
+        "onnx_boxes": 64,
+        "match_rate": 0.8644,
+        "mean_iou_of_matches": 0.9727,
+        "max_score_diff": 0.21367
+      }
+    },
+    "yolo11n-visdrone": {
+      "onnx_mb": 10.2,
+      "parity": {
+        "raw_max_abs_diff_box_px": 0.00456,
+        "raw_max_abs_diff_score": 8e-06,
+        "reference_boxes": 709,
+        "onnx_boxes": 709,
+        "match_rate": 1.0,
+        "mean_iou_of_matches": 0.9974,
+        "max_score_diff": 5e-05
+      },
+      "latency_ms": {
+        "cpu_fp32": 50.59,
+        "cuda_fp32": 17.52,
+        "cpu_int8": 76.27,
+        "cuda_fp16": 18.31
+      },
+      "int8_parity": {
+        "raw_max_abs_diff_box_px": 381.22345,
+        "raw_max_abs_diff_score": 0.488261,
+        "reference_boxes": 464,
+        "onnx_boxes": 454,
+        "match_rate": 0.7694,
+        "mean_iou_of_matches": 0.9571,
+        "max_score_diff": 0.17628
+      }
+    },
+    "yolo11s-visdrone": {
+      "onnx_mb": 36.2,
+      "parity": {
+        "raw_max_abs_diff_box_px": 0.00513,
+        "raw_max_abs_diff_score": 7e-06,
+        "reference_boxes": 855,
+        "onnx_boxes": 855,
+        "match_rate": 1.0,
+        "mean_iou_of_matches": 0.9971,
+        "max_score_diff": 5e-05
+      },
+      "latency_ms": {
+        "cpu_fp32": 128.03,
+        "cuda_fp32": 30.74,
+        "cpu_int8": 188.48,
+        "cuda_fp16": 22.99
+      },
+      "int8_parity": {
+        "raw_max_abs_diff_box_px": 327.8996,
+        "raw_max_abs_diff_score": 0.451672,
+        "reference_boxes": 582,
+        "onnx_boxes": 559,
+        "match_rate": 0.8179,
+        "mean_iou_of_matches": 0.9569,
+        "max_score_diff": 0.16199
+      }
+    }
+  }
+}

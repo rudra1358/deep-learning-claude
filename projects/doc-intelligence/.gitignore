@@ -1,0 +1,11 @@
+__pycache__/
+.pytest_cache/
+data/
+models/*
+!models/.gitkeep
+training/*.log
+client/node_modules/
+client/dist/
+server/node_modules/
+.env
+training/reports/log_*.txt

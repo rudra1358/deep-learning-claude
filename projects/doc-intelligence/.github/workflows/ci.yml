@@ -1,0 +1,39 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  ml-service:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: ml-service } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -r requirements-dev.txt ruff
+      - run: ruff check app ingest search nlp tests      # rules in ../ruff.toml
+      - run: pytest -q        # fake models: no downloads, no GPU
+
+  server:
+    runs-on: ubuntu-latest
+    services:
+      mongo:              # the tests use a real MongoDB (database "docintel-test")
+        image: mongo:7
+        ports: ["27017:27017"]
+    defaults: { run: { working-directory: server } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: server/package-lock.json }
+      - run: npm ci
+      - run: npm test         # fake ML service started inside the test: no Python needed
+
+  client:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: client } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
+      - run: npm ci
+      - run: npm run build

@@ -1,0 +1,9 @@
+line-length = 120
+
+[lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501", "E702"]
+
+[lint.isort]
+# our own top-level packages/modules (ml-service/ and training/ are put on sys.path when running)
+known-first-party = ["app", "ingest", "search", "nlp", "common"]
