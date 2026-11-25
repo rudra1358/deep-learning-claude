@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+.pytest_cache/
+datasets/
+data/
+training/runs/
+training/weights/
+*.pt
+# exported models are build artifacts (re-create with training/export_onnx.py); keep them out of git
+models/*.onnx
+frontend/node_modules/
+frontend/.next/
+.env
+demo/
+!models/.gitkeep
+training/reports/log_*.txt
+training/configs/visdrone.yaml
+training/configs/coco-val500.yaml

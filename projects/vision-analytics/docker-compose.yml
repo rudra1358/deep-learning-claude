@@ -1,0 +1,50 @@
+# One-command start:   docker compose up --build                                   (CPU)
+#                      docker compose --profile gpu up --build db api-gpu web      (NVIDIA GPU)
+# Frontend: http://localhost:3100   API docs: http://localhost:8100/docs
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vision
+      POSTGRES_PASSWORD: vision          # local-dev credentials; use a secret in real deployments
+      POSTGRES_DB: vision
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vision"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    environment:
+      VA_DATABASE_URL: postgresql+psycopg://vision:vision@db:5432/vision
+      VA_CORS_ORIGINS: '["http://localhost:3100"]'
+      VA_DEVICE: cpu
+      VA_DEFAULT_MODEL: ${VA_DEFAULT_MODEL:-yolo11n-coco}
+    volumes: [appdata:/app/data]
+    ports: ["8100:8100"]
+    depends_on: { db: { condition: service_healthy } }
+
+  api-gpu:
+    build: { context: ., dockerfile: backend/Dockerfile.gpu }
+    environment:
+      VA_DATABASE_URL: postgresql+psycopg://vision:vision@db:5432/vision
+      VA_CORS_ORIGINS: '["http://localhost:3100"]'
+    volumes: [appdata:/app/data]
+    ports: ["8100:8100"]
+    depends_on: { db: { condition: service_healthy } }
+    deploy:
+      resources:
+        reservations:
+          devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+    profiles: ["gpu"]
+
+  web:
+    build:
+      context: frontend
+      args: { NEXT_PUBLIC_API_URL: "http://localhost:8100" }
+    ports: ["3100:3100"]
+
+volumes:
+  pgdata:
+  appdata:

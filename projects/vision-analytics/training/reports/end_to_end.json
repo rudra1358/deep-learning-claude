@@ -1,0 +1,46 @@
+{
+  "model": "yolo11n-coco",
+  "video": "pedestrians.avi",
+  "cuda": {
+    "provider": "CUDAExecutionProvider",
+    "frames": 300,
+    "resolution": "768x576",
+    "end_to_end_fps": 36.7,
+    "avg_detector_ms": 24.24,
+    "unique_objects": {
+      "person": 16,
+      "truck": 1,
+      "car": 1,
+      "dog": 1
+    },
+    "line": {
+      "in": {
+        "person": 2
+      },
+      "out": {
+        "person": 5
+      }
+    }
+  },
+  "cpu": {
+    "provider": "CPUExecutionProvider",
+    "frames": 300,
+    "resolution": "768x576",
+    "end_to_end_fps": 18.8,
+    "avg_detector_ms": 49.94,
+    "unique_objects": {
+      "person": 16,
+      "truck": 1,
+      "car": 1,
+      "dog": 1
+    },
+    "line": {
+      "in": {
+        "person": 2
+      },
+      "out": {
+        "person": 5
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+# API image context = project root; send only what backend/Dockerfile copies.
+**
+!backend/requirements.txt
+!backend/app/**
+!backend/ingest/**
+!backend/search/**
+!backend/nlp/**
+!models/**
+!training/reports/**
+**/__pycache__

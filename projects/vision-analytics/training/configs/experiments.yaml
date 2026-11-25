@@ -1,0 +1,33 @@
+# Every training run is defined here, not on the command line, so results are reproducible:
+#   python training/train.py --exp yolo11n-visdrone
+# Common settings first; each experiment overrides what it needs.
+common:
+  data: training/configs/visdrone.yaml
+  imgsz: 640
+  seed: 0
+  deterministic: true
+  patience: 10          # early stopping: stop if val mAP has not improved for 10 epochs
+  workers: 2            # Windows: every DataLoader worker is a full process that loads the CUDA DLLs
+                        # (~1 GB commit each, validation uses 2x). 4 workers exhausted the page file on a 16 GB laptop.
+  cos_lr: true          # cosine learning-rate decay
+  close_mosaic: 5       # turn mosaic augmentation off for the last 5 epochs (clean images for final fit)
+  # augmentation (Ultralytics defaults, written out so they are visible and versioned)
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  fliplr: 0.5
+  mosaic: 1.0
+  scale: 0.5
+  translate: 0.1
+
+experiments:
+  # Batch sizes chosen for a 6 GB laptop GPU: batch 16 on yolo11n peaked at 5.8 GB (measured),
+  # which on Windows spills into slow shared memory. Epoch budgets fit a ~5 h total GPU budget.
+  yolo11n-visdrone:
+    model: yolo11n.pt   # COCO-pretrained nano (2.6 M params) -> transfer learning
+    epochs: 30
+    batch: 12
+  yolo11s-visdrone:
+    model: yolo11s.pt   # COCO-pretrained small (9.4 M params)
+    epochs: 20
+    batch: 6

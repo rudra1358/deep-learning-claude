@@ -1,0 +1,25 @@
+# docker compose up --build      ->  UI http://localhost:3200   API docs http://localhost:8200/docs
+services:
+  db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: docs, POSTGRES_PASSWORD: docs, POSTGRES_DB: docs }   # local-dev credentials
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U docs"], interval: 5s, retries: 10 }
+
+  api:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    environment:
+      DI_DATABASE_URL: postgresql+psycopg://docs:docs@db:5432/docs
+      DI_CORS_ORIGINS: '["http://localhost:3200"]'
+    volumes: [appdata:/app/data]            # uploads + FAISS index survive restarts
+    ports: ["8200:8200"]
+    depends_on: { db: { condition: service_healthy } }
+    deploy: { resources: { limits: { memory: 6g } } }
+
+  web:
+    build: { context: frontend, args: { NEXT_PUBLIC_API_URL: "http://localhost:8200" } }
+    ports: ["3200:3200"]
+
+volumes:
+  pgdata:
+  appdata:
