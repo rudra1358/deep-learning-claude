@@ -119,7 +119,7 @@ Open http://localhost:4100. Then check the running stack end to end (server + Mo
 python scripts/docker_smoke.py
 ```
 
-CI (`.github/workflows/ci.yml`, job `docker`) does the same on every push: builds the images, starts the
+CI (`.github/workflows/vision-analytics.yml` at the repository root, job `docker`) does the same on every push: builds the images, starts the
 stack with a generated test model, and runs `scripts/docker_smoke.py`.
 
 **Windows:** Docker Desktop needs WSL 2. If `wsl -l -v` says WSL is not installed, run `wsl --install` in an

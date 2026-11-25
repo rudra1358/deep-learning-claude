@@ -1,10 +1,15 @@
-name: ci
-on: [push, pull_request]
+# CI for projects/doc-intelligence. Runs only when that project (or this file) changes.
+name: doc-intelligence
+on:
+  push:
+    paths: ["projects/doc-intelligence/**", ".github/workflows/doc-intelligence.yml"]
+  pull_request:
+    paths: ["projects/doc-intelligence/**", ".github/workflows/doc-intelligence.yml"]
 
 jobs:
   ml-service:
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: ml-service } }
+    defaults: { run: { working-directory: projects/doc-intelligence/ml-service } }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,20 +25,26 @@ jobs:
       mongo:              # the tests use a real MongoDB (database "docintel-test")
         image: mongo:7
         ports: ["27017:27017"]
-    defaults: { run: { working-directory: server } }
+    defaults: { run: { working-directory: projects/doc-intelligence/server } }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: server/package-lock.json }
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: projects/doc-intelligence/server/package-lock.json
       - run: npm ci
       - run: npm test         # fake ML service started inside the test: no Python needed
 
   client:
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: client } }
+    defaults: { run: { working-directory: projects/doc-intelligence/client } }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: projects/doc-intelligence/client/package-lock.json
       - run: npm ci
       - run: npm run build
