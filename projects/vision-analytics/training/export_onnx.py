@@ -26,7 +26,7 @@ import numpy as np
 
 from common import MODELS, ROOT, RUNS, pretrained, update_metrics
 
-sys.path.insert(0, str(ROOT / "backend"))
+sys.path.insert(0, str(ROOT / "ml-service"))
 from inference.detector import OnnxDetector  # noqa: E402
 from inference.postprocess import box_iou  # noqa: E402
 

@@ -25,7 +25,7 @@ from rouge_score import rouge_scorer
 
 from common import REPORTS, ROOT, update_metrics
 
-sys.path.insert(0, str(ROOT / "backend"))
+sys.path.insert(0, str(ROOT / "ml-service"))
 from nlp.summarize import Summarizer  # noqa: E402
 
 

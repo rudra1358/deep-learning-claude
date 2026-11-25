@@ -33,7 +33,7 @@ from datasets import load_dataset
 
 from common import DATA, ROOT, update_metrics
 
-sys.path.insert(0, str(ROOT / "backend"))
+sys.path.insert(0, str(ROOT / "ml-service"))
 from ingest.chunk import chunk_pages  # noqa: E402
 from ingest.extract import extract  # noqa: E402
 from nlp.qa import ExtractiveQA  # noqa: E402

@@ -12,21 +12,24 @@ that use it as revision notes. Real measured numbers are in [RESULTS.md](RESULTS
 > (VisDrone) — which took it from 12.2 to 23.5 mAP on that footage — finds objects in each frame. A ByteTrack-style tracker that I implemented myself — Kalman
 > filter plus Hungarian matching — links detections across frames so each object gets a persistent ID.
 > On top of that, an analytics layer counts objects crossing a virtual line, measures dwell time and
-> occupancy over time. The model is exported to ONNX and served by a FastAPI backend over HTTP and
-> WebSockets, results are stored in PostgreSQL, and a Next.js dashboard shows live overlays, history and
+> occupancy over time. The model is exported to ONNX and served by a Python FastAPI ML service. The web
+> app is a MERN stack: a React dashboard talks to a Node/Express API, which stores every run in MongoDB and
+> calls the Python service over HTTP and WebSockets. The dashboard shows live overlays, history and
 > model comparisons. The whole pipeline runs at about 37 FPS on a laptop GPU and 19 FPS on CPU, and it is
 > packaged with Docker Compose."
 
 Then be ready to go deep on any box in this diagram:
 
 ```
- Browser (Next.js)                          FastAPI backend                              Storage
- ─────────────────                          ───────────────                              ───────
- webcam frames ──JPEG over WebSocket──▶  decode ─▶ letterbox ─▶ ONNX Runtime (YOLO11)
- image / video upload ──HTTP──────────▶         ─▶ decode + NMS ─▶ ByteTrack tracker
-                                               ─▶ analytics (line crossings, dwell, occupancy)
- overlay + charts ◀──JSON results──────  ◀────────────────────────────────────────┘ ──▶ PostgreSQL / SQLite
-                                         video jobs run in a background worker thread    + frames.json per video
+ Browser (React)            Node + Express server              Python ML service (FastAPI)
+ ───────────────            ─────────────────────              ───────────────────────────
+ webcam frames ──WS──▶  relay /api/stream ──WS──▶  decode ─▶ letterbox ─▶ ONNX Runtime (YOLO11)
+ image / video ──HTTP─▶ multer upload ─────HTTP──▶       ─▶ decode + NMS ─▶ ByteTrack tracker
+                         validate, save run                 ─▶ analytics (line crossings, dwell, occupancy)
+ overlay + charts ◀──── JSON ◀──────────────────── results ◀┘   video jobs: background worker thread
+                              │                                 writes frames.json + playback.webm
+                              ▼
+                        MongoDB (runs, history, analytics)
 ```
 
 ---
@@ -175,7 +178,7 @@ or TensorRT are the next things to try. Full table in RESULTS.md.
 
 ---
 
-## 7. Serving-time pipeline (backend/inference/) — written by hand, no Ultralytics at runtime
+## 7. Serving-time pipeline (ml-service/inference/) — written by hand, no Ultralytics at runtime
 
 ### 7.1 Letterbox (preprocess.py)
 Resize keeping the aspect ratio so the long side is 640, pad the rest with grey (114). Stretching would
@@ -225,37 +228,48 @@ lost (kept for 30 frames, can be re-found after an occlusion with the *same ID*)
 
 ---
 
-## 8. Backend API (backend/app/)
+## 8. Web API (server/, Node + Express) and ML service (ml-service/, Python)
 
-| Endpoint | What it does |
-|---|---|
-| `POST /api/detect/image` | upload image → detections, counts, timing breakdown; saved to history |
-| `POST /api/compare` | same image through 2–4 models → side-by-side accuracy/latency |
-| `POST /api/detect/video` | upload video (+ optional counting line) → **202 Accepted** + run id; processed in background |
-| `GET /api/runs/{id}` | status / progress / summary (the frontend polls this) |
-| `GET /api/runs/{id}/frames` `/video` `/timeseries` `/events` `/export.csv` | playback overlay data, charts, CSV export |
-| `GET /api/runs?kind=&label=&q=` | searchable, paginated history |
-| `GET /api/analytics/overview` | totals across all runs (aggregated in SQL) |
-| `WS /api/stream` | live webcam: one JPEG frame in → tracks + analytics JSON out |
-| `GET /api/models`, `/api/metrics`, `/api/health` | model registry, offline evaluation results, health check |
+The browser only talks to the Express server. The server stores everything in MongoDB and calls the Python
+ML service whenever a model is needed.
+
+| Endpoint (Express, public) | What it does | Python call behind it |
+|---|---|---|
+| `POST /api/detect/image` | upload image → detections, counts, timing breakdown; saved to history | `POST /detect/image` |
+| `POST /api/compare` | same image through 2–4 models → side-by-side accuracy/latency | `POST /compare` |
+| `POST /api/detect/video` | upload video (+ optional counting line) → **202 Accepted** + run id | `POST /jobs/video`, then polls `GET /jobs/{id}` |
+| `GET /api/runs/{id}` | status / progress / summary (the client polls this) | — (MongoDB) |
+| `GET /api/runs/{id}/frames` `/video` `/timeseries` `/events` `/export.csv` | playback overlay data, charts, CSV export | — (MongoDB + files) |
+| `GET /api/runs?kind=&label=&q=` | searchable, paginated history | — (MongoDB) |
+| `GET /api/analytics/overview` | totals across all runs (MongoDB aggregation pipelines) | — |
+| `WS /api/stream` | live webcam: one JPEG frame in → tracks + analytics JSON out | relayed to `WS /stream` |
+| `GET /api/models`, `/api/metrics`, `/api/health` | model registry, offline evaluation results, health of the whole stack | `/models`, `/metrics`, `/health` |
 
 Design decisions worth explaining:
+* **Why three tiers (React → Express + MongoDB → Python)?** Each language does what it is best at: Python for
+  NumPy/OpenCV/ONNX Runtime, JavaScript for the web. The ML service is stateless (no database), so it can be
+  tested with a fake model, restarted, or moved to a GPU machine without touching the web app; the server can
+  be tested with a fake ML service. The browser never sees Python, so only one service is public.
 * **Model loaded once** at startup and cached (`models_registry.py`); ONNX Runtime sessions are thread-safe.
   Loading per request would cost ~0.5 s and GPU memory each time.
-* **Long work never blocks a request**: video upload streams to disk in 1 MB chunks (never whole file in
-  RAM), returns 202 immediately, a worker thread processes it and updates `progress` in the DB. At larger
-  scale the same contract maps onto Celery/RQ + Redis with workers in their own containers.
+* **Long work never blocks a request**: Express streams the video upload to disk (multer `diskStorage`, never
+  the whole file in RAM), creates a `queued` run in MongoDB, starts the Python job and returns 202 immediately.
+  A worker thread in Python processes it; the server polls its progress and, when it is done, copies the
+  result into MongoDB. At larger scale the same contract maps onto a real queue (Celery/RQ + Redis, or BullMQ)
+  with workers in their own containers.
 * **WebSocket back-pressure**: the browser sends the next frame only after receiving the previous
   result. If the server is slow, the frame rate drops instead of a queue of stale frames building up
-  (otherwise the overlay would lag further and further behind reality).
+  (otherwise the overlay would lag further and further behind reality). The Express relay passes frames
+  through one by one, so this still holds end to end.
 * **CPU-bound inference runs in a thread pool** (`run_in_threadpool`) so the async event loop keeps
   serving other connections.
 * **Validation everywhere**: file types, sizes, thresholds in (0, 1), line coordinates in [0, 1] →
   clear 4xx errors; failed videos are marked `failed` with the error message instead of crashing the worker.
-* **Database**: SQLAlchemy 2.0 ORM; SQLite for zero-setup local dev, PostgreSQL in Docker — only the URL
-  changes. Tables: runs, detections, tracks, events, count_samples. Per-frame track positions for a video
-  are a JSON file (thousands of rows per minute of video would bloat the DB; they're only read as a whole
-  for playback).
+* **Database**: MongoDB via Mongoose. One document per run with the detections, tracks, line-crossing events
+  and per-second counts **embedded** as arrays (in SQL these were five tables joined by `run_id`): they are
+  always read and deleted with their run, so one document = one read, no joins. Per-frame track positions for
+  a video are a JSON file on disk (thousands of entries per minute of video; only read as a whole for
+  playback, and MongoDB documents are limited to 16 MB).
 
 ---
 
@@ -265,20 +279,27 @@ Design decisions worth explaining:
   round-trip, YOLO decoding on a synthetic tensor, the Kalman filter learning a constant velocity,
   the tracker keeping IDs through a 5-frame occlusion, low-score recovery, no confirmation of one-frame
   noise, line-crossing direction and once-only counting.
-* **API tests** (`tests/test_api.py`) use a **generated fake ONNX model** with the exact YOLO
-  input/output signature and known boxes — so the full path (upload → decode → ONNX Runtime → NMS →
-  rescale → DB → JSON) is tested deterministically, in CI, without GPU or real weights. Includes the
-  background video job, WebSocket protocol, history filters, CSV export, deletion, and error cases.
+* **ML service tests** (`ml-service/tests/test_api.py`) use a **generated fake ONNX model** with the exact
+  YOLO input/output signature and known boxes — so the full path (upload → decode → ONNX Runtime → NMS →
+  rescale → JSON) is tested deterministically, in CI, without GPU or real weights. Includes the background
+  video job (and its `frames.json` / playable WebM), the WebSocket protocol, and error cases.
+* **Server tests** (`server/tests/api.test.js`) use a real MongoDB and a **fake ML service** (a few lines of
+  Express that answer like Python): storage, history filters, MongoDB aggregations, CSV export, deletion,
+  video-job polling, the WebSocket relay and error cases.
 
 ---
 
 ## 10. Deployment
 
-* `backend/Dockerfile` — slim Python image, only ONNX Runtime (no PyTorch), non-root user, health check.
-* `backend/Dockerfile.gpu` — CUDA + cuDNN runtime with `onnxruntime-gpu`.
-* `docker-compose.yml` — PostgreSQL + API + frontend; `docker compose up --build`.
-* CI (`.github/workflows/ci.yml`) — lint + backend tests + frontend type-check and build on every push.
-* Configuration via environment variables (`VA_*`), 12-factor style.
+* `ml-service/Dockerfile` — slim Python image, only ONNX Runtime (no PyTorch), non-root user, health check.
+* `ml-service/Dockerfile.gpu` — CUDA + cuDNN runtime with `onnxruntime-gpu`.
+* `server/Dockerfile` — two stages: build the React client with Vite, then a small Node image that runs
+  Express and serves the built client (one container, one port: 4100).
+* `docker-compose.yml` — MongoDB + ML service + server; `docker compose up --build`.
+* CI (`.github/workflows/ci.yml`) — Python lint + tests, server tests against a MongoDB service container,
+  client format check + build, then the whole Docker stack with a smoke test, on every push.
+* Configuration via environment variables (`VA_*` for Python; `MONGO_URL`, `ML_URL`, `DATA_DIR` for Node),
+  12-factor style.
 
 ---
 

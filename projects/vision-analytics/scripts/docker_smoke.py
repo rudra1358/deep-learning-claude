@@ -1,10 +1,11 @@
-"""Smoke test against a RUNNING docker compose stack (API in its container + PostgreSQL + web).
+"""Smoke test against a RUNNING docker compose stack (server + MongoDB + ML service).
 
     docker compose up -d --build
     python scripts/docker_smoke.py            # exits non-zero on the first failure
 
-Checks: API healthy, a model is loaded, image detection is stored in PostgreSQL and
-searchable, a video job runs to completion inside the container, the dashboard serves pages.
+Everything goes through the server on :4100, like the browser: API healthy (MongoDB + ML service up),
+a model is loaded, image detection is stored in MongoDB and searchable, a video job runs to completion
+in the ML container, and the server serves the React dashboard.
 """
 import argparse
 import sys
@@ -21,24 +22,27 @@ def check(cond, msg):
         sys.exit(1)
 
 
-def main(api: str, web: str, timeout: float) -> None:
+def main(api: str, timeout: float) -> None:
     c = httpx.Client(base_url=api, timeout=30)
     t0 = time.time()
     while True:                                   # the API container needs a few seconds to start
         try:
             h = c.get("/api/health").json()
-            break
+            if h["status"] == "ok":
+                break
+            raise RuntimeError(h)
         except Exception:  # noqa: BLE001
             if time.time() - t0 > timeout:
                 check(False, f"API reachable at {api}")
             time.sleep(2)
-    check(h["status"] == "ok" and h["models"], f"API healthy, models: {h['models']}, default: {h['default_model']}")
+    check(h["mongo"] == "ok" and h["ml"] == "ok" and h["models"],
+          f"server healthy (MongoDB + ML service), models: {h['models']}, default: {h['default_model']}")
 
     img = cv2.imencode(".jpg", np.full((480, 960, 3), 100, np.uint8))[1].tobytes()
     r = c.post("/api/detect/image", files={"file": ("smoke.jpg", img, "image/jpeg")})
     check(r.status_code == 200, f"POST /api/detect/image -> {r.status_code} {r.json().get('counts')}")
     run_id = r.json()["run_id"]
-    check(c.get(f"/api/runs/{run_id}").status_code == 200, f"run {run_id} stored in the database")
+    check(c.get(f"/api/runs/{run_id}").status_code == 200, f"run {run_id} stored in MongoDB")
     check(c.get("/api/runs", params={"q": "smoke"}).json()["total"] >= 1, "history search finds it")
 
     vw_path = "smoke.mp4"
@@ -57,18 +61,16 @@ def main(api: str, web: str, timeout: float) -> None:
         time.sleep(1)
     check(run["status"] == "done", f"video job finished in the container: {run['status']} {run.get('error') or ''}")
     check(c.get(f"/api/runs/{vid}/video").status_code == 200, "playback video served")
-    check(c.get("/api/analytics/overview").status_code == 200, "analytics overview (SQL aggregation)")
+    check(c.get("/api/analytics/overview").status_code == 200, "analytics overview (MongoDB aggregation)")
 
-    if web:
-        w = httpx.get(web, timeout=30)
-        check(w.status_code == 200 and "Vision Analytics" in w.text, f"dashboard serves {web}")
+    w = c.get("/history")
+    check(w.status_code == 200 and "Vision Analytics" in w.text, "server serves the React dashboard")
     print("ALL SMOKE CHECKS PASSED")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--api", default="http://localhost:8100")
-    ap.add_argument("--web", default="http://localhost:3100")
+    ap.add_argument("--api", default="http://localhost:4100")
     ap.add_argument("--timeout", type=float, default=120)
     a = ap.parse_args()
-    main(a.api, a.web, a.timeout)
+    main(a.api, a.timeout)

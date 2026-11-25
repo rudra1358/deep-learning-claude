@@ -1,0 +1,9 @@
+# Serving dependencies only - no PyTorch / Ultralytics needed at runtime (the model is ONNX).
+numpy>=1.26
+scipy>=1.11
+opencv-python-headless>=4.9
+onnxruntime>=1.20          # swap for onnxruntime-gpu on CUDA hosts (see Dockerfile.gpu)
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic-settings>=2.4
+python-multipart>=0.0.9

@@ -8,8 +8,9 @@ training/weights/
 *.pt
 # exported models are build artifacts (re-create with training/export_onnx.py); keep them out of git
 models/*.onnx
-frontend/node_modules/
-frontend/.next/
+client/node_modules/
+client/dist/
+server/node_modules/
 .env
 demo/
 !models/.gitkeep

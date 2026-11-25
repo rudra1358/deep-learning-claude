@@ -1,25 +1,39 @@
-# docker compose up --build      ->  UI http://localhost:3200   API docs http://localhost:8200/docs
+# docker compose up --build      ->  UI + API on http://localhost:4200   (ML service docs: http://localhost:8200/docs)
+#
+# Three containers, the three tiers of the app:
+#   mongo   MongoDB - documents, pages, chats (the system of record)
+#   ml      Python FastAPI - models + the FAISS search index (never called by the browser)
+#   server  Node/Express - the API the browser calls; also serves the built React app
+# server and ml share one volume (/app/data): the server saves an upload there, the ML service reads it.
 services:
-  db:
-    image: postgres:16-alpine
-    environment: { POSTGRES_USER: docs, POSTGRES_PASSWORD: docs, POSTGRES_DB: docs }   # local-dev credentials
-    volumes: [pgdata:/var/lib/postgresql/data]
-    healthcheck: { test: ["CMD-SHELL", "pg_isready -U docs"], interval: 5s, retries: 10 }
+  mongo:
+    image: mongo:7
+    volumes: [mongodata:/data/db]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      retries: 10
 
-  api:
-    build: { context: ., dockerfile: backend/Dockerfile }
+  ml:
+    build: { context: ., dockerfile: ml-service/Dockerfile }
     environment:
-      DI_DATABASE_URL: postgresql+psycopg://docs:docs@db:5432/docs
-      DI_CORS_ORIGINS: '["http://localhost:3200"]'
-    volumes: [appdata:/app/data]            # uploads + FAISS index survive restarts
-    ports: ["8200:8200"]
-    depends_on: { db: { condition: service_healthy } }
+      DI_DATA_DIR: /app/data
+    volumes: [appdata:/app/data]            # uploads + FAISS index + chunk store survive restarts
+    ports: ["8200:8200"]                    # only for the /docs page; the browser never calls it
     deploy: { resources: { limits: { memory: 6g } } }
 
-  web:
-    build: { context: frontend, args: { NEXT_PUBLIC_API_URL: "http://localhost:8200" } }
-    ports: ["3200:3200"]
+  server:
+    build: { context: ., dockerfile: server/Dockerfile }
+    environment:
+      MONGO_URL: mongodb://mongo:27017/docintel
+      ML_URL: http://ml:8200
+      DATA_DIR: /app/data
+    volumes: [appdata:/app/data]
+    ports: ["4200:4200"]
+    depends_on:
+      mongo: { condition: service_healthy }
+      ml: { condition: service_started }
 
 volumes:
-  pgdata:
+  mongodata:
   appdata:

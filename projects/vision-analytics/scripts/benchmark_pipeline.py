@@ -12,7 +12,7 @@ from pathlib import Path
 import cv2
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "backend"))
+sys.path.insert(0, str(ROOT / "ml-service"))
 from app.pipeline import Pipeline  # noqa: E402
 from inference.detector import OnnxDetector  # noqa: E402
 

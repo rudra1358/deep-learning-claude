@@ -2,42 +2,58 @@ name: ci
 on: [push, pull_request]
 
 jobs:
-  backend:
+  ml-service:
+    # Python: detector, tracker, analytics, video jobs, live WebSocket (fake ONNX model, no GPU)
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: backend } }
+    defaults: { run: { working-directory: ml-service } }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.12", cache: pip, cache-dependency-path: backend/requirements*.txt }
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: ml-service/requirements*.txt }
       - run: sudo apt-get update && sudo apt-get install -y libgl1
       - run: pip install -r requirements-dev.txt ruff
       - run: ruff check app inference tests      # rules in ../ruff.toml
-      - run: pytest -q          # uses a generated fake ONNX model: no weights or GPU needed
+      - run: pytest -q
 
-  frontend:
+  server:
+    # Node/Express: storage, history, analytics, job polling, WebSocket relay (real MongoDB, fake ML service)
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: frontend } }
+    defaults: { run: { working-directory: server } }
+    services:
+      mongo:
+        image: mongo:7
+        ports: ["27017:27017"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+        with: { node-version: 22, cache: npm, cache-dependency-path: server/package-lock.json }
       - run: npm ci
-      - run: npx tsc --noEmit
+      - run: npm test
+
+  client:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: client } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
+      - run: npm ci
+      - run: npx prettier --check "src/**/*.{js,jsx}"
       - run: npm run build
 
   docker:
-    # Builds the real images and runs the whole stack (API container + PostgreSQL + dashboard).
+    # Builds the real images and runs the whole stack (MongoDB + ML service + server/dashboard).
     # Trained weights are not in git, so a tiny generated ONNX model with the real YOLO
     # input/output signature is placed in models/ first (same one the unit tests use).
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [ml-service, server, client]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install -r backend/requirements-dev.txt
+      - run: pip install -r ml-service/requirements-dev.txt
       - name: Generate a fake model for the image
-        working-directory: backend
+        working-directory: ml-service
         run: python -c "from tests.conftest import make_fake_model; from pathlib import Path; make_fake_model(Path('../models/fake.onnx'))"
       - run: docker compose build
       - run: docker compose up -d

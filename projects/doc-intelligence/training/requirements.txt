@@ -1,4 +1,4 @@
--r ../backend/requirements.txt
+-r ../ml-service/requirements.txt
 datasets>=3.0
 seqeval>=1.2
 scikit-learn>=1.4

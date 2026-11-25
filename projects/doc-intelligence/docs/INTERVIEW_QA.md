@@ -8,8 +8,8 @@ Learn the ideas, then answer in your own words. Quote numbers only from [RESULTS
 Problem (grounded answers over private documents, with sources and honest "not found") → ingestion (page-aware
 extraction, cleaning, sentence-aware chunks with overlap) → hybrid retrieval (BM25 + BGE in FAISS, RRF) →
 cross-encoder re-ranking → extractive reader with a tuned no-answer threshold, or a local LLM with citations →
-fine-tuned NER + topic classifier, map-reduce summaries → FastAPI with background ingestion → Next.js UI with
-highlighted sources → evaluated on SQuAD 2.0 as PDFs. Finish with one limitation and the next step.
+fine-tuned NER + topic classifier, map-reduce summaries → a Python (FastAPI) ML service behind an Express +
+MongoDB server with background ingestion jobs → React UI with highlighted sources → evaluated on SQuAD 2.0 as PDFs. Finish with one limitation and the next step.
 
 **2. What is RAG and why not just fine-tune an LLM on the documents?**
 Retrieval-Augmented Generation = retrieve relevant passages at question time and give them to the model as
@@ -128,17 +128,32 @@ can score well. Faithfulness needs other checks (NLI-based, QA-based, or human r
 ## Engineering
 
 **24. How does upload work without blocking the API?**
-The upload streams to disk, creates a "queued" row and returns 202; a single background worker extracts,
-chunks, embeds and indexes (searchable), then enriches (topic, entities, summary). On restart, interrupted jobs
-are re-queued. At scale: Celery/RQ + Redis and multiple workers.
+Express (multer) streams the file to disk, creates a "queued" document in MongoDB and returns 202. A background
+job queue in the server calls the Python ML service to extract, chunk, embed and index (searchable), then a
+second queue calls it to enrich (topic, entities, summary). On restart, interrupted jobs are re-queued. At
+scale: BullMQ/Celery + Redis and multiple workers.
 
-**25. What if the FAISS index and the database disagree?**
-The DB is the source of truth; chunk id = vector id. At startup, if the vector count doesn't match the DB, the
-index is rebuilt by re-embedding the chunks.
+**24b. Why MERN plus a Python service, and not one app?**
+The models need Python (PyTorch, Transformers, FAISS). Everything else — uploads, records, chat history, jobs,
+serving the UI — is classic web-app work where Node/Express and MongoDB are simple and fast. Splitting them
+means the ML service can run on a GPU machine and scale on its own, a model crash never loses data, and the
+browser only ever talks to one API. The price is one extra network hop and one more service to deploy.
+
+**24c. Why MongoDB? What is embedded and what is referenced?**
+The data is document-shaped: a chat session is always read with its messages, so messages are **embedded** in
+the session. Pages are a separate collection that **references** the document, because a long PDF has hundreds
+of pages and the document list must not load them. Entities are a small array embedded in the document.
+
+**25. What if the FAISS index and the stored chunks disagree?**
+The ML service keeps a chunk store (vector id → text, document, pages) next to the FAISS file; the vector id is
+its key. At startup, if the vector count doesn't match the store, the index is rebuilt by re-embedding the
+stored chunk texts. Both files are written with write-then-rename so a crash never leaves half a file.
 
 **26. How did you test code that depends on large models?**
 Model *quality* by evaluation scripts on labelled data; *plumbing* by API tests with tiny fake models (hash
-embedder, word-overlap re-ranker) so the full flow runs in seconds in CI without downloads.
+embedder, word-overlap re-ranker) so the full Python flow runs in seconds in CI without downloads. The Node
+server is tested against a real MongoDB and a fake ML service (a 40-line Express app), so its tests need no
+Python at all.
 
 **27. Tell me about a bug you found.**
 Pick from HOW_IT_WAS_BUILT §10. Best: measuring "does each gold answer survive PDF extraction" revealed

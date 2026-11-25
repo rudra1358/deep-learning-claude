@@ -3,10 +3,19 @@
 Two complete, measured deep-learning systems. Each folder has its own README and a `docs/` folder
 (how it was built, file-by-file code walkthrough, measured results, interview Q&A).
 
-| project | what it does | UI | API |
-|---|---|---|---|
-| [vision-analytics](vision-analytics/) | Detects, tracks and counts objects in images, videos and a live webcam (YOLO11 + ByteTrack) | http://localhost:3100 | http://localhost:8100/docs |
-| [doc-intelligence](doc-intelligence/) | Answers questions about your documents with the exact source highlighted, or says "not found" (RAG) | http://localhost:3200 | http://localhost:8200/docs |
+Both use the same **MERN + Python** architecture — three parts, each started in its own terminal:
+
+```
+client/  React (Vite, plain JavaScript)  ──/api──▶  server/  Node + Express + MongoDB  ──HTTP/WS──▶  ml-service/  Python (FastAPI, the models)
+```
+
+The browser only talks to the Express server. The server stores everything in MongoDB and calls the Python
+ML service whenever a model is needed.
+
+| project | what it does | UI (dev) | Express API | Python ML service |
+|---|---|---|---|---|
+| [vision-analytics](vision-analytics/) | Detects, tracks and counts objects in images, videos and a live webcam (YOLO11 + ByteTrack) | http://localhost:3100 | :4100 | http://localhost:8100/docs |
+| [doc-intelligence](doc-intelligence/) | Answers questions about your documents with the exact source highlighted, or says "not found" (RAG) | http://localhost:3200 | :4200 | http://localhost:8200/docs |
 
 Commands below are for **Windows (Git Bash or PowerShell)**. On macOS/Linux replace `.venv/Scripts/` with
 `.venv/bin/`.
@@ -17,6 +26,8 @@ Commands below are for **Windows (Git Bash or PowerShell)**. On macOS/Linux repl
 
 * **Python 3.12** (3.11 also works) — `python --version`
 * **Node.js 20+** — `node --version`
+* **MongoDB** running on `localhost:27017` — install MongoDB Community Server (it runs as a Windows service),
+  or `docker run -d -p 27017:27017 mongo:7`. Check: `mongosh --eval "db.version()"`.
 * **Git**
 * Optional: an **NVIDIA GPU** (developed on an RTX 3050 6 GB). Everything also runs on CPU, just slower.
 * Disk: ~6 GB for Python packages + ~4 GB of models downloaded on first use (more if you re-train).
@@ -75,22 +86,27 @@ You now have `models/yolo11n-coco.onnx` and `models/yolo11s-coco.onnx` (people, 
 good for the webcam and street videos). The drone-footage models (`*-visdrone`) need the full training run
 (section 3d).
 
-### 3b. Start the API (terminal 1)
+### 3b. Start the Python ML service (terminal 1)
 
 ```bash
 cd vision-analytics
 ../.venv/Scripts/python scripts/dev_api.py
 ```
 
-Open http://localhost:8100/docs — the interactive API documentation. `--device cpu` forces CPU.
+Open http://localhost:8100/docs — the ML service's interactive API documentation. `--device cpu` forces CPU.
 
-### 3c. Start the dashboard (terminal 2)
+### 3c. Start the Express server (terminal 2) and the React dashboard (terminal 3)
 
 ```bash
-cd vision-analytics/frontend
+cd vision-analytics/server
 npm install
-npm run build
 npm start
+```
+
+```bash
+cd vision-analytics/client
+npm install
+npm run dev
 ```
 
 Open **http://localhost:3100**:
@@ -115,11 +131,16 @@ exports with parity checks and regenerates `docs/RESULTS.md`. With 16 GB RAM kee
 ### 3e. Tests
 
 ```bash
-cd vision-analytics/backend
+cd vision-analytics/ml-service
 ../../.venv/Scripts/python -m pytest
 ```
 
-27 tests, no GPU or trained models needed.
+```bash
+cd vision-analytics/server
+npm test
+```
+
+25 Python tests (no GPU or trained models needed) + 9 server tests (real MongoDB, fake ML service).
 
 ---
 
@@ -135,7 +156,7 @@ cd doc-intelligence
 ../.venv/Scripts/python training/finetune_classifier.py
 ```
 
-### 4b. Start the API (terminal 1)
+### 4b. Start the Python ML service (terminal 1)
 
 ```bash
 cd doc-intelligence
@@ -146,13 +167,18 @@ The first start downloads the embedding model; the re-ranker, reader (~500 MB), 
 optional LLM (~3 GB) download the first time they are used. On a machine without a GPU, turn the LLM off
 before starting: `export DI_ENABLE_GENERATOR=false`.
 
-### 4c. Start the UI (terminal 2)
+### 4c. Start the Express server (terminal 2) and the React UI (terminal 3)
 
 ```bash
-cd doc-intelligence/frontend
+cd doc-intelligence/server
 npm install
-npm run build
 npm start
+```
+
+```bash
+cd doc-intelligence/client
+npm install
+npm run dev
 ```
 
 Open **http://localhost:3200**:
@@ -182,18 +208,24 @@ cd doc-intelligence
 ### 4e. Tests
 
 ```bash
-cd doc-intelligence/backend
+cd doc-intelligence/ml-service
 ../../.venv/Scripts/python -m pytest
 ```
 
-20 tests with tiny fake models — no downloads, no GPU.
+```bash
+cd doc-intelligence/server
+npm test
+```
+
+20 Python tests with tiny fake models (no downloads, no GPU) + 6 server tests (real MongoDB, fake ML service).
 
 ---
 
 ## 5. Docker (alternative to sections 3–4)
 
-Each project has a `docker-compose.yml` (API + PostgreSQL + UI): `docker compose up --build` inside the project
-folder. Create the models first (3a / 4a), because the images copy them. On Windows, Docker Desktop needs
+Each project has a `docker-compose.yml` (MongoDB + Python ML service + Express server, which also serves the
+built React app): `docker compose up --build` inside the project folder, then open http://localhost:4100
+(vision) or http://localhost:4200 (documents). Create the models first (3a / 4a), because the images copy them. On Windows, Docker Desktop needs
 WSL 2 (`wsl --install` in an administrator terminal, then restart). The Docker setup has been validated
 (`docker compose config`, clean-environment tests, CI jobs) but not yet built on the development laptop.
 
@@ -204,6 +236,8 @@ WSL 2 (`wsl --install` in an administrator terminal, then restart). The Docker s
 | A model download sits at 0 bytes | `export HF_HUB_DISABLE_XET=1`, restart the command |
 | Vision API says it runs on CPU although you have a GPU | `pip install "onnxruntime-gpu[cuda,cudnn]"` (ONNX Runtime needs its own CUDA libraries) |
 | Training crashes with "paging file is too small" | lower `workers` in `training/configs/experiments.yaml`, close other heavy programs |
-| `Port 3100/3200/8100/8200 already in use` | another copy is running — stop it, or pass `--port` to `scripts/dev_api.py` |
+| `Port 3100/3200/4100/4200/8100/8200 already in use` | another copy is running — stop it, or pass `--port` to `scripts/dev_api.py` / set `PORT` for the server |
+| Server exits with `MongooseServerSelectionError` | MongoDB is not running — start the MongoDB service (or the `mongo:7` container) |
+| UI shows "ML service unavailable" | start the Python ML service (terminal 1) |
 | Webcam page shows "camera blocked" | open the dashboard via `http://localhost:3100` (browsers only allow cameras on localhost/https) |
 | Generative answers are very slow | no GPU: set `DI_ENABLE_GENERATOR=false`; extractive mode stays fast |

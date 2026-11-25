@@ -5,5 +5,5 @@ select = ["E", "F", "W", "I"]
 ignore = ["E501", "E702"]
 
 [lint.isort]
-# our own top-level packages/modules (backend/ and training/ are put on sys.path when running)
+# our own top-level packages/modules (ml-service/ and training/ are put on sys.path when running)
 known-first-party = ["app", "ingest", "search", "nlp", "common"]

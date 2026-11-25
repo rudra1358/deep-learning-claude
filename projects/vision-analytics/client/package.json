@@ -1,0 +1,25 @@
+{
+  "name": "vision-analytics-client",
+  "version": "2.0.0",
+  "private": true,
+  "description": "React dashboard for Vision Analytics (plain JavaScript, Vite).",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 3100",
+    "build": "vite build",
+    "preview": "vite preview --port 3100",
+    "format": "prettier --write \"src/**/*.{js,jsx,css}\""
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "@vitejs/plugin-react": "^5.2.0",
+    "prettier": "^3.10.1",
+    "tailwindcss": "^4.3.5",
+    "vite": "^7.3.8"
+  }
+}

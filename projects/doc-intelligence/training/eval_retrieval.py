@@ -1,6 +1,6 @@
 """Measure retrieval quality on the SQuAD 2.0 corpus (35 articles as PDFs, one shared index).
 
-Uses the SAME backend code as the API (backend/ingest, backend/search, backend/nlp/rerank).
+Uses the SAME code as the ML service (ml-service/ingest, ml-service/search, ml-service/nlp/rerank).
 
 Labels: a chunk is relevant to a question if it comes from the question's article AND contains
 one of the gold answer strings. Only answerable questions are used here (a seeded sample).
@@ -29,7 +29,7 @@ import numpy as np
 
 from common import DATA, ROOT, update_metrics
 
-sys.path.insert(0, str(ROOT / "backend"))
+sys.path.insert(0, str(ROOT / "ml-service"))
 from ingest.chunk import chunk_pages  # noqa: E402
 from ingest.extract import extract  # noqa: E402
 from nlp.rerank import Reranker  # noqa: E402

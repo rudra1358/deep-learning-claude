@@ -1,9 +1,18 @@
-# Build context for the API images is the project root. Send the daemon only what the
-# Dockerfiles COPY: backend/app, backend/inference, backend/requirements.txt, models/, training/reports/.
+# Build context for all images is the project root. Send the daemon only what the
+# Dockerfiles COPY: ml-service code, models/, training/reports/, server/ and client/ sources.
 **
-!backend/requirements.txt
-!backend/app/**
-!backend/inference/**
+!ml-service/requirements.txt
+!ml-service/app/**
+!ml-service/inference/**
 !models/**
 !training/reports/**
+!server/package.json
+!server/package-lock.json
+!server/src/**
+!client/package.json
+!client/package-lock.json
+!client/index.html
+!client/vite.config.js
+!client/src/**
 **/__pycache__
+**/node_modules

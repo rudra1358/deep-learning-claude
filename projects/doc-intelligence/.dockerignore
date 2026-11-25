@@ -1,10 +1,11 @@
-# API image context = project root; send only what backend/Dockerfile copies.
+# ML image context = project root; send only what ml-service/Dockerfile copies.
+# (server/Dockerfile has its own list: server/Dockerfile.dockerignore)
 **
-!backend/requirements.txt
-!backend/app/**
-!backend/ingest/**
-!backend/search/**
-!backend/nlp/**
+!ml-service/requirements.txt
+!ml-service/app/**
+!ml-service/ingest/**
+!ml-service/search/**
+!ml-service/nlp/**
 !models/**
 !training/reports/**
 **/__pycache__

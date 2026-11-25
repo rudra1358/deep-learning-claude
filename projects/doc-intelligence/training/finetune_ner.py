@@ -1,5 +1,5 @@
 """Fine-tune DistilBERT for named-entity recognition on CoNLL-2003 (news sentences labelled with
-PER / ORG / LOC / MISC in BIO format). Output: models/ner/ (used by backend/nlp/ner.py).
+PER / ORG / LOC / MISC in BIO format). Output: models/ner/ (used by ml-service/nlp/ner.py).
 
 The key preprocessing step is LABEL ALIGNMENT. CoNLL labels whole words, but the tokenizer
 splits words into sub-words: "Washington" -> ["Wash", "##ington"]. We give the label to the

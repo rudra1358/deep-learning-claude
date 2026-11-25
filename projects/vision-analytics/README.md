@@ -8,10 +8,19 @@ history, analytics and model comparison.
 * **Tracker:** ByteTrack-style multi-object tracker written from scratch (Kalman filter + Hungarian matching
   + two-stage association with low-confidence detections).
 * **Analytics:** line-crossing counts (in/out), occupancy over time, dwell time, unique objects.
-* **Backend:** FastAPI (HTTP + WebSocket), SQLAlchemy (SQLite or PostgreSQL), background video jobs.
-* **Frontend:** Next.js dashboard — live webcam overlay, image & video analysis, run playback with
-  tracking overlay, history search & CSV export, model comparison, metrics.
-* **Ops:** Docker Compose (CPU and GPU profiles), pytest suite with a generated fake model, GitHub Actions CI.
+* **Web app (MERN):** **R**eact dashboard (Vite, plain JavaScript) → **N**ode + **E**xpress API → **M**ongoDB.
+  Live webcam overlay, image & video analysis, run playback with tracking overlay, history search & CSV
+  export, model comparison, metrics.
+* **ML service (Python):** FastAPI over HTTP + WebSocket — runs the detector, tracker and analytics, and
+  processes videos in a background worker. It stores nothing; the Express server owns the data.
+* **Ops:** Docker Compose (CPU and GPU profiles), pytest (fake ONNX model) + Node tests (fake ML service,
+  real MongoDB), GitHub Actions CI.
+
+```
+browser (React, client/)  ──/api + WebSocket──▶  Express server (server/)  ──HTTP + WebSocket──▶  ML service (ml-service/, Python)
+                                                      │
+                                                   MongoDB  (runs, detections, tracks, events, counts)
+```
 
 Every box shown in the app comes from model inference. All numbers in the docs are measured — see
 [docs/RESULTS.md](docs/RESULTS.md).
@@ -26,7 +35,7 @@ Every box shown in the app comes from model inference. All numbers in the docs a
 
 ```
 vision-analytics/
-├── backend/
+├── ml-service/           # Python: the deep learning (no database)
 │   ├── inference/        # pure NumPy/OpenCV + ONNX Runtime — no PyTorch needed to serve
 │   │   ├── preprocess.py   letterbox resize
 │   │   ├── postprocess.py  YOLO output decoding, IoU, (class-wise) NMS, rescaling
@@ -34,9 +43,14 @@ vision-analytics/
 │   │   ├── kalman.py       constant-velocity Kalman filter for boxes
 │   │   ├── tracker.py      ByteTrack-style tracker
 │   │   └── analytics.py    line crossings, occupancy, dwell time
-│   ├── app/              # FastAPI: main.py, routers/ (detect, runs, stream), db.py, pipeline.py, video_jobs.py
+│   ├── app/              # FastAPI: main.py, routers/ (detect, jobs, stream), pipeline.py, video_jobs.py
 │   ├── tests/            # unit + API tests (fake ONNX model generated in conftest.py)
 │   ├── Dockerfile  Dockerfile.gpu  requirements.txt
+├── server/               # Node + Express + MongoDB: the API the browser uses (see server/README.md)
+│   ├── src/              # index.js, app.js, models/Run.js, routes/, jobs.js (video jobs), stream.js (WebSocket relay)
+│   ├── tests/            # API tests: real MongoDB + a fake ML service
+│   └── Dockerfile        # builds the client too and serves it
+├── client/               # React + Vite dashboard, plain JavaScript (see client/README.md)
 ├── training/
 │   ├── configs/          # experiments.yaml (all hyperparameters), dataset yamls
 │   ├── prepare_data.py   # download VisDrone + COCO subset, convert, EDA
@@ -45,7 +59,6 @@ vision-analytics/
 │   ├── export_onnx.py    # ONNX export + parity check + latency (fp32/fp16/int8)
 │   ├── run_all.ps1       # the whole pipeline in order
 │   └── reports/          # metrics.json, EDA, logs (read by the API's /api/metrics)
-├── frontend/             # Next.js dashboard (see frontend/README.md)
 ├── scripts/              # dev_api.py, fetch_demo_assets.py, benchmark_pipeline.py, make_results.py
 ├── models/               # exported .onnx models served by the API (generated)
 ├── docs/                 # HOW_IT_WAS_BUILT.md, INTERVIEW_QA.md, RESULTS.md
@@ -54,12 +67,13 @@ vision-analytics/
 
 ## Quick start (local)
 
-Requirements: Python 3.12, Node 20+, optionally an NVIDIA GPU.
+Requirements: Python 3.12, Node 20+, MongoDB (local install or `docker run -p 27017:27017 mongo:7`),
+optionally an NVIDIA GPU.
 
 ```bash
 python -m venv .venv
 .venv/Scripts/pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128   # or CPU wheels
-.venv/Scripts/pip install -r training/requirements.txt -r backend/requirements-dev.txt
+.venv/Scripts/pip install -r training/requirements.txt -r ml-service/requirements-dev.txt
 ```
 
 Get models — either the full pipeline (downloads ~3.5 GB of data, trains for a few hours on a laptop GPU):
@@ -73,24 +87,33 @@ COCO weights and writes `models/yolo11n-coco.onnx` and `models/yolo11s-coco.onnx
 
 **Step-by-step local setup for both projects (one shared environment): see [../README.md](../README.md).**
 
-Run the app:
+Run the app — three terminals:
 
 ```bash
-.venv/Scripts/python scripts/dev_api.py            # API on http://localhost:8100  (docs at /docs)
-cd frontend && npm install && npm run build && npm start   # dashboard on http://localhost:3100
+.venv/Scripts/python scripts/dev_api.py            # 1. Python ML service on :8100 (docs at http://localhost:8100/docs)
+cd server && npm install && npm start              # 2. Express API on :4100 (needs MongoDB running)
+cd client && npm install && npm run dev            # 3. React dashboard on http://localhost:3100
 ```
 
-Tests: `cd backend && ../.venv/Scripts/python -m pytest` (no GPU or trained weights needed).
+Open **http://localhost:3100**. (Production-style instead of 3: `cd client && npm run build`, then the
+Express server serves the dashboard itself at http://localhost:4100.)
+
+Tests:
+
+```bash
+cd ml-service && ../.venv/Scripts/python -m pytest      # Python (no GPU or trained weights needed)
+cd server && npm test                                   # Node (needs MongoDB; uses a fake ML service)
+```
 
 ## Docker
 
 ```bash
-docker compose up --build                                   # PostgreSQL + API (CPU) + dashboard
-docker compose --profile gpu up --build db api-gpu web      # NVIDIA GPU (needs NVIDIA Container Toolkit)
+docker compose up --build                                   # MongoDB + ML service (CPU) + server/dashboard
+docker compose --profile gpu up --build mongo ml-gpu server # NVIDIA GPU (needs NVIDIA Container Toolkit)
 ```
 
 The images copy `models/*.onnx` and `training/reports/` — create them first (see above).
-Then check the running stack end to end (API container + PostgreSQL + dashboard):
+Open http://localhost:4100. Then check the running stack end to end (server + MongoDB + ML service):
 
 ```bash
 python scripts/docker_smoke.py
@@ -104,9 +127,11 @@ administrator terminal and restart, then start Docker Desktop.
 
 ## Configuration
 
-Environment variables (prefix `VA_`): `VA_DATABASE_URL`, `VA_MODELS_DIR`, `VA_DATA_DIR`, `VA_DEVICE`
-(`auto|cuda|cpu`), `VA_DEFAULT_MODEL`, `VA_MAX_UPLOAD_MB`, `VA_MAX_VIDEO_SECONDS`, `VA_CORS_ORIGINS`.
-Frontend: `NEXT_PUBLIC_API_URL` (default `http://localhost:8100`).
+ML service (prefix `VA_`): `VA_MODELS_DIR`, `VA_DATA_DIR`, `VA_DEVICE` (`auto|cuda|cpu`), `VA_DEFAULT_MODEL`,
+`VA_MAX_UPLOAD_MB`, `VA_MAX_VIDEO_SECONDS`.
+Server (or `server/.env`): `PORT` (4100), `MONGO_URL` (`mongodb://127.0.0.1:27017/vision`), `ML_URL`
+(`http://127.0.0.1:8100`), `DATA_DIR` (`../data` — must be the same folder as `VA_DATA_DIR`), `MAX_UPLOAD_MB`.
+Client: `VITE_API_URL` only if the API is on another host (by default it uses relative `/api` URLs).
 
 ## Which model to use
 

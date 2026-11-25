@@ -193,18 +193,48 @@ with LEAD-3 (just the first 3 sentences — a famously strong baseline on news).
 
 ---
 
-## 8. Backend design
+## 8. Architecture: MERN + a Python ML service
 
-* **FastAPI**; model work via `run_in_threadpool` so the event loop stays responsive.
-* **Upload returns 202** immediately; a single background worker indexes (stage 1, searchable within seconds)
-  and enriches (stage 2: topic, entities, summary). One worker = jobs never fight over the GPU. Scale-up: a
-  queue (Celery/RQ + Redis) and more workers.
-* **Crash recovery:** jobs live in memory, so on startup documents stuck in "processing" are re-queued.
-* **Lazy model loading** with a lock: fast startup; the LLM only loads if someone uses it.
-* **The DB is the source of truth:** chunk id = vector id; if the FAISS file is missing or out of sync, it is
-  rebuilt from the database at startup.
-* **SQLite** locally, **PostgreSQL** in Docker — same SQLAlchemy code.
-* Validation: file types, size limit enforced *while streaming* the upload, query length, mode enums.
+```
+browser ── React (client/, Vite) ──/api──> Express (server/, Node) ──HTTP──> FastAPI (ml-service/, Python)
+                                              │                                │
+                                           MongoDB                    models + FAISS + BM25
+                                (documents, pages, chats)          (data/index/: vectors + chunk store)
+                                              └──── shared folder data/uploads ─┘
+```
+
+**Why three tiers instead of one Python app?** Each tier does what its language is best at:
+
+* **React** (client) — the UI. Only talks to Express, through one file (`src/lib/api.js`).
+* **Express + MongoDB** (server) — the "web app" part: uploads, records, background jobs, chat history,
+  validation, serving the UI. Node is great at many concurrent I/O-bound requests; MongoDB stores
+  document-shaped data (a chat with its messages, a document with its entity list) without joins.
+* **Python** (ml-service) — the deep-learning part: PyTorch / Transformers / FAISS only exist in Python.
+  It is stateless except for the search index, which it owns like a vector database would.
+
+What that buys: the ML service can be scaled or moved to a GPU machine on its own; a Python crash never loses
+data (it lives in MongoDB); the browser never sees the ML service (it is not exposed to the internet).
+The cost: one more hop (~1 ms locally) and one more service to run.
+
+Design points inside the tiers:
+
+* **Upload returns 202** immediately (Express + multer stream the file to disk); background jobs in the
+  server then call Python to index (stage 1, searchable within seconds) and enrich (stage 2: topic, entities,
+  summary). Two queues, one job at a time each = jobs never fight over the GPU, and a slow summary never
+  delays the next upload becoming searchable. Scale-up: BullMQ / Celery + Redis and more workers — the status
+  field in MongoDB stays the contract.
+* **Crash recovery:** jobs live in memory, so on startup the server re-queues documents stuck in
+  "queued"/"processing" (or with enrichment "pending"/"running"). Re-indexing is safe: Python replaces a
+  document's old chunks.
+* **Python model work** runs in a thread pool (`run_in_threadpool` / plain `def` routes), so the async event
+  loop stays responsive. **Lazy model loading** with a lock per model: fast startup; the LLM only loads if
+  someone uses it.
+* **The vector id is the key of the chunk store:** if the FAISS file is missing or out of sync, it is rebuilt
+  from the stored chunk texts at startup.
+* **Errors keep their meaning across hops:** Python's `{"detail": ...}` and status code are passed through by
+  Express unchanged; "Python unreachable" becomes 503.
+* Validation: file types, size limit enforced *while streaming* the upload, query length, mode enums — in
+  Express (clear messages early) and again in Python (Pydantic).
 
 ---
 
@@ -212,10 +242,15 @@ with LEAD-3 (just the first 3 sentences — a famously strong baseline on news).
 
 * Unit tests for the pure parts: cleaning rules, sentence splitting, chunk budgets/overlap/page tracking, RRF
   arithmetic, FAISS add/search/remove, BM25 formula and its regression case.
-* API tests with **fake models** (hash embedder, word-overlap re-ranker, sentence-picking reader): upload →
-  index → search in all modes → document filter → exact answer highlight → chat history → not-found →
-  delete removes vectors → scanned PDF fails cleanly → crash recovery → slow enrichment never blocks indexing → a slow model load never blocks another → low-confidence suggestions → validation errors. 19 tests, ~8 s,
-  no downloads — so they run in CI on every push.
+* Python API tests with **fake models** (hash embedder, word-overlap re-ranker, sentence-picking reader):
+  index → search in all modes → document filter → exact answer highlight → history → not-found → enrich →
+  delete removes vectors → re-indexing replaces old chunks → the index survives a restart → scanned PDF fails
+  cleanly → a slow model load never blocks another → low-confidence suggestions → the generative gate →
+  validation errors. 20 tests, ~7 s, no downloads.
+* Node server tests (`node --test` + supertest) against a **real MongoDB** and a **fake ML service** (a tiny
+  Express app): upload → background jobs → ready → search → ask with chat history → delete; failed indexing,
+  slow enrichment never blocks indexing, crash recovery, validation (415/413/422/404), error forwarding (503),
+  health. 6 tests, ~2 s. All of it runs in CI on every push.
 * Model *quality* is covered by the evaluation scripts, not unit tests.
 
 ---
@@ -304,3 +339,4 @@ customer's needs; low-confidence labels should be shown as "uncertain".
 * **Chat follow-ups** ("and when did he die?") are retrieved without rewriting the question using history;
   query rewriting would fix pronoun questions.
 * **Security:** no authentication or per-user document isolation yet; uploads are served back as-is.
+  (With the MERN split, auth belongs in Express — JWT/session middleware — and the ML service stays private.)

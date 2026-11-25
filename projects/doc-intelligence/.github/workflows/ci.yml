@@ -2,9 +2,9 @@ name: ci
 on: [push, pull_request]
 
 jobs:
-  backend:
+  ml-service:
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: backend } }
+    defaults: { run: { working-directory: ml-service } }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -14,13 +14,26 @@ jobs:
       - run: ruff check app ingest search nlp tests      # rules in ../ruff.toml
       - run: pytest -q        # fake models: no downloads, no GPU
 
-  frontend:
+  server:
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: frontend } }
+    services:
+      mongo:              # the tests use a real MongoDB (database "docintel-test")
+        image: mongo:7
+        ports: ["27017:27017"]
+    defaults: { run: { working-directory: server } }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+        with: { node-version: 22, cache: npm, cache-dependency-path: server/package-lock.json }
       - run: npm ci
-      - run: npx tsc --noEmit
+      - run: npm test         # fake ML service started inside the test: no Python needed
+
+  client:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: client } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
+      - run: npm ci
       - run: npm run build

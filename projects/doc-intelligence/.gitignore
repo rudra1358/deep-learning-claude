@@ -4,7 +4,8 @@ data/
 models/*
 !models/.gitkeep
 training/*.log
-frontend/node_modules/
-frontend/.next/
+client/node_modules/
+client/dist/
+server/node_modules/
 .env
 training/reports/log_*.txt

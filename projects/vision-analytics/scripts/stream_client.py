@@ -42,7 +42,7 @@ async def main(a):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("video")
-    ap.add_argument("--url", default="ws://localhost:8100/api/stream")
+    ap.add_argument("--url", default="ws://localhost:4100/api/stream")   # the Express relay
     ap.add_argument("--model", default="yolo11n-coco")
     ap.add_argument("--conf", type=float, default=0.3)
     ap.add_argument("--frames", type=int, default=200)

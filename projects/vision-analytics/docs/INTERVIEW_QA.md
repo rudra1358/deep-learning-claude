@@ -9,8 +9,9 @@ Answer in your own words; these are model answers to learn from. Numbers you quo
 Business problem (counting/tracking objects in camera feeds) → data (COCO baseline, VisDrone fine-tuning,
 EDA showed mostly tiny objects) → model (YOLO11 n vs s, Faster R-CNN reference) → evaluation (mAP,
 per-class, by size, domain gap before/after) → export to ONNX with a parity check → serving pipeline
-I wrote myself (letterbox, NMS, ByteTrack tracker, line counting) → FastAPI (HTTP + WebSocket,
-background video jobs) → PostgreSQL → Next.js dashboard → Docker + CI. Close with one limitation and
+I wrote myself (letterbox, NMS, ByteTrack tracker, line counting) → Python FastAPI ML service (HTTP +
+WebSocket, background video jobs) → MERN web app: Node/Express API storing runs in MongoDB, React dashboard
+→ Docker + CI. Close with one limitation and
 what you'd do next.
 
 **2. Why YOLO and not Faster R-CNN?**
@@ -118,13 +119,27 @@ client polls. Scale: Celery/RQ + Redis queue, N GPU worker containers, object st
 batch frames for throughput, autoscale on queue length.
 
 **22. How did you test code that depends on a neural network?**
-Unit-test pure math (IoU, NMS, Kalman, tracker, line logic) with hand-computed expectations. For the API,
-generate a tiny fake ONNX model with the real I/O signature and known output → deterministic
-end-to-end tests in CI without weights or GPU.
+Unit-test pure math (IoU, NMS, Kalman, tracker, line logic) with hand-computed expectations. For the ML
+service, generate a tiny fake ONNX model with the real I/O signature and known output → deterministic
+end-to-end tests in CI without weights or GPU. For the Express server, the opposite trick: a fake ML service
+(a few lines of Express answering like Python) plus a real throw-away MongoDB database.
 
-**23. SQLite vs PostgreSQL in your project?**
-Same SQLAlchemy models; URL from env var. SQLite for zero-setup dev/tests, PostgreSQL in Docker for
-concurrency and production-style aggregation queries.
+**23. Why MongoDB, and how is the data modelled?**
+One document per run, with its detections, tracks, line-crossing events and per-second counts embedded as
+arrays. They are always read and deleted together with the run, so embedding means one read and no joins
+(in SQL it would be five tables joined by `run_id`). The bigger per-frame data stays in a file on disk
+because a document is limited to 16 MB. Dashboard totals use aggregation pipelines (`$unwind` + `$group`,
+MongoDB's GROUP BY), and indexes on `created_at` and `tracks.label` keep the history search fast. A
+relational database would be just as valid here; MongoDB fits because each run is a self-contained,
+nested JSON object — the same shape the API returns.
+
+**23b. Why split into a Node server and a Python ML service instead of one backend?**
+Python is the right tool for the model (NumPy, OpenCV, ONNX Runtime); JavaScript/Express is a natural fit
+for the web API and real-time WebSocket relay that the React app uses. The ML service is stateless (no
+database), so it can be tested with a fake model, restarted, or moved to a GPU machine on its own; the
+server owns the data and is the only public entry point. Cost: one extra network hop (small next to
+~40 ms of inference) and a contract to keep in sync — kept small: multipart for images, a job API for
+videos, a WebSocket protocol for live frames.
 
 **24. What would you monitor in production?**
 Latency/FPS, error rates, GPU utilisation; model health: confidence-score distribution, class frequency,

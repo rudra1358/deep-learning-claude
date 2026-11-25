@@ -26,10 +26,26 @@ Each file section has the same four parts:
                                        ▲                                                          │
                      app/models_registry.py                                         app/pipeline.py
                                        ▲                                                          │
-            app/routers/detect.py · stream.py · runs.py  ←── FastAPI (app/main.py) ──→  app/db.py (SQL)
-                                       ▲
-                     frontend (Next.js): lib/api.ts → pages → lib/draw.ts (boxes on a <canvas>)
+          ml-service/app/routers/detect.py · jobs.py · stream.py  ←── FastAPI (app/main.py, no database)
+                                       ▲  HTTP + WebSocket (internal)
+          server/ (Node + Express): routes/*.js · jobs.js · stream.js (relay)  ──→  MongoDB (models/Run.js)
+                                       ▲  HTTP /api/* + WebSocket /api/stream
+          client/ (React + Vite, plain JS): lib/api.js → pages/*.jsx → lib/draw.js (boxes on a <canvas>)
 ```
+
+**Three tiers (a "MERN + Python" stack).** **M**ongoDB, **E**xpress, **R**eact and **N**ode build the web
+app; Python does only the deep learning:
+
+| tier | folder | language | its one job |
+|---|---|---|---|
+| client | `client/` | React (JavaScript) | the dashboard in the browser |
+| server | `server/` | Node + Express | the API the browser talks to; owns MongoDB (runs, history, analytics) |
+| ML service | `ml-service/` | Python + FastAPI | run the model, track, count - stores nothing |
+
+The browser **never** calls Python directly. Why split it like this? Each part uses the language that is best
+at it (Python for NumPy/ONNX, JavaScript for the web), each can be tested alone (the server tests use a fake
+ML service; the ML tests use a fake model), and they scale separately (the ML service needs the GPU; the web
+server does not).
 
 **Two separate worlds.** Training needs PyTorch and Ultralytics (big, GPU). Serving needs only NumPy,
 OpenCV and ONNX Runtime (small, runs anywhere). The `.onnx` file is the bridge between them. This split is
@@ -37,12 +53,14 @@ the single most important design idea in the project.
 
 **Suggested reading order (≈2 hours):**
 `preprocess.py → postprocess.py → detector.py → kalman.py → tracker.py → analytics.py → pipeline.py →
-routers/detect.py → video_jobs.py → routers/stream.py → db.py → frontend lib/draw.ts → live/page.tsx`.
+routers/detect.py → video_jobs.py → routers/stream.py → server/src/models/Run.js → server/src/jobs.js →
+server/src/stream.js → client/src/lib/draw.js → client/src/pages/Live.jsx`.
 Training scripts can be read afterwards.
 
 ### One frame's journey (memorise this)
 
-1. The browser grabs a webcam frame, encodes it as JPEG and sends the bytes over a WebSocket.
+1. The browser grabs a webcam frame, encodes it as JPEG and sends the bytes over a WebSocket to the
+   Express server, which relays them unchanged to the Python ML service (`server/src/stream.js`).
 2. `stream.py` decodes the JPEG into a NumPy array (H × W × 3, BGR colour order — OpenCV's default).
 3. `preprocess.py` letterboxes it to 640 × 640 and turns it into a float tensor of shape (1, 3, 640, 640).
 4. `detector.py` runs the ONNX model → raw output of shape (1, 4 + classes, 8400).
@@ -50,15 +68,17 @@ Training scripts can be read afterwards.
    original image.
 6. `tracker.py` matches these boxes to the objects it already knows → each box gets a stable ID.
 7. `analytics.py` updates occupancy counts and checks whether anyone crossed the counting line.
-8. The result is sent back as JSON, and `draw.ts` draws the boxes on a `<canvas>` over the video.
+8. The result is sent back as JSON (Python → Express relay → browser), and `draw.js` draws the boxes on a
+   `<canvas>` over the video. When the user presses Stop, the ML service sends the whole session and the
+   Express server saves it in MongoDB.
 
 ---
 
-## Part A — Serving-time inference (`backend/inference/`)
+## Part A — Serving-time inference (`ml-service/inference/`)
 
 This folder is pure maths: no web framework, no database. That is why it is easy to unit-test.
 
-### A1. [`preprocess.py`](../backend/inference/preprocess.py) — make any image fit the network
+### A1. [`preprocess.py`](../ml-service/inference/preprocess.py) — make any image fit the network
 
 **Job:** turn an image of any size into the exact 640 × 640 input the network was trained on.
 
@@ -88,7 +108,7 @@ shrinking; matching the reference exactly is what made the parity check reach 10
 **Say it in an interview:** "I letterbox instead of stretching so object shapes match what the model saw in
 training, and I keep the scale and padding so I can map the boxes back exactly."
 
-### A2. [`postprocess.py`](../backend/inference/postprocess.py) — from 8,400 guesses to a few boxes
+### A2. [`postprocess.py`](../ml-service/inference/postprocess.py) — from 8,400 guesses to a few boxes
 
 **Job:** turn the raw network output into final boxes in original-image pixels.
 
@@ -127,7 +147,7 @@ out[:, [0, 2]] = (out[:, [0, 2]] - info.pad_x) / info.ratio   # undo letterbox
 class-wise NMS to remove duplicates, and invert the letterbox to get original-image coordinates. I wrote this
 myself, and the export script checks that it matches Ultralytics."
 
-### A3. [`detector.py`](../backend/inference/detector.py) — run the network
+### A3. [`detector.py`](../ml-service/inference/detector.py) — run the network
 
 **Job:** load an `.onnx` file once and run it on images. This is the only place the neural network runs at
 serving time.
@@ -152,7 +172,7 @@ serving time.
 the same file runs on CPU or GPU. I time preprocess, inference and postprocess separately so I know where
 the milliseconds go."
 
-### A4. [`kalman.py`](../backend/inference/kalman.py) — guess where each object will be next
+### A4. [`kalman.py`](../ml-service/inference/kalman.py) — guess where each object will be next
 
 **Job:** smooth a box's position and predict where it will be in the next frame.
 
@@ -183,7 +203,7 @@ than a tiny (far) one, so the uncertainty scales with size.
 matching work even when an object moves quickly, and lets a track coast through a few frames without a
 detection."
 
-### A5. [`tracker.py`](../backend/inference/tracker.py) — give every object a stable ID
+### A5. [`tracker.py`](../ml-service/inference/tracker.py) — give every object a stable ID
 
 **Job:** link detections across frames so "car #7" stays #7.
 
@@ -223,7 +243,7 @@ It returns only confirmed tracks that were matched **in this frame**.
 rounds, first high-confidence detections, then low-confidence ones to recover occluded objects. New tracks
 need two frames to be confirmed, and lost tracks survive 30 frames."
 
-### A6. [`analytics.py`](../backend/inference/analytics.py) — turn tracks into numbers people care about
+### A6. [`analytics.py`](../ml-service/inference/analytics.py) — turn tracks into numbers people care about
 
 **Job:** count line crossings, current occupancy, unique objects and dwell time.
 
@@ -247,26 +267,28 @@ de-duplicate per track and direction, so jitter on the line doesn't inflate the 
 
 ---
 
-## Part B — The web API (`backend/app/`)
+## Part B — The Python ML service (`ml-service/app/`)
 
-### B1. [`config.py`](../backend/app/config.py) — every setting in one place
+This is a small FastAPI app that does **only** the deep-learning work. It has no database and no CORS: the
+browser never calls it, only the Express server does (Part E).
+
+### B1. [`config.py`](../ml-service/app/config.py) — every setting in one place
 
 A `pydantic-settings` class. Each field has a default, and any field can be overridden with an
-environment variable prefixed `VA_` (for example `VA_DEVICE=cpu`). Docker Compose uses exactly this to
-switch to PostgreSQL. `@lru_cache` means the settings are built once and reused. This is the
-"12-factor app" idea: configuration lives in the environment, not in the code.
+environment variable prefixed `VA_` (for example `VA_DEVICE=cpu`). `@lru_cache` means the settings are built
+once and reused. This is the "12-factor app" idea: configuration lives in the environment, not in the code.
+`VA_DATA_DIR` must be the same folder the Express server uses: the server saves video uploads there and this
+service writes its outputs next to them.
 
-### B2. [`main.py`](../backend/app/main.py) — the front door
+### B2. [`main.py`](../ml-service/app/main.py) — the front door
 
-* Creates the `FastAPI` app and plugs in the three routers (`detect`, `runs`, `stream`).
-* **CORS middleware:** the browser blocks a page on port 3100 from calling an API on port 8100 unless the
-  API explicitly allows that origin. This line allows it.
-* **`lifespan`:** code that runs once at startup. It creates the database tables and loads and warms up the
-  default model *before* the first request arrives.
-* Three small endpoints: `/api/health`, `/api/models` and `/api/metrics` (the last one just returns
-  `metrics.json` from training).
+* Creates the `FastAPI` app and plugs in the three routers (`detect`, `jobs`, `stream`).
+* **`lifespan`:** code that runs once at startup. It loads and warms up the default model *before* the first
+  request arrives.
+* Three small endpoints: `/health`, `/models` and `/metrics` (the last one just returns `metrics.json`
+  from training).
 
-### B3. [`models_registry.py`](../backend/app/models_registry.py) — load each model once
+### B3. [`models_registry.py`](../ml-service/app/models_registry.py) — load each model once
 
 Loading a model takes up to a second and uses GPU memory, so it must **never** happen per request.
 `ModelRegistry.get(name)` loads the model on first use and caches it in a dict.
@@ -275,7 +297,7 @@ The `with self._lock` block is **double-checked locking**: two requests arriving
 both load the same model. (It checks, takes the lock, then checks again.) ONNX Runtime sessions are safe to
 call from many threads, so one cached session serves everyone.
 
-### B4. [`pipeline.py`](../backend/app/pipeline.py) — detector + tracker + analytics, glued together
+### B4. [`pipeline.py`](../ml-service/app/pipeline.py) — detector + tracker + analytics, glued together
 
 **Job:** one object per video or webcam session that holds that stream's state (its own tracker and
 counters). The detector is shared between streams; the state is not.
@@ -291,44 +313,49 @@ Two details worth knowing:
 `peak_counts()` is a tiny helper: from many `{label: count}` snapshots it keeps the highest count per label.
 For example, "at most 5 cars were visible at once".
 
-### B5. [`routers/detect.py`](../backend/app/routers/detect.py) — images, comparison, video upload
+### B5. [`routers/detect.py`](../ml-service/app/routers/detect.py) — images and model comparison
 
-* `POST /api/detect/image` — validate the file type and size → `cv2.imdecode` → detector → save a `Run`
-  plus one `Detection` row per box → return boxes, counts and timing.
-* `POST /api/compare` — the same image through 1–4 models. Each model gets one untimed warm-up call first
+* `POST /detect/image` — validate the file type and size → `cv2.imdecode` → detector → return boxes,
+  counts and timing. Nothing is stored here; the Express server saves the result.
+* `POST /compare` — the same image through 1–4 models. Each model gets one untimed warm-up call first
   so the timing comparison is fair.
-* `POST /api/detect/video` — **does not analyse the video in the request.** It streams the upload to disk in
-  1 MB chunks (a 200 MB video never sits in RAM), creates a `Run` with status `queued`, hands the job to
-  `video_jobs.submit()` and immediately returns **202 Accepted**. The browser then polls for progress.
 
 Errors use proper HTTP codes: 404 unknown model, 413 too large, 415 wrong type, 422 invalid parameter.
+The Express server passes these codes and messages straight on to the browser.
 
-### B6. [`video_jobs.py`](../backend/app/video_jobs.py) — background video worker
+### B6. [`routers/jobs.py`](../ml-service/app/routers/jobs.py) + [`video_jobs.py`](../ml-service/app/video_jobs.py) — background video worker
 
+* `POST /jobs/video {run_id, video_path, model, conf, line}` — the Express server calls this after it saved
+  the upload. It checks the model exists and that `video_path` is **inside** `data/uploads` (so nobody can
+  make the service read other files), queues the job and returns **202 Accepted** immediately.
 * `ThreadPoolExecutor(max_workers=1)` is a queue with one worker thread, so videos run one at a time and
   don't fight over the GPU.
 * `_process_run()` reads frames with `cv2.VideoCapture` → `pipe.process(frame)` → stores per-frame tracks.
-  It updates `run.progress` every 25 frames, which is what the progress bar shows.
-* It writes three outputs:
+  It updates the job's `progress` every 25 frames.
+* It writes two files to `data/runs/<run_id>/` (too big for a database document):
   * `frames.json` — the tracks for every frame, so the browser can draw boxes over the video while it plays.
   * `playback.webm` — a re-encoded copy, because browsers can't play many upload formats (AVI, for example).
-  * Database rows — tracks, crossing events and per-second counts.
+* and keeps a `result` in memory: tracks, crossing events, per-second counts and the summary.
+* `GET /jobs/{run_id}` returns status, progress and (when done) the result. The Express server polls it and
+  copies everything into MongoDB, then calls `DELETE /jobs/{run_id}`.
 * The `try/except` in `_process()` makes sure a crash is recorded as `status = "failed"` with the error
   message, so the run never gets stuck on "running" forever.
 
 **Say it in an interview:** "Long work never runs inside the HTTP request. The upload returns 202, a worker
-processes the video and the database row is the contract between them. At scale I'd swap the thread pool
-for Celery or RQ with Redis."
+in the Python service processes the video, and the Node server polls it and saves the result in MongoDB.
+Job state in Python is only in memory, because MongoDB is the system of record. At scale I'd swap the thread
+pool for a real queue (Celery/RQ with Redis, or BullMQ on the Node side)."
 
-### B7. [`routers/stream.py`](../backend/app/routers/stream.py) — live webcam over a WebSocket
+### B7. [`routers/stream.py`](../ml-service/app/routers/stream.py) — live webcam over a WebSocket
 
 **The protocol** (also written at the top of the file):
 
-1. The client sends `{"type": "config", model, conf, line, width, height}`. The server builds a `Pipeline`
+1. The client sends `{"type": "config", model, conf, line, width, height}`. The service builds a `Pipeline`
    and answers `ready`.
-2. The client sends **one** JPEG frame as binary. The server answers `result`. Only then does the client
+2. The client sends **one** JPEG frame as binary. The service answers `result`. Only then does the client
    send the next frame.
-3. The client sends `stop`. The server saves the session as a `Run` and answers `saved` with the run ID.
+3. The client sends `stop`. The service answers `session` with everything about the session (tracks, events,
+   per-second counts, summary). The Express relay saves it in MongoDB and tells the browser `saved` + run id.
 
 **Back-pressure** is the key idea in step 2. Because the client waits for each answer, a slow server just
 lowers the frame rate. Frames never pile up in a queue, which would make the boxes lag further and further
@@ -337,31 +364,11 @@ behind the video.
 `run_in_threadpool(pipe.process, frame)` runs the heavy inference in a worker thread, so the async event
 loop stays free to serve other connections.
 
-### B8. [`db.py`](../backend/app/db.py) — the database
+### B8. [`schemas.py`](../ml-service/app/schemas.py) — the contract with the server
 
-SQLAlchemy 2.0 ORM: each class is a table, each `Mapped[...]` attribute is a column.
-
-| Table | One row per | Used for |
-|---|---|---|
-| `runs` | image / video / webcam session | history list, status, summary JSON |
-| `detections` | box in an image run | image history, CSV export, label search |
-| `tracks` | tracked object in a video or stream | CSV export, "unique objects" |
-| `events` | line crossing | event table |
-| `count_samples` | (second, class) | the "counts over time" chart |
-
-`cascade="all, delete-orphan"` means deleting a run deletes its children too. For SQLite the code must also
-switch on `PRAGMA foreign_keys=ON`. WAL mode lets the dashboard read while the video worker writes. The
-same code runs on PostgreSQL; only the URL changes. `get_db()` is a FastAPI *dependency*: one session per
-request, always closed in `finally`.
-
-### B9. [`routers/runs.py`](../backend/app/routers/runs.py) and [`schemas.py`](../backend/app/schemas.py)
-
-* `runs.py` — history list with filters (kind, label, filename search, pagination), run details, delete
-  (refused with 409 while a run is still processing), frames, video, events, timeseries and CSV export.
-  `/api/analytics/overview` does its totals with SQL `GROUP BY`, so the database does the counting
-  instead of Python loops.
-* `schemas.py` — Pydantic models describing what every endpoint returns. FastAPI uses them to validate
-  responses and to generate the interactive docs at `/docs`.
+Pydantic models describing what the endpoints accept and return. FastAPI uses them to validate requests
+(for example `run_id` may only contain letters, digits, `_` and `-`) and to generate the interactive docs
+at `http://localhost:8100/docs`.
 
 ---
 
@@ -422,26 +429,30 @@ precision–recall curve.
 
 ---
 
-## Part D — Frontend (`frontend/`, Next.js + TypeScript)
+## Part D — The client (`client/`, React + Vite, plain JavaScript)
 
 You don't need to know every line here. Know these four files well; the rest is ordinary React layout.
+`src/main.jsx` mounts React, `src/App.jsx` maps URLs to pages with React Router (`/runs/:id` → `RunPage.jsx`),
+and `vite.config.js` makes the dev server forward `/api` (HTTP **and** the WebSocket) to Express.
 
-### D1. [`lib/api.ts`](../frontend/lib/api.ts) — the only file that talks to the backend
-* The TypeScript `interface`s mirror `schemas.py`, so if the backend changes shape the compiler complains.
-* `request<T>()` is one wrapper around `fetch`. It turns "server not running" and HTTP errors into a
-  readable `ApiError` message, and handles `204 No Content`.
+### D1. [`lib/api.js`](../client/src/lib/api.js) — the only file that talks to the server
+* All URLs are relative (`/api/...`): in development Vite forwards them to Express, in production Express
+  serves this app itself. So there is no CORS setup and no hard-coded host.
+* `request()` is one wrapper around `fetch`. It turns "server not running" and HTTP errors into a
+  readable `ApiError` message (the server always answers errors as `{"detail": "..."}`), and handles
+  `204 No Content`.
 * Each endpoint is a one-line function (`getRun`, `listRuns`, `detectImage` …). Pages never build URLs
-  themselves.
+  themselves. The comment at the top lists the main JSON shapes (run ids are MongoDB ObjectId strings).
 
-### D2. [`lib/draw.ts`](../frontend/lib/draw.ts) — drawing boxes
+### D2. [`lib/draw.js`](../client/src/lib/draw.js) — drawing boxes
 * Boxes arrive in *original image pixels*, but the image is displayed smaller. So every coordinate is
   multiplied by `scaleX = displayedWidth / imageWidth` (and the same for Y).
 * `fitCanvas()` multiplies the canvas size by `devicePixelRatio` so boxes stay sharp on high-DPI screens.
 * `colorForLabel()` hashes the label text into a colour, so "car" is always the same colour on every page.
 
-### D3. [`app/live/page.tsx`](../frontend/app/live/page.tsx) — the webcam page (the most involved file)
+### D3. [`pages/Live.jsx`](../client/src/pages/Live.jsx) — the webcam page (the most involved file)
 1. `getUserMedia` opens the camera (browsers allow this only on `https://` or `localhost`).
-2. A WebSocket opens and sends the `config` message.
+2. A WebSocket opens to `/api/stream` (the Express relay) and sends the `config` message.
 3. `sendFrame()` draws the current video frame onto a hidden canvas, compresses it with
    `canvas.toBlob(…, "image/jpeg")` and sends the bytes.
 4. `ws.onmessage` receives a `result`, saves it to state (which redraws the overlay) and **only then** calls
@@ -451,31 +462,94 @@ You don't need to know every line here. Know these four files well; the rest is 
 Refs (`useRef`) hold things that must not trigger a re-render (the socket, the stream, the current phase).
 State (`useState`) holds things the screen shows.
 
-### D4. [`components/VideoOverlayPlayer.tsx`](../frontend/components/VideoOverlayPlayer.tsx) — boxes over a recorded video
+### D4. [`components/VideoOverlayPlayer.jsx`](../client/src/components/VideoOverlayPlayer.jsx) — boxes over a recorded video
 A `requestAnimationFrame` loop reads `video.currentTime`, computes the frame index
 `floor(currentTime × fps)`, looks up that frame in `frames.json` and redraws only when the index changes.
 Seeking, pausing and changing speed all work for free, because the video element is the clock.
 
-The other files (`history`, `compare`, `metrics`, `charts.tsx`, `ui.tsx` …) are plain React: fetch with
-`useAsync` from `lib/hooks.ts`, then render cards, tables and SVG charts.
+The other files (`History.jsx`, `Compare.jsx`, `Metrics.jsx`, `charts.jsx`, `ui.jsx` …) are plain React:
+fetch with `useAsync` from `lib/hooks.js`, then render cards, tables and SVG charts.
 
 ---
 
-## Part E — Tests and running it
+## Part E — The server (`server/`, Node + Express + MongoDB)
 
-* [`tests/conftest.py`](../backend/tests/conftest.py) builds a **fake ONNX model** that has the same input
-  and output shapes as YOLO11 but always "detects" the same 3 boxes (one is a deliberate duplicate). This
-  lets the tests run the *whole* serving path in seconds with no GPU and no trained weights, and the
-  duplicate checks that NMS really removes it.
-* [`test_inference_core.py`](../backend/tests/test_inference_core.py) checks the maths: IoU against known
+The browser talks only to this server. It owns the database and calls the ML service when it needs a model.
+
+### E1. [`src/index.js`](../server/src/index.js) and [`src/app.js`](../server/src/app.js) — start-up and routes
+`index.js` connects to MongoDB, starts the HTTP server, attaches the WebSocket relay and resumes watching
+video jobs that were running when the server last stopped. `app.js` builds the Express app: JSON body
+parser → the three routers under `/api` → in production the built React app (`client/dist`) with a
+fallback to `index.html`, so a refresh on a page like `/runs/<id>` still works → the error handler. Tests
+import `createApp()` directly without starting a real server.
+
+### E2. [`src/models/Run.js`](../server/src/models/Run.js) — the MongoDB schema
+One **document per run**. The SQL version needed five tables (runs, detections, tracks, events,
+count_samples) joined by `run_id`. In MongoDB the child rows are **embedded arrays** inside the run, because
+they are always read and deleted together with their run: one read, no joins, and deleting the run deletes
+everything. The per-frame data (`frames.json`) is far bigger, so it stays on disk (a MongoDB document is at
+most 16 MB). Indexes: `created_at` for the newest-first history, `detections.label` / `tracks.label` for
+"runs that contain a car". The `toJSON` transform turns `_id` into `id` and hides the big arrays, which have
+their own endpoints.
+
+### E3. [`src/ml.js`](../server/src/ml.js) and [`src/errors.js`](../server/src/errors.js) — talking to Python, and errors
+`mlRequest()` wraps `fetch` to the ML service with a timeout. If Python answers an error (404 unknown model,
+415 wrong type …) the same status and message go to the browser; if Python is down, the browser gets **503**.
+`errorHandler` is Express's error middleware: every error becomes `{"detail": "..."}` with the right status
+(multer's file-too-large → 413, an invalid ObjectId → 404).
+
+### E4. [`src/routes/detect.js`](../server/src/routes/detect.js) — uploads
+* Images: `multer.memoryStorage()` (small) → forwarded to Python as multipart → result saved with
+  `Run.create()` → `run_id` returned.
+* Videos: `multer.diskStorage()` streams the upload straight to `data/uploads` (a 200 MB video never sits in
+  RAM), creates a run `{status: "queued"}`, starts the job in Python and returns **202 Accepted**. If Python
+  refuses (unknown model), the half-created run and the file are removed again.
+
+### E5. [`src/jobs.js`](../server/src/jobs.js) — following a video job
+A loop per job: every second `GET /jobs/<id>` from Python and copy `status` and `progress` into MongoDB (the
+browser polls `GET /api/runs/<id>` and sees the progress bar move). When Python says `done`, the whole result
+is written into the run and Python is told to forget the job. A 404 from Python means it restarted (its jobs
+live in memory), so the run is marked `failed` instead of staying "running" forever.
+**Why poll instead of a callback from Python?** The ML service then needs to know nothing about the server
+or MongoDB — it stays a pure compute service that is easy to test alone.
+
+### E6. [`src/routes/runs.js`](../server/src/routes/runs.js) — history, details, CSV, analytics
+History with filters (kind, label, filename search with an escaped, case-insensitive regex, pagination),
+run details, delete (refused with **409** while a run is processing), frames, video (`res.sendFile` supports
+HTTP Range requests, so seeking works), events, timeseries and CSV export. `/api/analytics/overview` counts
+inside MongoDB with **aggregation pipelines**: `$unwind` turns each array element into its own row and
+`$group` is MongoDB's `GROUP BY`.
+
+### E7. [`src/stream.js`](../server/src/stream.js) — the live WebSocket relay
+For each browser connection it opens a second WebSocket to Python and passes every message through
+unchanged (binary frames stay binary). Messages sent before the Python socket is open are buffered. The
+one message it changes is Python's final `session`: it saves that run in MongoDB and sends the browser
+`{"type":"saved","run_id":...}` instead. Back-pressure still works, because the relay never queues frames.
+
+**Say it in an interview:** "The Node server is the system of record and the only public API; Python is an
+internal compute service. They agree on a small contract: multipart for images, a job API for videos, and a
+WebSocket protocol for live frames."
+
+---
+
+## Part F — Tests and running it
+
+* [`ml-service/tests/conftest.py`](../ml-service/tests/conftest.py) builds a **fake ONNX model** that has the
+  same input and output shapes as YOLO11 but always "detects" the same 3 boxes (one is a deliberate
+  duplicate). This lets the tests run the *whole* serving path in seconds with no GPU and no trained
+  weights, and the duplicate checks that NMS really removes it.
+* [`test_inference_core.py`](../ml-service/tests/test_inference_core.py) checks the maths: IoU against known
   values, NMS, letterbox round-trip, a Kalman filter following a constant-velocity object, tracker IDs
   surviving a short occlusion, low-score boxes keeping a track alive, and line counting.
-* [`test_api.py`](../backend/tests/test_api.py) checks the endpoints end to end, including a real video job
-  and the WebSocket protocol.
-* Run: `cd backend && ../.venv/Scripts/python -m pytest -q` → **27 passed**.
-* `docker-compose.yml` starts Postgres + API + web with one command. The `gpu` profile swaps in the
-  CUDA API image.
-* `.github/workflows/ci.yml` runs the tests on every push.
+* [`test_api.py`](../ml-service/tests/test_api.py) checks the ML endpoints end to end, including a real video
+  job (frames.json + a playable WebM) and the WebSocket protocol.
+  Run: `cd ml-service && ../.venv/Scripts/python -m pytest -q` → **25 passed**.
+* [`server/tests/api.test.js`](../server/tests/api.test.js) uses a real MongoDB (a throw-away `vision-test`
+  database) and a **fake ML service** written in a few lines of Express. It checks storage, history filters,
+  analytics, CSV, the video-job polling and the WebSocket relay. Run: `cd server && npm test` → **9 passed**.
+* `docker-compose.yml` starts MongoDB + ML service + server (which also serves the built dashboard) with one
+  command. The `gpu` profile swaps in the CUDA ML image.
+* `.github/workflows/ci.yml` runs all of this on every push.
 
 ---
 

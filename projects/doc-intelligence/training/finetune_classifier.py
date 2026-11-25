@@ -1,5 +1,5 @@
 """Fine-tune DistilBERT to classify documents by topic (AG News: World / Sports / Business /
-Sci/Tech). Output: models/classifier/ (used by backend/nlp/classify.py).
+Sci/Tech). Output: models/classifier/ (used by ml-service/nlp/classify.py).
 
 We train on a seeded random 30,000 of the 120,000 training articles: on a laptop GPU that
 takes minutes instead of an hour, and (measured) costs little accuracy - a good example of
