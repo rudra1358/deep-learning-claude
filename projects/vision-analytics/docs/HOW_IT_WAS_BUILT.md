@@ -296,7 +296,7 @@ Design decisions worth explaining:
 * `server/Dockerfile` — two stages: build the React client with Vite, then a small Node image that runs
   Express and serves the built client (one container, one port: 4100).
 * `docker-compose.yml` — MongoDB + ML service + server; `docker compose up --build`.
-* CI (`.github/workflows/ci.yml`) — Python lint + tests, server tests against a MongoDB service container,
+* CI (`.github/workflows/vision-analytics.yml` at the repository root) — Python lint + tests, server tests against a MongoDB service container,
   client format check + build, then the whole Docker stack with a smoke test, on every push.
 * Configuration via environment variables (`VA_*` for Python; `MONGO_URL`, `ML_URL`, `DATA_DIR` for Node),
   12-factor style.

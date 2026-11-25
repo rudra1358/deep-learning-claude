@@ -549,7 +549,7 @@ WebSocket protocol for live frames."
   analytics, CSV, the video-job polling and the WebSocket relay. Run: `cd server && npm test` → **9 passed**.
 * `docker-compose.yml` starts MongoDB + ML service + server (which also serves the built dashboard) with one
   command. The `gpu` profile swaps in the CUDA ML image.
-* `.github/workflows/ci.yml` runs all of this on every push.
+* `.github/workflows/vision-analytics.yml` (at the repository root) runs all of this on every push.
 
 ---
 
