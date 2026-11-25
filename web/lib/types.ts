@@ -47,7 +47,13 @@ export type SimId =
   | "vae"
   | "gan"
   | "diffusion"
-  | "broadcasting";
+  | "broadcasting"
+  | "gnn"
+  | "rl-gridworld"
+  | "roc-pr"
+  | "quantization"
+  | "adversarial"
+  | "decoding";
 
 export interface QuizChoice {
   kind?: "choice";

@@ -7,8 +7,8 @@ Phases follow the master specification. ✅ done · 🟡 partly done · ⬜ not 
 | 1 Research & planning | Curriculum hierarchy (21 modules, ~85 topics, gaps added: NumPy module, linear/logistic regression bridge, LLM module), architecture, content contract | ✅ |
 | 2 Foundation | Next.js app, design tokens (light/dark), layout, routing, navigation, responsive shell | ✅ |
 | 3 Platform | Home, curriculum, roadmap, lesson pages (sidebar / TOC / prev-next / breadcrumbs), KaTeX, code blocks, glossary, search, progress, bookmarks, quizzes | ✅ |
-| 4 Visualization engine | Shared simulator framework + 39 simulators (6 backed by real trained models) — every simulator in the spec exists | ✅ (browser QA ongoing) |
-| 5 Curriculum content | 63 full lessons; Modules 0–14 complete (see STATUS.md); ~23 topics remain (Modules 15–20) | 🟡 |
+| 4 Visualization engine | Shared simulator framework + 46 simulators (8 backed by real trained models) — every simulator in the spec exists | ✅ (browser QA ongoing) |
+| 5 Curriculum content | 86 full lessons; Modules 0–20 complete (see STATUS.md) | ✅ |
 | 6 Code playground & assessments | Pyodide playground, per-lesson quizzes & exercises, practice hub | 🟡 (Monaco editor, isolated server-side execution not yet) |
 | 7 Industry projects | Designs, milestones, repo structures published; implementations not started | 🟡 |
 | 8 QA | Type checks, build, backend tests, lesson code executed; full browser QA of every simulator | 🟡 |
@@ -23,7 +23,7 @@ Phases follow the master specification. ✅ done · 🟡 partly done · ⬜ not 
 5. ~~Modules 10–11~~ ✅ done (round 5, incl. the trained-model Transformer flagship simulator).
 6. ~~Modules 12–13~~ ✅ done (round 6, incl. detection and word-embeddings simulators).
 7. ~~Module 14~~ ✅ done (round 6, incl. trained autoencoder, VAE and diffusion simulators and a live-training GAN).
-8. **Modules 15–20**.
+8. ~~Modules 15–20~~ ✅ done (round 8, incl. GNN, RL gridworld, ROC/PR, quantization, adversarial and decoding simulators).
 9. **Projects (narrowed to two, 2026-11-24)**: Project 1 Vision Analytics (`projects/vision-analytics`, in progress)
    and Project 2 Context-Aware Document Intelligence (RAG). The diffusion studio (Project 3) is dropped.
    Both projects must keep their code simple and ship a file-by-file `docs/CODE_WALKTHROUGH.md`.

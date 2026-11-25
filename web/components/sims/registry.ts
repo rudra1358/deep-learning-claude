@@ -42,4 +42,10 @@ export const SIMS: Record<SimId, { title: string; blurb: string; lesson: string;
   broadcasting: { title: "NumPy Broadcasting", blurb: "Line up two array shapes, see which axes stretch (without copying), and trace every output element back to its inputs.", lesson: "m00/vectorization" },
   diffusion: { title: "Diffusion Process", blurb: "Forward noising step by step, then a trained denoiser reversing it to generate samples.", lesson: "m14/diffusion" },
   tokenizer: { title: "Byte-Pair Encoding Tokenizer", blurb: "Train BPE merges on your own text and see how words split into subword tokens.", lesson: "m13/text-preprocessing" },
+  "gnn": { title: "Graph Message Passing", blurb: "Watch node features flow along edges layer by layer in a GCN or GAT, with the aggregation and attention weights computed live.", lesson: "m15/graph-neural-networks" },
+  "rl-gridworld": { title: "Reinforcement Learning in a Gridworld", blurb: "Train a Q-learning agent step by step and watch values, the greedy policy and the return evolve.", lesson: "m15/deep-rl" },
+  "roc-pr": { title: "Thresholds, ROC and PR Curves", blurb: "Move the decision threshold and watch the confusion matrix, precision, recall, ROC and PR curves update together.", lesson: "m17/classification-metrics" },
+  "quantization": { title: "Quantization", blurb: "Quantize weights to 8, 4 or 2 bits and see the rounding grid, the error and its effect on a real model's output.", lesson: "m18/model-optimization" },
+  "adversarial": { title: "Adversarial Examples: FGSM and PGD", blurb: "Push an input along the sign of the gradient and watch a trained classifier's decision flip under a tiny perturbation.", lesson: "m19/robustness-safety" },
+  "decoding": { title: "Decoding Strategies", blurb: "Greedy, beam search, temperature, top-k and top-p applied to a real next-token distribution, step by step.", lesson: "m20/decoding" },
 };

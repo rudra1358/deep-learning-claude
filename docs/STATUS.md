@@ -1,14 +1,14 @@
 ﻿# Implementation Status
 
-_Last updated: 2026-11-25 (round 7: Modules 0–1 completed — the curriculum is now complete from Module 0 through Module 14)._
+_Last updated: 2026-11-25 (round 8: Modules 15–20 completed — every topic in the curriculum, Module 0 through Module 20, now has a full lesson)._
 
 ## Complete and verified
 
-**Modules 0–14 are fully written** (every topic has a full 16-section lesson): 63 lessons in total.
+**Modules 0–20 are fully written** (every topic has a full 16-section lesson): 86 lessons in total.
 
-**Platform** (`web/`, Next.js production build: 144 static pages, `tsc --noEmit` clean)
-- Pages: home, curriculum, roadmap, lesson pages, playground (+40 simulator pages), neural network visualizer,
-  math lab, architecture explorer, code playground, practice hub, projects, research papers, glossary (481 terms, all 223 formulas KaTeX-checked),
+**Platform** (`web/`, Next.js production build: 150 static pages, `tsc --noEmit` clean)
+- Pages: home, curriculum, roadmap, lesson pages, playground (+46 simulator pages), neural network visualizer,
+  math lab, architecture explorer, code playground, practice hub, projects, research papers, glossary (701 terms, all 223 formulas KaTeX-checked),
   resources, progress dashboard, 404.
 - Light and dark themes; **all 117 key pages (every lesson, simulator and main page) measured at 375 px with no horizontal overflow** (long display and inline
   formulas scroll inside their own box; long inline code and overlong plain-text identifiers wrap; tab bars scroll).
@@ -16,7 +16,7 @@ _Last updated: 2026-11-25 (round 7: Modules 0–1 completed — the curriculum i
 - Progress, quizzes, bookmarks, project milestones, streaks (localStorage + optional server sync).
 - Crawl: 140 internal pages, 0 broken links.
 
-**Simulators (40)** — all render, step and play with no runtime errors or NaN (automated check):
+**Simulators (46)** — all render, step and play with no runtime errors or NaN (automated check):
 network, convolution, attention (flagships), cnn-pipeline, neuron, activations, optimizers, gradient-descent,
 loss-functions, fitting, matmul, chain-rule, positional-encoding, lstm, tokenizer, **linear-transform (eigen/SVD),
 distributions (sampling + MLE/MAP), entropy (H / CE / KL), logistic-regression, approximator (universal
@@ -28,7 +28,7 @@ Round 6 added **detection** (IoU / anchors / NMS, live) and five more real-model
 - **word-embeddings** (skip-gram, 1,714 words × 50 d; 60 stored results reproduce, max cosine Δ 4.9e-7). **Caveat:** trained on a script-generated "Toyland English" corpus (no public-domain books were available offline and no download was approved), so its 62.2% analogy accuracy is an upper bound for real text — `web/scripts/train-word2vec.py`
 - **gan** — trains live in the browser (hand-written backprop + Adam, gradient-checked). Re-run under Node: the "Converges" preset reaches 8/8 ring modes by iteration 5,000 (82.5% high-quality at 8,000); the "D too strong (non-saturating)" preset collapses to 1 mode (100% of samples), exactly as documented; ≈2.8 ms/iteration.
 
-**Full lessons (63)** — independently verified by `npm run check:lessons` (see below):
+**Full lessons (86)** — independently verified by `npm run check:lessons` (see below):
 - m00 (all 3): numpy-arrays, vectorization, plotting-data — plus the **broadcasting** simulator (logic matches NumPy, incl. its error message, on 400 random shape pairs)
 - m01 (all 3): ai-ml-dl, history, dl-workflow (history claims reviewed: the 16 the author flagged as uncertain were checked against the record)
 - m02 (all 9): vectors-matrices, norms-spaces, eigen-svd, derivatives-chain-rule, jacobians-hessians, probability,
@@ -45,11 +45,17 @@ Round 6 added **detection** (IoU / anchors / NMS, live) and five more real-model
 - m12 (all 4): transfer-learning, object-detection, segmentation, vision-tasks
 - m13 (all 4): text-preprocessing, word-embeddings, nlp-tasks, language-modeling
 - m14 (all 4): autoencoders, vae, gans, diffusion
+- m15 (all 5): self-supervised, learning-paradigms, graph-neural-networks, deep-rl, multimodal
+- m16 (all 3): numpy-from-scratch, pytorch (incl. a real 2-process gloo DDP run), tensorflow-keras
+- m17 (all 4): data-splits, classification-metrics, regression-metrics, experimentation
+- m18 (all 3): serving, model-optimization, mlops
+- m19 (all 4): reading-papers, scaling-efficiency, interpretability, robustness-safety
+- m20 (all 4): llm-pretraining, decoding, alignment, llm-inference
 
 **Lesson checker** (`web/scripts/check-lessons.mjs`, `npm run check:lessons`): for every lesson verifies all 16
 sections, interview (≥3/3/2) / quiz (≥6) / exercise (≥2) counts, a simulator embed, strict KaTeX rendering of every
-formula (16,099), every internal link, and **re-executes every Python block, requiring byte-identical output**
-(263 programs across 63 lessons; all pass). Blocks titled “not executed in CI” (TensorFlow) or “vary between runs” are skipped.
+formula (19,231), every internal link, and **re-executes every Python block, requiring byte-identical output**
+(334 programs across 86 lessons; all pass). Blocks titled “not executed in CI” (TensorFlow) or “vary between runs” are skipped.
 
 **Backend** (`backend/`): FastAPI progress API, 5/5 pytest tests passing.
 
@@ -66,6 +72,23 @@ formula (16,099), every internal link, and **re-executes every Python block, req
   checker's per-block timeout was raised to 240 s accordingly.
 - The word-embeddings model uses a generated corpus (see above); retraining on real public-domain text would need a download.
 
+## Round 8 (Modules 15–20) — what was added and what to review
+**Six new simulators**, each engine checked in Node: **gnn** (GCN/GAT message passing and over-smoothing),
+**rl-gridworld** (tabular Q-learning; reaches the optimal policy in all 21 states by episode 97 with defaults),
+**roc-pr** (threshold, confusion matrix, ROC/PR; AUC and AP match scikit-learn to 1e-14), **quantization**
+(8/4/3/2-bit, symmetric/asymmetric, per-tensor/per-channel; error ≤ scale/2 over 184k values), **adversarial**
+(FGSM/PGD on three small digit models trained by `web/scripts/train-adversarial.py`; engine matches NumPy to 1e-15)
+and **decoding** (temperature/top-k/top-p/min-p/repetition penalty and beam search on the trained char Transformer).
+
+Honest negative/weak results the lessons report as observed: SimCLR features lose to raw pixels on clean 8×8 digits
+(win on shifted digits); BYOL collapses without BatchNorm in the small setup; prototypical networks trained on 5 base
+classes lose to raw pixels on unseen digits; DQN only partly balances the hand-written cart-pole (PPO reaches 175–200);
+REINFORCE fails on the gridworld; the tiny GPT's held-out loss rises after step 150 (overfitting, explained).
+
+To review: no TF/Keras, ONNX, Flask, MLflow or W&B code in these modules was executed (not installed; labelled
+"not executed in CI"); TorchScript and `torch.ao.quantization` emit deprecation warnings on Python 3.14 (silenced,
+stated in the lesson); the m18 latency benchmark is a single real run marked "timings vary between runs"; the min-p
+citation (Nguyen et al. 2024) and the Besiroglu et al. 2024 Chinchilla-replication remark deserve an editorial check.
+
 ## Not started
-~23 remaining topic lessons (Modules 15–20), project implementations — see ROADMAP.md.
-All simulators named in the original specification now exist.
+Project implementations (see ROADMAP.md). Every curriculum topic and every simulator in the specification exists.

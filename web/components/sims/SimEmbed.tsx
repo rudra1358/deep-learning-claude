@@ -49,6 +49,12 @@ const COMPONENTS: Record<SimId, ComponentType> = {
   gan: dynamic(() => import("./GanSim"), { ssr: false, loading }),
   diffusion: dynamic(() => import("./DiffusionSim"), { ssr: false, loading }),
   broadcasting: dynamic(() => import("./BroadcastingSim"), { ssr: false, loading }),
+  "gnn": dynamic(() => import("./GnnSim"), { ssr: false, loading }),
+  "rl-gridworld": dynamic(() => import("./RlGridworldSim"), { ssr: false, loading }),
+  "roc-pr": dynamic(() => import("./RocPrSim"), { ssr: false, loading }),
+  "quantization": dynamic(() => import("./QuantizationSim"), { ssr: false, loading }),
+  "adversarial": dynamic(() => import("./AdversarialSim"), { ssr: false, loading }),
+  "decoding": dynamic(() => import("./DecodingSim"), { ssr: false, loading }),
 };
 
 export function SimEmbed({ id, caption }: { id: SimId; caption?: string }) {

@@ -63,6 +63,29 @@ import autoencoders from "./m14-autoencoders";
 import vae from "./m14-vae";
 import gans from "./m14-gans";
 import diffusion from "./m14-diffusion";
+import selfSupervised from "./m15-self-supervised";
+import learningParadigms from "./m15-learning-paradigms";
+import graphNeuralNetworks from "./m15-graph-neural-networks";
+import deepRl from "./m15-deep-rl";
+import multimodal from "./m15-multimodal";
+import numpyFromScratch from "./m16-numpy-from-scratch";
+import pytorchLesson from "./m16-pytorch";
+import tensorflowKeras from "./m16-tensorflow-keras";
+import dataSplits from "./m17-data-splits";
+import classificationMetrics from "./m17-classification-metrics";
+import regressionMetrics from "./m17-regression-metrics";
+import experimentation from "./m17-experimentation";
+import servingLesson from "./m18-serving";
+import modelOptimization from "./m18-model-optimization";
+import mlopsLesson from "./m18-mlops";
+import readingPapers from "./m19-reading-papers";
+import scalingEfficiency from "./m19-scaling-efficiency";
+import interpretabilityLesson from "./m19-interpretability";
+import robustnessSafety from "./m19-robustness-safety";
+import llmPretraining from "./m20-llm-pretraining";
+import decodingLesson from "./m20-decoding";
+import alignmentLesson from "./m20-alignment";
+import llmInference from "./m20-llm-inference";
 
 /** All fully-written lessons. Topics without an entry here show their syllabus + "in development". */
 export const LESSONS: Lesson[] = [
@@ -129,6 +152,29 @@ export const LESSONS: Lesson[] = [
   vae,
   gans,
   diffusion,
+  selfSupervised,
+  learningParadigms,
+  graphNeuralNetworks,
+  deepRl,
+  multimodal,
+  numpyFromScratch,
+  pytorchLesson,
+  tensorflowKeras,
+  dataSplits,
+  classificationMetrics,
+  regressionMetrics,
+  experimentation,
+  servingLesson,
+  modelOptimization,
+  mlopsLesson,
+  readingPapers,
+  scalingEfficiency,
+  interpretabilityLesson,
+  robustnessSafety,
+  llmPretraining,
+  decodingLesson,
+  alignmentLesson,
+  llmInference,
 ];
 
 const BY_ID = new Map(LESSONS.map((l) => [l.id, l]));
