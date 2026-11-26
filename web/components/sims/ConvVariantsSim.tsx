@@ -139,7 +139,7 @@ function DilatedMode() {
   return (
     <SimShell
       title="Dilated (atrous) convolution"
-      subtitle="A 3×3 kernel whose taps are spread d pixels apart: same 9 weights, wider view."
+      subtitle="A 3×3 kernel with its 9 taps spread d pixels apart. Same 9 weights, wider view."
       controls={
         <div className="space-y-2">
           <Controls s={s} />
@@ -162,7 +162,7 @@ function DilatedMode() {
             <Stat label="padding p" value={String(p)} />
             <Stat label="output size" value={outN > 0 ? `⌊(${n} + ${2 * p} − ${kEff})/1⌋ + 1 = ${outN}` : "kernel does not fit"} />
             <Stat label="weights" value="9 (for every d)" />
-            <Stat label="RF of this layer" value={`${kEff}×${kEff}`} />
+            <Stat label="RF (area seen), this layer" value={`${kEff}×${kEff}`} />
             <Stat label="RF of 3 layers, all d" value={`${stackReceptiveField(k, [d, d, d])}`} />
             <Stat label="RF of 3 layers, d = 1,2,4" value={`${stackReceptiveField(k, doubling)}`} />
           </div>
@@ -172,7 +172,7 @@ function DilatedMode() {
     >
       <div className="flex flex-wrap items-start gap-4">
         <div className="min-w-0 flex-1" style={{ minWidth: 200 }}>
-          <div className="mb-1 text-xs text-muted">Input {n}×{n}{p ? ` + ${p} rings of zero padding` : ""} — gold cells are the 9 sampled pixels</div>
+          <div className="mb-1 text-xs text-muted">Input {n}×{n}{p ? ` + ${p} rings of zero padding` : ""}. Gold cells are the 9 pixels read</div>
           <CellGrid
             h={P}
             w={P}
@@ -217,25 +217,25 @@ function DilatedMode() {
               }}
             />
           ) : (
-            <div className="text-sm text-clay">The dilated kernel spans {kEff} pixels but the padded input is only {n + 2 * p} wide. Use same padding or a larger input.</div>
+            <div className="text-sm text-clay">The spread-out kernel covers {kEff} pixels, but the padded input is only {n + 2 * p} wide. Use same padding or a bigger input.</div>
           )}
         </div>
       </div>
       <div className="mt-3">
-        <Narration title={st ? `Output (${i}, ${j}) — taps every ${d} pixel${d > 1 ? "s" : ""}` : "No valid position"}>
+        <Narration title={st ? `Output (${i}, ${j}): reads every ${d} pixel${d > 1 ? "s" : ""}` : "No valid position"}>
           {st ? (
             <>
-              The window starts at padded row {st.r0}, column {st.c0} and spans {kEff}×{kEff} pixels, but only the 9 gold pixels (rows {st.taps.map((r) => r[0].r).join(", ")}; columns {st.taps[0].map((t) => t.c).join(", ")}) are read.{" "}
+              The window starts at padded row {st.r0}, column {st.c0} and covers {kEff}×{kEff} pixels. But only the 9 gold pixels (rows {st.taps.map((r) => r[0].r).join(", ")}; columns {st.taps[0].map((t) => t.c).join(", ")}) are read.{" "}
               <span className="font-mono">
                 {st.taps.flat().map((t, q) => `${q ? " + " : ""}${nf(t.v)}·${nf(t.w)}`).join("")} = {nf(st.sum)}
               </span>
               .{" "}
               {d > 1
-                ? `The ${kEff * kEff - 9} skipped pixels inside the dashed square never influence this output — stacking layers with the same d leaves the same holes (gridding).`
-                : "With d = 1 this is an ordinary 3×3 convolution."}
+                ? `The ${kEff * kEff - 9} skipped pixels inside the dashed square never affect this output. Stacking layers with the same d keeps the same holes (this is called gridding).`
+                : "With d = 1 this is a normal 3×3 convolution."}
             </>
           ) : (
-            "Change the settings so that the kernel fits."
+            "Change the settings so the kernel fits."
           )}
         </Narration>
       </div>
@@ -279,7 +279,7 @@ function TransposedMode() {
   return (
     <SimShell
       title="Transposed convolution"
-      subtitle="Each input value stamps a scaled copy of the kernel onto the output canvas; overlapping stamps add up."
+      subtitle="Each input value stamps a scaled copy of the kernel onto the output. Where stamps overlap, they add up."
       controls={
         <div className="space-y-2">
           <Controls s={s} />
@@ -310,9 +310,9 @@ function TransposedMode() {
             Kernel: {kernel.map((r) => `[${r.map(nf).join(" ")}]`).join(" ")}
           </div>
           {uneven ? (
-            <div className="text-xs text-clay">k = {k} is not divisible by s = {stride}: output pixels receive different numbers of stamps — the checkerboard pattern.</div>
+            <div className="text-xs text-clay">k = {k} is not a multiple of s = {stride}, so output pixels get different numbers of stamps. That causes the checkerboard pattern.</div>
           ) : (
-            <div className="text-xs text-muted">Every output pixel receives the same number of stamps: no checkerboard from overlap.</div>
+            <div className="text-xs text-muted">Every output pixel gets the same number of stamps, so overlap causes no checkerboard.</div>
           )}
         </div>
       }
@@ -341,7 +341,7 @@ function TransposedMode() {
         <div className="min-w-0 flex-1" style={{ minWidth: 220 }}>
           <div className="mb-1 text-xs text-muted">
             Canvas {full}×{full}
-            {pC > 0 ? ` — dashed border rows/cols are cropped by p = ${pC}` : ""}
+            {pC > 0 ? ` — dashed border rows/cols get cropped by p = ${pC}` : ""}
           </div>
           <CellGrid
             h={full}
@@ -380,13 +380,13 @@ function TransposedMode() {
           {finalStep ? (
             <>
               All {n * n} stamps are placed. Cropping p = {pC} from each side of the {full}×{full} canvas leaves the {outSize}×{outSize} output
-              {opC ? ` (output_padding = ${opC} added one extra row and column at the bottom/right before cropping)` : ""}. Switch to <b>overlap count</b>: with all-ones inputs and kernel, each output value equals the number of stamps that covered it
-              {uneven ? " — the uneven counts are exactly the checkerboard artifact." : "."}
+              {opC ? ` (output_padding = ${opC} added one extra row and column at the bottom/right before cropping)` : ""}. Switch to <b>overlap count</b>. With all-ones inputs and kernel, each output value equals the number of stamps that covered it
+              {uneven ? ". The uneven counts are exactly the checkerboard artifact." : "."}
             </>
           ) : (
             <>
-              Pixel ({ci}, {cj}) lands at canvas position ({ci}·{stride}, {cj}·{stride}) = ({ci * stride}, {cj * stride}) and adds {nf(x[ci][cj])} × K to the gold {k}×{k} block. Small numbers in the corner show how many stamps have
-              overlapped there so far. Stride {stride} moves the stamp {stride} canvas cells per input pixel, so the output is about {stride}× larger than the input.
+              Pixel ({ci}, {cj}) lands at canvas position ({ci}·{stride}, {cj}·{stride}) = ({ci * stride}, {cj * stride}) and adds {nf(x[ci][cj])} × K to the gold {k}×{k} block. Small corner numbers show how many stamps have
+              overlapped there so far. Stride {stride} moves the stamp {stride} cells per input pixel, so the output is about {stride}× bigger than the input.
             </>
           )}
         </Narration>
@@ -455,7 +455,7 @@ function SeparableMode() {
   return (
     <SimShell
       title="Depthwise-separable convolution"
-      subtitle="Depthwise: one 3×3 filter per channel (no mixing). Pointwise: a 1×1 convolution mixes channels at every pixel."
+      subtitle="Depthwise: one 3×3 filter per channel, no mixing. Pointwise: a 1×1 convolution mixes the channels at every pixel."
       controls={
         <div className="space-y-2">
           <Controls s={s} />
@@ -468,7 +468,7 @@ function SeparableMode() {
       }
       aside={
         <div className="space-y-2">
-          <div className="font-medium">Cost calculator (weights, stride 1, same padding)</div>
+          <div className="font-medium">Cost calculator (stride 1, same padding)</div>
           <Slider label="C_in" value={ci2} min={0} max={LOG_CHOICES.length - 1} step={1} onChange={setCi2} fmt={(v) => String(LOG_CHOICES[v])} />
           <Slider label="C_out" value={co2} min={0} max={LOG_CHOICES.length - 1} step={1} onChange={setCo2} fmt={(v) => String(LOG_CHOICES[v])} />
           <Slider label="kernel k" value={k2} min={1} max={7} step={2} onChange={setK2} fmt={(v) => `${v}×${v}`} />
@@ -478,7 +478,7 @@ function SeparableMode() {
             <Stat label="depthwise params" value={big(C.depthwiseParams)} />
             <Stat label="pointwise params" value={big(C.pointwiseParams)} />
             <Stat label="separable params" value={big(C.separableParams)} />
-            <Stat label="standard MACs" value={big(C.standardMacs)} />
+            <Stat label="standard MACs (mult-adds)" value={big(C.standardMacs)} />
             <Stat label="separable MACs" value={big(C.separableMacs)} />
             <Stat label="ratio separable/standard" value={C.ratio.toFixed(4)} />
             <Stat label="1/C_out + 1/k²" value={C.formulaRatio.toFixed(4)} />
@@ -522,12 +522,12 @@ function SeparableMode() {
         <Narration title={phase === "input" ? "Input stack" : phase === "dw" ? `Depthwise: channel ${curC}` : `Pointwise: output channel ${curO}`}>
           {phase === "input" && (
             <>
-              {cin} input channels of size {N}×{N}. A standard 3×3 layer to {cout} channels would need {cout}·{cin}·9 = {cout * cin * 9} weights; the separable pair needs {cin}·9 + {cin}·{cout} = {cin * 9 + cin * cout}. The outlined centre pixel is followed through both stages.
+              {cin} input channels of size {N}×{N}. A standard 3×3 layer to {cout} channels would need {cout}·{cin}·9 = {cout * cin * 9} weights. The separable pair needs only {cin}·9 + {cin}·{cout} = {cin * 9 + cin * cout}. We follow the outlined centre pixel through both stages.
             </>
           )}
           {phase === "dw" && (
             <>
-              Channel {curC} is correlated with its own kernel K{curC} = {dk[curC].map((r) => `[${r.map(nf).join(" ")}]`).join(" ")} (same padding) and with nothing else — no information crosses channels. Centre value:{" "}
+              Channel {curC} is correlated with its own kernel K{curC} = {dk[curC].map((r) => `[${r.map(nf).join(" ")}]`).join(" ")} (same padding) and nothing else. No information crosses between channels. Centre value:{" "}
               <span className="font-mono">
                 {dk[curC].flatMap((r, a) => r.map((w, b) => `${nf(x[curC][mid - 1 + a][mid - 1 + b])}·${nf(w)}`)).join(" + ")} = {nf(dwCenter)}
               </span>
@@ -536,11 +536,11 @@ function SeparableMode() {
           )}
           {phase === "pw" && (
             <>
-              Output channel {curO} is a weighted sum of the {cin} depthwise maps, the same weights at every pixel (a 1×1 convolution = a {cin}→{cout} linear layer applied per pixel). Centre value:{" "}
+              Output channel {curO} is a weighted sum of the {cin} depthwise maps, with the same weights at every pixel. A 1×1 convolution is just a {cin}→{cout} linear layer applied to each pixel. Centre value:{" "}
               <span className="font-mono">
                 {pwTerms.map((t, q) => `${q ? " + " : ""}${nf(t.w)}·${nf(t.v)}`).join("")} = {nf(Y[curO][mid][mid])}
               </span>
-              . Line colour: teal = positive weight, clay = negative, thickness = |weight|.
+              . Line colour: teal = positive weight, clay = negative. Thicker line = bigger |weight|.
             </>
           )}
         </Narration>

@@ -4,7 +4,7 @@ const lesson: Lesson = {
   id: "m08/pooling-receptive-field",
   title: "Pooling, Receptive Fields and CNN Architecture",
   summary:
-    "Max and average pooling and their gradients (verified against autograd), stride-2 convolutions as learnable downsampling, global average and adaptive pooling vs flatten + fully connected heads, what pooling really gives in translation invariance, the receptive-field recurrence with jumps and dilation, effective receptive fields measured by backpropagation, and a complete small CNN with its shape and parameter table trained on real digits.",
+    "Max and average pooling and their gradients (checked against autograd), stride-2 convolutions as learned downsampling, global average and adaptive pooling versus flatten + fully connected heads, how much shift invariance pooling really gives, the receptive-field formula with jumps and dilation, the effective receptive field, and a complete small CNN trained on real digits.",
   minutes: 70,
   level: "beginner",
   prerequisites: ["m08/convolution", "m08/images-as-tensors", "m04/backpropagation"],
@@ -15,19 +15,15 @@ const lesson: Lesson = {
     intro: [
       {
         t: "p",
-        text: "A convolutional layer keeps the spatial size of its input (with same padding) and only looks at a small window. Two things are still missing before we have a working image classifier: a way to **shrink** feature maps so that later layers are cheap and see large parts of the image, and a way to turn a stack of feature maps into a single vector of class scores. This lesson covers both, and the quantity that ties them together — the **receptive field**, the region of the input image a given neuron can see.",
+        text: "A convolution layer (with same padding) keeps the image size and looks only at a small window. A real image classifier still needs two things: a way to **shrink** feature maps, so later layers are cheap and see more of the image, and a way to turn a stack of maps into one vector of class scores. This lesson covers both, plus the idea that ties them together: the **receptive field** — the patch of the input image one neuron can see.",
       },
       {
         t: "p",
-        text: "**Pooling** layers summarise each small window of a feature map with a fixed rule: the maximum (**max pooling**) or the mean (**average pooling**). They have no parameters, cut the spatial size (a 2×2 window with stride 2 halves height and width, removing 75% of the activations), and make the representation tolerant to small shifts. Modern networks often replace them with **stride-2 convolutions**, which downsample with learned weights. At the end of the network, **global average pooling** — introduced by Lin, Chen and Yan in “Network In Network” (2013) — averages each feature map to one number and replaces the huge fully connected layers of earlier CNNs: for VGG-16-sized features it needs 513 thousand parameters instead of 123.6 million.",
+        text: "**Pooling** layers summarise each small window of a feature map with a fixed rule: the largest value (**max pooling**) or the mean (**average pooling**). They have no parameters. A 2×2 window with stride 2 halves height and width (removing 75% of the values) and makes the result less sensitive to small shifts. Modern networks often use **stride-2 convolutions** instead, which shrink the map with learned weights. At the end, **global average pooling** (“Network In Network”, Lin, Chen and Yan, 2013) averages each map to one number. It replaces the huge fully connected layers of older CNNs: 513 thousand parameters instead of 123.6 million for VGG-16-sized features.",
       },
       {
         t: "p",
-        text: "The receptive field explains why depth and downsampling matter. Each 3×3 convolution adds only 2 pixels of view at its own resolution, but after every stride-2 step those 2 pixels correspond to twice as many input pixels. We derive the recurrence exactly, tabulate it for a VGG-style network (the last pooling layer of VGG-16 sees 212×212 pixels), and then measure the **effective** receptive field by backpropagating a gradient from one output neuron: as Luo, Li, Urtasun and Zemel showed in “Understanding the Effective Receptive Field in Deep Convolutional Neural Networks” (2016), influence is concentrated near the centre and grows much more slowly than the theoretical field. The lesson ends with a complete small CNN — every shape and parameter accounted for — trained on real data.",
-      },
-      {
-        t: "p",
-        text: "These ideas are used in every CNN: pooling and strided convolutions in classifiers and detectors, global average pooling in ResNet, MobileNet, EfficientNet and ConvNeXt heads, adaptive pooling for variable input sizes, and receptive-field arithmetic whenever an architecture is designed for a task (a segmentation network must see enough context; a detector's anchors are matched to receptive-field sizes).",
+        text: "The receptive field explains why depth and downsampling matter. Each 3×3 convolution widens the view by only 2 pixels at its own resolution, but after every stride-2 step those 2 pixels stand for twice as many input pixels. We derive the exact formula (VGG-16's last pooling layer sees 212×212 pixels). Then we measure the **effective** receptive field with backpropagation: as Luo, Li, Urtasun and Zemel (2016) showed, influence is packed near the centre and grows much more slowly. We finish with a small CNN, every shape and parameter counted, trained on real data.",
       },
     ],
 
@@ -36,10 +32,10 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "[The Convolution Operation](/learn/m08/convolution) — kernels, stride, padding, the output-size formula ⌊(n + 2p − k)/s⌋ + 1 and multi-channel parameter counts. That lesson introduced pooling and the receptive-field recursion briefly; here we go much deeper, so its worked examples are assumed rather than repeated.",
-          "[Images as Tensors and Why CNNs](/learn/m08/images-as-tensors) — NCHW tensors, channels as feature maps, and the inductive biases (locality, weight sharing, equivariance) that pooling and global pooling complete.",
-          "[Backpropagation](/learn/m04/backpropagation) — upstream gradients and the chain rule; we derive and verify the backward pass of max and average pooling and use backpropagation itself to measure effective receptive fields.",
-          "Comfort with floor/ceil and with reading a layer table (shape, parameters) is enough for the arithmetic.",
+          "[The Convolution Operation](/learn/m08/convolution) — kernels, stride, padding, the output-size formula ⌊(n + 2p − k)/s⌋ + 1 and parameter counts. Pooling and receptive fields appeared there briefly; here we go deeper.",
+          "[Images as Tensors and Why CNNs](/learn/m08/images-as-tensors) — NCHW tensors, channels as feature maps, and the built-in assumptions (locality, weight sharing, equivariance).",
+          "[Backpropagation](/learn/m04/backpropagation) — upstream gradients and the chain rule, used here for pooling's backward pass and to measure effective receptive fields.",
+          "For the arithmetic: floor/ceil and reading a layer table (shape, parameters).",
         ],
       },
     ],
@@ -49,87 +45,83 @@ const lesson: Lesson = {
       {
         t: "callout",
         kind: "analogy",
-        title: "Regional managers and a chain of reports",
-        text: "Picture a company where each field worker watches a 3×3 block of street. A team lead receives reports from 2×2 neighbouring workers and passes upward only the most alarming one (max pooling) or the average level of activity (average pooling). A regional manager does the same with team leads, and so on. Nobody reads every raw observation, yet the CEO at the top hears about events anywhere in the city: his **receptive field** is the whole map. The managers' summaries also make the hierarchy robust: if an incident moves one street over but stays in the same team's patch, the team lead's report is unchanged.",
+        title: "Managers passing reports up the chain",
+        text: "Picture a company where each field worker watches a 3×3 block of streets. A team lead gets reports from 2×2 neighbouring workers and passes up only the most alarming one (max pooling) or the average activity (average pooling). Regional managers do the same with team leads, and so on. Nobody reads every raw report, yet the CEO hears about events anywhere in the city: the CEO's **receptive field** is the whole map. And if an incident moves one street over but stays in the same team's patch, the team lead's report does not change.",
       },
       {
         t: "p",
-        text: "Max pooling asks “is the feature present anywhere in this little window?” and forgets exactly where. Average pooling asks “how much of the feature is in this window?”. Either way the map gets smaller, so the next convolution's 3×3 window covers a region twice as wide in the original image. That is the main job of downsampling: grow the receptive field quickly and cut computation.",
+        text: "Max pooling asks “is the feature anywhere in this little window?” and forgets exactly where. Average pooling asks “how much of the feature is in this window?”. Either way the map gets smaller, so the next 3×3 convolution covers a region twice as wide in the original image. That is the main job of downsampling: grow the receptive field fast and cut computation.",
       },
       {
         t: "p",
-        text: "At the very end, a classifier must answer “is there a cat?” rather than “is there a cat at position (3, 5)?”. **Global average pooling** averages each feature map over all positions, so a “cat-ear detector” map contributes the same evidence wherever the ear is — the network's answer becomes invariant to where things are. The older alternative, **flattening** the maps into a long vector and feeding a fully connected layer, keeps one weight per position and therefore needs vastly more parameters.",
-      },
-      {
-        t: "p",
-        text: "Finally, a neuron's receptive field is not uniformly important. A centre pixel can reach a deep neuron through many different paths through the layers; a pixel at the edge of the field through very few. So the field that actually matters — the **effective receptive field** — is a bright centre fading towards the edges, and it is smaller than the theoretical box.",
+        text: "At the end, a classifier must answer “is there a cat?”, not “is there a cat at position (3, 5)?”. **Global average pooling** averages each feature map over all positions, so a “cat-ear detector” map gives the same evidence wherever the ear is. The older option, **flattening** the maps into one long vector for a fully connected layer, keeps one weight per position and needs far more parameters. Finally, not every pixel a neuron can see matters equally: the **effective receptive field** is a bright centre fading toward the edges.",
       },
     ],
 
     // -------------------------------------------------------------- mechanism
     mechanism: [
-      { t: "h", text: "Why downsample at all?" },
+      { t: "h", text: "Why shrink the map at all?" },
       {
         t: "list",
         items: [
-          "**Compute.** A convolution's cost is C_out·C_in·k²·H_out·W_out multiply-adds. Halving H and W cuts it by 4, which is what lets networks double their channel count after each downsampling at roughly constant cost per stage.",
-          "**Receptive field.** Every downsampling by 2 doubles the jump — the number of input pixels between neighbouring units — so each later 3×3 convolution adds twice as much view. Without downsampling, ten 3×3 layers see only 21×21 pixels.",
-          "**Robustness to small shifts.** Summarising a window discards exact positions inside it, giving some tolerance to small translations and deformations (quantified below — it is less than often claimed).",
+          "**Compute.** A convolution costs C_out·C_in·k²·H_out·W_out multiply-adds. Halving H and W cuts that by 4. This is why networks can double their channels after each downsampling and keep the cost per stage roughly constant.",
+          "**Receptive field.** Each downsampling by 2 doubles the jump — the number of input pixels between neighbouring units — so every later 3×3 convolution adds twice as much view. Without downsampling, ten 3×3 layers see only 21×21 pixels.",
+          "**Robustness to small shifts.** Summarising a window throws away exact positions inside it, so small shifts and distortions matter less (measured below — the effect is smaller than often claimed).",
         ],
       },
       { t: "h", text: "Max pooling" },
       {
         t: "steps",
         items: [
-          { title: "Choose window k and stride s", text: "Most common: k = 2, s = 2 (non-overlapping 2×2 blocks). AlexNet used overlapping 3×3 windows with stride 2; ResNet's stem uses 3×3, stride 2, padding 1." },
-          { title: "Slide over each channel separately", text: "Pooling never mixes channels: a C×H×W input gives a C×H_out×W_out output with the same C." },
-          { title: "Keep the maximum of each window", text: "Each output is the largest of the k² values. The position of that maximum (the argmax) is remembered for the backward pass." },
-          { title: "Output size", text: "Same formula as convolution: ⌊(n + 2p − k)/s⌋ + 1. For k = s = 2, p = 0 this is ⌊n/2⌋ — an odd final row/column is dropped." },
+          { title: "Pick window size k and stride s", text: "Most common: k = 2, s = 2 (2×2 blocks that don't overlap). AlexNet used overlapping 3×3 windows with stride 2; ResNet's stem uses 3×3, stride 2, padding 1." },
+          { title: "Work on each channel separately", text: "Pooling never mixes channels: a C×H×W input gives a C×H_out×W_out output with the same C." },
+          { title: "Keep the maximum of each window", text: "Each output is the largest of the k² values. The layer remembers where that maximum was (the argmax) for the backward pass." },
+          { title: "Output size", text: "Same formula as convolution: ⌊(n + 2p − k)/s⌋ + 1. For k = s = 2, p = 0 this is ⌊n/2⌋, so an odd last row or column is dropped." },
         ],
       },
       {
         t: "p",
-        text: "Max pooling suits ReLU feature maps, where an activation means “this pattern was detected here”: the max preserves the strongest detection in each neighbourhood. If padding is used, PyTorch pads max pooling with −∞ (so padding never wins), not with zeros.",
+        text: "Max pooling suits ReLU maps, where a value means “this pattern was found here”: it keeps the strongest detection in each neighbourhood. With padding, PyTorch pads max pooling with −∞ (so padding never wins), not zeros.",
       },
       { t: "h", text: "Average pooling" },
       {
         t: "p",
-        text: "Average pooling outputs the mean of each window. It is smoother — every input contributes — and acts as a low-pass filter (a box blur followed by subsampling), which reduces aliasing compared with max pooling. LeNet-5 used a trainable variant (a scaled average plus bias). Today plain average pooling appears mostly in two forms: global average pooling at the end of networks, and 2×2 average pooling in some shortcut connections and transition layers (e.g. DenseNet's transition layers).",
+        text: "Average pooling outputs the mean of each window. It is smoother — every input counts — and works like a blur followed by subsampling. This reduces **aliasing** (fine detail turning into false coarse patterns when pixels are skipped) compared with max pooling. LeNet-5 used a trainable version (scaled average plus bias). Today it shows up mostly as global average pooling at the end of networks, and as 2×2 average pooling in some shortcut paths and transition layers (e.g. DenseNet's).",
       },
       { t: "h", text: "Gradients through pooling" },
       {
         t: "list",
         items: [
-          "**Max pooling routes** the gradient: each output's upstream gradient goes entirely to the single input that was the maximum; every other input in the window gets 0. Only the “winners” learn from that output. If windows overlap (k > s), an input that is the max of several windows receives the **sum** of their gradients.",
-          "**Average pooling spreads** the gradient: each of the k² inputs of a window receives 1/k² of the output's upstream gradient.",
-          "**Ties** in max pooling are broken by a convention (PyTorch picks the first maximum in the window) — the max is not differentiable at a tie, and this choice is a valid subgradient.",
-          "Neither layer has parameters, so there is no weight gradient; pooling only transforms the gradient on its way to earlier layers. Both rules are worked out with numbers in the math section and checked against PyTorch autograd in the code.",
+          "**Max pooling routes** the gradient: each output's upstream gradient goes entirely to the one input that was the maximum; the others in the window get 0. Only the “winners” learn from that output. If windows overlap (k > s), an input that wins several windows gets the **sum** of their gradients.",
+          "**Average pooling spreads** the gradient: each of the k² inputs in a window gets 1/k² of the output's upstream gradient.",
+          "**Ties** in max pooling are broken by a convention (PyTorch picks the first maximum in the window). The max has no derivative at a tie, and this choice is a valid subgradient.",
+          "Neither layer has parameters, so there is no weight gradient. The math section works both rules out with numbers; the code checks them against PyTorch autograd.",
         ],
       },
-      { t: "h", text: "Stride-2 convolution: learnable downsampling" },
+      { t: "h", text: "Stride-2 convolution: learned downsampling" },
       {
         t: "p",
-        text: "A convolution with stride 2 computes only every other output position, downsampling and transforming features in one step with learned weights. Springenberg, Dosovitskiy, Brox and Riedmiller (“Striving for Simplicity: The All Convolutional Net”, 2014) showed that replacing max pooling with strided convolutions loses little or no accuracy, and ResNet, MobileNet and most later architectures downsample mainly with stride-2 convolutions. Trade-offs: a strided convolution adds parameters and compute, can learn what to keep instead of hard-coding “max”, but — like any subsampling without a low-pass filter — it aliases high frequencies. Zhang (“Making Convolutional Networks Shift-Invariant Again”, 2019) proposed blurring before subsampling (anti-aliased pooling/striding) to recover some shift stability.",
+        text: "A stride-2 convolution computes only every other output position, so it shrinks the map and transforms features in one step, with learned weights. Springenberg, Dosovitskiy, Brox and Riedmiller (“Striving for Simplicity: The All Convolutional Net”, 2014) showed that swapping max pooling for strided convolutions costs little or no accuracy; ResNet, MobileNet and most later models downsample this way. It adds parameters and compute, but learns what to keep instead of hard-coding “max”. Like any subsampling without blurring first, it aliases. Zhang (“Making Convolutional Networks Shift-Invariant Again”, 2019) proposed blurring before subsampling to win back some shift stability.",
       },
       { t: "h", text: "Flattening and the fully connected head" },
       {
         t: "p",
-        text: "After the last convolutional stage, the C×H×W tensor must become class scores. The classic approach (LeNet, AlexNet, VGG) **flattens** it into a vector of C·H·W numbers — a pure reshape, no parameters — and applies one or more fully connected layers. The flatten keeps a separate weight for every (channel, position) pair, so the head can use *where* a feature occurred, but it is expensive: in VGG-16, flattening 512×7×7 = 25,088 values into a 4,096-unit layer costs 102.8 million weights, and the three FC layers together hold 123.6 million of the network's 138.4 million parameters (89%). It also fixes the input resolution, because the flattened length must equal the weight matrix's width.",
+        text: "After the last convolutional stage, the C×H×W tensor must become class scores. The classic way (LeNet, AlexNet, VGG) is to **flatten** it into a vector of C·H·W numbers — a reshape, no parameters — and apply fully connected layers. Every (channel, position) pair gets its own weight, so the head can use *where* a feature appeared. But it is expensive: in VGG-16, flattening 512×7×7 = 25,088 values into a 4,096-unit layer costs 102.8 million weights, and the three FC layers hold 123.6 million of the network's 138.4 million parameters (89%). It also locks the input size, because the flattened length must match the weight matrix.",
       },
       { t: "h", text: "Global average pooling (GAP)" },
       {
         t: "p",
-        text: "GAP averages each of the C feature maps over all H×W positions, producing exactly C numbers regardless of the spatial size; a single linear layer C → classes follows. Lin, Chen and Yan's Network In Network (2013) proposed it to replace fully connected layers: it has no parameters, acts as a structural regulariser (there are no position-specific weights to overfit), makes the network accept any input size, and makes the final prediction translation invariant. For VGG-16-sized features, GAP + one linear layer has 513,000 parameters versus 123,642,856 for the flatten + 3 FC head — 241× fewer. ResNet-50's head is GAP + one 2,048 → 1,000 linear layer (2,049,000 parameters). Because the classifier is linear on per-map averages, its weights can be projected back onto the feature maps to show where each class's evidence lies — the Class Activation Mapping (CAM) technique of Zhou et al. (2016).",
+        text: "GAP averages each of the C feature maps over all H×W positions, giving exactly C numbers whatever the spatial size; one linear layer C → classes follows. Network In Network (2013) proposed it to replace fully connected layers. It has no parameters, acts as a built-in regulariser (no position-specific weights to overfit), accepts any input size and makes the prediction translation invariant. For VGG-16-sized features, GAP + one linear layer has 513,000 parameters versus 123,642,856 for the flatten + 3 FC head — 241× fewer. ResNet-50's head is GAP + one 2,048 → 1,000 linear layer (2,049,000 parameters). Bonus: because the classifier is linear on per-map averages, its weights can be projected back onto the maps to show where each class's evidence lies — Class Activation Mapping (CAM), Zhou et al. (2016).",
       },
       { t: "h", text: "Adaptive pooling" },
       {
         t: "p",
-        text: "**Adaptive pooling** fixes the *output* size instead of the window: `nn.AdaptiveAvgPool2d((7, 7))` produces 7×7 maps from any input size by choosing the window boundaries for you (bin i covers rows ⌊i·n/m⌋ to ⌈(i+1)·n/m⌉ − 1, so bins may overlap by one). GAP is the special case output size 1×1. torchvision's VGG uses adaptive 7×7 average pooling before its flatten so that inputs other than 224×224 still produce the 25,088-long vector its FC layers expect. A related idea, spatial pyramid pooling (He et al., 2014), concatenates adaptive poolings at several output sizes (e.g. 1×1, 2×2, 4×4).",
+        text: "**Adaptive pooling** fixes the *output* size instead of the window. `nn.AdaptiveAvgPool2d((7, 7))` makes 7×7 maps from any input by choosing the window edges for you (bin i covers rows ⌊i·n/m⌋ to ⌈(i+1)·n/m⌉ − 1, so bins may overlap by one). GAP is the case output size 1×1. torchvision's VGG uses adaptive 7×7 pooling before its flatten, so non-224×224 inputs still give the 25,088-long vector its FC layers expect. Spatial pyramid pooling (He et al., 2014) joins adaptive poolings at several output sizes (e.g. 1×1, 2×2, 4×4).",
       },
-      { t: "h", text: "Invariance vs equivariance: what pooling really provides" },
+      { t: "h", text: "Invariance vs equivariance: what pooling really gives" },
       {
         t: "p",
-        text: "Convolution is translation **equivariant**: shift the input and the feature map shifts by the same amount. A classifier needs **invariance**: the same answer wherever the object is. Pooling is often said to provide invariance, but a local pooling layer only gives *partial* invariance to *small* shifts. A 2×2 max pool returns the same output when a feature moves within its 2×2 block, but when the feature crosses a block boundary the pooled map changes (it shifts by one coarse cell). Our NumPy experiment applies four random 3×3 filters with ReLU to a small “T” shape and measures the relative change of the representation when the input is shifted by 1–4 pixels:",
+        text: "Convolution is translation **equivariant**: shift the input and the feature map shifts by the same amount. A classifier needs **invariance**: the same answer wherever the object is. Pooling is often said to give invariance, but local pooling only partly tolerates *small* shifts. A 2×2 max pool gives the same output if a feature moves within its 2×2 block; if it crosses a block edge, the pooled map moves by one coarse cell. Our NumPy experiment runs four random 3×3 filters with ReLU on a small “T” shape and measures how much the result changes when the input shifts by 1–4 pixels:",
       },
       {
         t: "table",
@@ -144,33 +136,33 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "The convolution is exactly equivariant (error 0: the shifted map equals the map of the shifted input), but as a representation it changes completely — a relative change near 1 means the old and new maps barely overlap.",
-          "One 2×2 max pool reduces the change only modestly (0.86 → 0.76 for a 1-pixel shift). Two pooling layers do better, and the benefit shrinks as the shift grows. Pooling provides **tolerance to small shifts, growing with depth**, not invariance.",
-          "Global average pooling is exactly invariant here (up to float round-off) because the shifted shape stays inside the image, so the feature maps are merely moved and their averages unchanged. This — not local pooling — is where a modern CNN's translation invariance mostly comes from, together with data augmentation.",
+          "The convolution is exactly equivariant (error 0: the shifted map equals the map of the shifted input). Yet as a representation it changes completely — a relative change near 1 means old and new maps barely overlap.",
+          "One 2×2 max pool reduces the change only a little (0.86 → 0.76 for a 1-pixel shift). Two pooling layers do better, but the benefit shrinks as the shift grows. So pooling gives **tolerance to small shifts that grows with depth**, not invariance.",
+          "Global average pooling is exactly invariant here (up to float round-off). The shifted shape stays inside the image, so the maps only move and their averages stay the same. This — not local pooling — is where most of a modern CNN's translation invariance comes from, together with data augmentation.",
         ],
       },
       { t: "h", text: "Receptive field" },
       {
         t: "p",
-        text: "The **receptive field** (RF) of a unit is the set of input pixels that can affect its value. For a stack of layers it is computed from three per-layer quantities: kernel size k, stride s and dilation d (a dilated kernel spreads its k taps d pixels apart, so it spans an **effective kernel size** k_eff = d(k − 1) + 1). Track two numbers per layer: r, the RF width in input pixels, and the **jump** j, the distance in input pixels between two neighbouring units of that layer (the product of all strides so far). A new layer's window spans k_eff units of the previous layer, i.e. (k_eff − 1) gaps of j_{l−1} input pixels each, on top of the previous field:",
+        text: "The **receptive field** (RF) of a unit is the set of input pixels that can affect its value. It depends on each layer's kernel size k, stride s and dilation d. (A dilated kernel spreads its k taps d pixels apart, so it spans an **effective kernel size** k_eff = d(k − 1) + 1.) Track two numbers per layer: r, the RF width in input pixels, and the **jump** j, the distance in input pixels between neighbouring units of that layer (the product of all strides so far). A new layer's window covers k_eff units of the previous layer — (k_eff − 1) gaps of j_{l−1} input pixels — on top of the previous field:",
       },
       {
         t: "list",
         items: [
           "r_l = r_{l−1} + (k_eff,l − 1) · j_{l−1}, with r_0 = 1",
           "j_l = j_{l−1} · s_l, with j_0 = 1",
-          "Pooling layers count exactly like convolutions (k, s); ReLU, BatchNorm and other element-wise layers do not change r or j; a 1×1 convolution adds nothing.",
-          "Padding does not change the RF size, only where it sits — and near the borders part of the field falls on padding, so border units see fewer real pixels.",
+          "Pooling layers count exactly like convolutions (k, s). ReLU, BatchNorm and other element-wise layers don't change r or j; a 1×1 convolution adds nothing.",
+          "Padding doesn't change the RF size, only where it sits. Near the borders part of the field falls on padding, so border units see fewer real pixels.",
         ],
       },
       {
         t: "p",
-        text: "Two consequences: (1) the growth per layer is proportional to the current jump, so layers *after* downsampling grow the RF fastest; (2) the order matters for cost, not just size: a stride-2 layer early in the network makes every later layer cheaper and their RF contributions larger. **Dilation** increases k_eff without extra parameters: four 3×3 convolutions with dilations 1, 2, 4, 8 at stride 1 reach a 31-pixel RF without any downsampling (versus 9 for undilated ones) — the basis of dilated networks for segmentation and audio; see [Dilated, Transposed, Depthwise and Pointwise Convolutions](/learn/m08/conv-variants). Stacking identical dilations (2, 2, 2) instead leaves holes: the unit sees only every other pixel (“gridding”), which the simulator shows.",
+        text: "Two consequences. (1) Growth per layer is proportional to the current jump, so layers *after* downsampling grow the RF fastest. (2) Order matters for cost too: an early stride-2 layer makes every later layer cheaper and their RF growth larger. **Dilation** raises k_eff without extra parameters: four 3×3 convolutions with dilations 1, 2, 4, 8 at stride 1 reach a 31-pixel RF with no downsampling (versus 9 without dilation). Dilated networks for segmentation and audio build on this; see [Dilated, Transposed, Depthwise and Pointwise Convolutions](/learn/m08/conv-variants). Repeating the same dilation (2, 2, 2) leaves holes: the unit sees only every other pixel (“gridding”), as the simulator shows.",
       },
       { t: "h", text: "Effective receptive field" },
       {
         t: "p",
-        text: "The theoretical RF says which pixels *can* matter, not how much they do. Measure influence directly as the gradient magnitude |∂y/∂x_i| of a centre output unit y with respect to each input pixel x_i. In a stack of 3×3 convolutions, the number of paths from an input pixel to the output is largest for the centre pixel and falls off towards the edges (a 1-D analogue: the number of ways to take n steps of −1, 0 or +1 and end at position m peaks at m = 0). For random weights the contributions add up approximately like a sum of independent steps, so by the central-limit theorem the profile is close to Gaussian with standard deviation growing like √n, while the theoretical RF grows like n. Luo et al. (2016) documented this and showed that training enlarges the effective RF somewhat but it remains a fraction of the theoretical one. Our measurement on random He-initialised conv–ReLU stacks (PyTorch tab):",
+        text: "The theoretical RF says which pixels *can* matter, not how much. To measure influence, take the gradient size |∂y/∂x_i| of a centre output unit y for each input pixel x_i. In a stack of 3×3 convolutions the centre pixel has the most paths to the output, and the count falls toward the edges. (In 1-D: the number of ways to take n steps of −1, 0 or +1 and end at m peaks at m = 0.) With random weights the contributions add up roughly like independent steps, so by the central-limit theorem the profile is close to a Gaussian (bell curve) with standard deviation growing like √n, while the theoretical RF grows like n. Luo et al. (2016) showed that training widens the effective RF somewhat, but it stays a fraction of the theoretical one. Our measurement on random He-initialised conv–ReLU stacks (PyTorch tab):",
       },
       {
         t: "table",
@@ -184,12 +176,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: "Doubling the depth from 8 to 16 doubles the theoretical RF (17 → 33) but multiplies the standard deviation of the influence profile by only 1.48 ≈ √2. Practical consequence: if a task needs context over a region of size R, design the theoretical RF to be comfortably larger than R, or use downsampling, dilation or attention to spread influence.",
+        text: "Doubling the depth from 8 to 16 doubles the theoretical RF (17 → 33) but widens the spread of influence by only 1.48 ≈ √2. In practice: if a task needs context over a region of size R, make the theoretical RF comfortably larger than R, or use downsampling, dilation or attention.",
       },
       { t: "h", text: "Putting it together: a complete small CNN" },
       {
         t: "p",
-        text: "A VGG-style network for scikit-learn's 8×8 digits: two stages of two same-padded 3×3 convolutions with ReLU followed by 2×2 max pooling, then global average pooling and one linear layer. The shapes and parameter counts below were printed by the PyTorch program in the framework section.",
+        text: "A VGG-style network for scikit-learn's 8×8 digits: two stages, each with two same-padded 3×3 convolutions with ReLU and then 2×2 max pooling, followed by global average pooling and one linear layer. The PyTorch program in the framework section printed these shapes and parameter counts.",
       },
       {
         t: "table",
@@ -209,16 +201,16 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: "Each unit after the second pooling layer has a 16×16 receptive field, larger than the 8×8 image (the excess falls on padding), so every unit can see the whole digit before GAP. Trained for 15 epochs with Adam, it reaches 97.6% test accuracy; the same body with a flatten + FC(128 → 64 → 10) head has 25,274 parameters and reaches 98.0%; replacing both max-pools with stride-2 convolutions (28,266 parameters) reaches 95.1% on this tiny dataset. On 8×8 images the differences are small and partly noise — the point is that every architectural choice shows up as concrete numbers in shapes, parameters and receptive fields.",
+        text: "After the second pool each unit has a 16×16 receptive field, bigger than the 8×8 image (the extra falls on padding), so every unit sees the whole digit before GAP. After 15 epochs of Adam it reaches 97.6% test accuracy. The same body with a flatten + FC(128 → 64 → 10) head has 25,274 parameters and reaches 98.0%; replacing both max-pools with stride-2 convolutions (28,266 parameters) gives 95.1% on this tiny dataset. On 8×8 images the gaps are small and partly noise. The point: every design choice shows up as concrete numbers in shapes, parameters and receptive fields.",
       },
     ],
 
     // ------------------------------------------------------------------- math
     math: [
-      { t: "h", text: "Pooling as functions" },
+      { t: "h", text: "Pooling as formulas" },
       {
         t: "p",
-        text: String.raw`For one channel $X$ of size $H \times W$, window $k$, stride $s$, the window of output $(i, j)$ is $\mathcal{W}_{ij} = \{(s\,i + m,\; s\,j + n) : 0 \le m, n < k\}$. Then`,
+        text: String.raw`For one channel $X$ of size $H \times W$, window $k$ and stride $s$, output $(i, j)$ looks at the window $\mathcal{W}_{ij} = \{(s\,i + m,\; s\,j + n) : 0 \le m, n < k\}$. Then:`,
       },
       {
         t: "math",
@@ -227,16 +219,16 @@ const lesson: Lesson = {
       { t: "h", text: "Backward pass" },
       {
         t: "p",
-        text: String.raw`Let $G_{ij} = \partial L/\partial Y_{ij}$ and let $(u^*_{ij}, v^*_{ij})$ be the argmax of window $\mathcal{W}_{ij}$. By the chain rule, summing over every window that contains $(u, v)$:`,
+        text: String.raw`Let $G_{ij} = \partial L/\partial Y_{ij}$ be the upstream gradient and $(u^*_{ij}, v^*_{ij})$ the argmax of window $\mathcal{W}_{ij}$. The chain rule sums over every window that contains $(u, v)$:`,
       },
       {
         t: "math",
         tex: String.raw`\frac{\partial L}{\partial X_{uv}}\bigg|_{\max} = \sum_{i,j} G_{ij}\;\mathbf{1}\big[(u,v) = (u^*_{ij}, v^*_{ij})\big], \qquad \frac{\partial L}{\partial X_{uv}}\bigg|_{\text{avg}} = \sum_{i,j:\,(u,v)\in\mathcal{W}_{ij}} \frac{G_{ij}}{k^2}`,
-        caption: "Max routes each upstream gradient to its argmax; average spreads it uniformly. With non-overlapping windows each input belongs to exactly one window and the sums have one term.",
+        caption: "Max sends each upstream gradient to its argmax; average spreads it evenly. With non-overlapping windows each input sits in exactly one window, so each sum has one term.",
       },
       {
         t: "p",
-        text: String.raw`**Worked example** (2×2 windows, stride 2). Input and upstream gradient:`,
+        text: "**Worked example** (2×2 windows, stride 2). The input and the upstream gradient:",
       },
       {
         t: "math",
@@ -245,15 +237,15 @@ const lesson: Lesson = {
       {
         t: "steps",
         items: [
-          { title: "Max pooling forward", text: "Blocks {1, 3, 4, 2}, {2, 0, 1, 5}, {0, 1, 2, 6}, {3, 2, 1, 1}. Maxima 4 at (1,0), 5 at (1,3), 6 at (3,1), 3 at (2,2).", tex: String.raw`Y^{\max} = \begin{bmatrix}4&5\\6&3\end{bmatrix}` },
+          { title: "Max pooling forward", text: "The blocks are {1, 3, 4, 2}, {2, 0, 1, 5}, {0, 1, 2, 6}, {3, 2, 1, 1}. Their maxima: 4 at (1,0), 5 at (1,3), 6 at (3,1), 3 at (2,2).", tex: String.raw`Y^{\max} = \begin{bmatrix}4&5\\6&3\end{bmatrix}` },
           { title: "Max pooling backward", text: "Each block's gradient goes to its argmax; the other 12 entries get 0.", tex: String.raw`\frac{\partial L}{\partial X} = \begin{bmatrix}0&0&0&0\\0.5&0&0&-1\\0&0&0.25&0\\0&2&0&0\end{bmatrix}` },
           { title: "Average pooling forward", tex: String.raw`Y^{\text{avg}} = \begin{bmatrix}10/4&8/4\\9/4&7/4\end{bmatrix} = \begin{bmatrix}2.5&2\\2.25&1.75\end{bmatrix}` },
-          { title: "Average pooling backward", text: "Each block's gradient divided by k² = 4 and copied to all four entries.", tex: String.raw`\frac{\partial L}{\partial X} = \begin{bmatrix}0.125&0.125&-0.25&-0.25\\0.125&0.125&-0.25&-0.25\\0.5&0.5&0.0625&0.0625\\0.5&0.5&0.0625&0.0625\end{bmatrix}` },
+          { title: "Average pooling backward", text: "Divide each block's gradient by k² = 4 and copy it to all four entries.", tex: String.raw`\frac{\partial L}{\partial X} = \begin{bmatrix}0.125&0.125&-0.25&-0.25\\0.125&0.125&-0.25&-0.25\\0.5&0.5&0.0625&0.0625\\0.5&0.5&0.0625&0.0625\end{bmatrix}` },
         ],
       },
       {
         t: "p",
-        text: String.raw`Both gradients match PyTorch autograd exactly (checked in the NumPy code). Note that the total gradient is preserved in both cases: the entries of each block of $\partial L/\partial X$ sum to that block's $G_{ij}$. **Overlapping windows:** with $k = 3, s = 2$ on a 5×5 input whose only non-zero entry is a 9 at the centre, all four windows contain the centre and all four outputs equal 9; with $G = \mathbf{1}$ the centre receives $1 + 1 + 1 + 1 = 4$.`,
+        text: String.raw`Both results match PyTorch autograd exactly (checked in the NumPy code). In both cases the total gradient is kept: the entries of each block of $\partial L/\partial X$ add up to that block's $G_{ij}$. **Overlapping windows:** take $k = 3, s = 2$ on a 5×5 input whose only non-zero entry is a 9 in the centre. All four windows contain the centre, so all four outputs are 9; with $G = \mathbf{1}$ the centre receives $1 + 1 + 1 + 1 = 4$.`,
       },
       { t: "h", text: "Global average and adaptive pooling" },
       {
@@ -262,27 +254,27 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Example: $n = 7 \to m = 3$ bins $[0,3), [2,5), [4,7)$ (overlapping by one). For $x = (3,1,4,1,5,9,2)$ the adaptive averages are $8/3 = 2.6667$, $10/3 = 3.3333$, $16/3 = 5.3333$ and the adaptive maxima $4, 5, 9$. GAP's gradient is that of an average over $HW$ positions: $\partial L/\partial X_{c,uv} = G_c / (HW)$.`,
+        text: String.raw`Example: $n = 7 \to m = 3$ bins $[0,3), [2,5), [4,7)$ (overlapping by one). For $x = (3,1,4,1,5,9,2)$ the adaptive averages are $8/3 = 2.6667$, $10/3 = 3.3333$, $16/3 = 5.3333$ and the adaptive maxima are $4, 5, 9$. GAP is an average over $HW$ positions, so its gradient is $\partial L/\partial X_{c,uv} = G_c / (HW)$.`,
       },
-      { t: "h", text: "Parameter cost of the classifier head" },
+      { t: "h", text: "What the classifier head costs in parameters" },
       {
         t: "math",
         tex: String.raw`\#\theta_{\text{flatten+FC}} = (C\,H\,W)\,m_1 + m_1 + \dots, \qquad \#\theta_{\text{GAP+FC}} = C \cdot K + K`,
-        caption: "K classes, m_1 hidden units. The flatten head scales with the final spatial size H·W; the GAP head does not.",
+        caption: "K classes, m_1 hidden units. The flatten head grows with the final spatial size H·W; the GAP head does not.",
       },
       {
         t: "p",
-        text: String.raw`VGG-16 ($C = 512$, $H = W = 7$, $K = 1000$): $25{,}088\cdot 4{,}096 + 4{,}096 = 102{,}764{,}544$, plus $4{,}096\cdot4{,}096 + 4{,}096 = 16{,}781{,}312$, plus $4{,}096\cdot 1{,}000 + 1{,}000 = 4{,}097{,}000$, total $123{,}642{,}856$. GAP head: $512 \cdot 1000 + 1000 = 513{,}000$.`,
+        text: String.raw`For VGG-16 ($C = 512$, $H = W = 7$, $K = 1000$): $25{,}088\cdot 4{,}096 + 4{,}096 = 102{,}764{,}544$, plus $4{,}096\cdot4{,}096 + 4{,}096 = 16{,}781{,}312$, plus $4{,}096\cdot 1{,}000 + 1{,}000 = 4{,}097{,}000$, total $123{,}642{,}856$. The GAP head: $512 \cdot 1000 + 1000 = 513{,}000$.`,
       },
       { t: "h", text: "Shift: equivariance and (partial) invariance" },
       {
         t: "p",
-        text: String.raw`Let $T_\delta$ shift by $\delta$ pixels. Convolution: $K \star T_\delta X = T_\delta(K\star X)$. For 2×2/stride-2 pooling $P$: if $\delta$ is a multiple of 2, $P(T_\delta Z) = T_{\delta/2} P(Z)$ — equivariance at the coarser resolution; for odd $\delta$ there is no such identity in general. A 1-D example with a single spike: $P(0,9,0,0,0,0) = (9,0,0)$ and $P(9,0,0,0,0,0) = (9,0,0)$ — a shift that stays inside the block changes nothing; but $P(0,0,9,0,0,0) = (0,9,0)$ — a 1-pixel shift across a block boundary moves the output. Global averaging is invariant to any shift that keeps the content inside the image: $\text{GAP}(T_\delta Z) = \text{GAP}(Z)$.`,
+        text: String.raw`Let $T_\delta$ shift by $\delta$ pixels. Convolution commutes with shifts: $K \star T_\delta X = T_\delta(K\star X)$. For 2×2/stride-2 pooling $P$: if $\delta$ is a multiple of 2, $P(T_\delta Z) = T_{\delta/2} P(Z)$ — equivariance at the coarser resolution. For odd $\delta$ there is no such rule in general. A 1-D example with one spike: $P(0,9,0,0,0,0) = (9,0,0)$ and $P(9,0,0,0,0,0) = (9,0,0)$, so a shift inside the block changes nothing. But $P(0,0,9,0,0,0) = (0,9,0)$: a 1-pixel shift across a block edge moves the output. Global averaging ignores any shift that keeps the content inside the image: $\text{GAP}(T_\delta Z) = \text{GAP}(Z)$.`,
       },
-      { t: "h", text: "Receptive field recurrence and closed form" },
+      { t: "h", text: "Receptive-field formula and closed form" },
       {
         t: "p",
-        text: String.raw`Let layer $\ell$ have kernel $k_\ell$, stride $s_\ell$, dilation $d_\ell$ and effective kernel $\hat k_\ell = d_\ell(k_\ell - 1) + 1$. Unit $i$ of layer $\ell$ reads units $s_\ell i - p_\ell + a\,d_\ell$, $a = 0,\dots,k_\ell - 1$, of layer $\ell - 1$: a span of $\hat k_\ell$ consecutive positions. Adjacent units of layer $\ell-1$ are $j_{\ell-1}$ input pixels apart and each sees $r_{\ell-1}$ pixels, so the union of their fields is`,
+        text: String.raw`Let layer $\ell$ have kernel $k_\ell$, stride $s_\ell$, dilation $d_\ell$ and effective kernel $\hat k_\ell = d_\ell(k_\ell - 1) + 1$. Unit $i$ of layer $\ell$ reads units $s_\ell i - p_\ell + a\,d_\ell$, $a = 0,\dots,k_\ell - 1$, of layer $\ell - 1$: a span of $\hat k_\ell$ neighbouring positions. Neighbouring units of layer $\ell-1$ are $j_{\ell-1}$ input pixels apart and each sees $r_{\ell-1}$ pixels, so together their fields cover`,
       },
       {
         t: "math",
@@ -290,7 +282,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The input interval itself follows by back-projecting index ranges: if layer $\ell$'s relevant units are $[a, b]$, layer $\ell-1$'s are $[a\,s_\ell - p_\ell,\; b\,s_\ell - p_\ell + d_\ell(k_\ell-1)]$ (indices outside $[0, n_{\ell-1}-1]$ are padding). The centre of unit 0 of layer $\ell$ sits at input coordinate $c_\ell = c_{\ell-1} + \big(\tfrac{\hat k_\ell - 1}{2} - p_\ell\big) j_{\ell-1}$, $c_0 = 0$, and unit $i$ at $c_\ell + i\,j_\ell$.`,
+        text: String.raw`To find the actual input interval, project index ranges backwards: if layer $\ell$'s relevant units are $[a, b]$, layer $\ell-1$'s are $[a\,s_\ell - p_\ell,\; b\,s_\ell - p_\ell + d_\ell(k_\ell-1)]$ (indices outside $[0, n_{\ell-1}-1]$ are padding). Unit 0 of layer $\ell$ is centred at input coordinate $c_\ell = c_{\ell-1} + \big(\tfrac{\hat k_\ell - 1}{2} - p_\ell\big) j_{\ell-1}$, $c_0 = 0$, and unit $i$ at $c_\ell + i\,j_\ell$.`,
       },
       {
         t: "table",
@@ -308,45 +300,45 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Notice how the per-layer increment $2\,j_{\ell-1}$ grows from 2 (stage 1) to 32 (stage 5): the five convolutions of stages 4–5 contribute $3\cdot 16 + 3\cdot 32 = 144$ of the 212 pixels even though they are only 6 of the 13 convolutions. With dilations $1, 2, 4, 8$ on four stride-1 3×3 layers, $\hat k = 3, 5, 9, 17$ and $r = 3, 7, 15, 31$.`,
+        text: String.raw`See how the step per layer, $2\,j_{\ell-1}$, grows from 2 (stage 1) to 32 (stage 5). The six convolutions of stages 4–5 add $3\cdot 16 + 3\cdot 32 = 144$ of the 212 pixels, though they are only 6 of the 13 convolutions. With dilations $1, 2, 4, 8$ on four stride-1 3×3 layers, $\hat k = 3, 5, 9, 17$ and $r = 3, 7, 15, 31$.`,
       },
       { t: "h", text: "Effective receptive field" },
       {
         t: "p",
-        text: String.raw`Define the influence map of output unit $y$ as $g_i = |\partial y / \partial x_i|$ (averaged over random weights and inputs). For $n$ stacked linear 1-D convolutions with all weights equal to $1/k$, $\partial y/\partial x$ is the $n$-fold convolution of the box $(1/k,\dots,1/k)$ with itself — the distribution of a sum of $n$ independent uniform steps, with variance $n\,\sigma_1^2$ where $\sigma_1^2 = (k^2 - 1)/12$ is the variance of one step. For $k = 3$, $\sigma_1^2 = 2/3$, so the standard deviation is $\sqrt{2n/3}$ while the support is $2n + 1$:`,
+        text: String.raw`Define the influence map of output unit $y$ as $g_i = |\partial y / \partial x_i|$ (averaged over random weights and inputs). Take $n$ stacked linear 1-D convolutions with all weights equal to $1/k$. Then $\partial y/\partial x$ is the box $(1/k,\dots,1/k)$ convolved with itself $n$ times. That is the distribution of a sum of $n$ independent uniform steps, with variance $n\,\sigma_1^2$, where $\sigma_1^2 = (k^2 - 1)/12$ is the variance of one step. For $k = 3$, $\sigma_1^2 = 2/3$, so the standard deviation is $\sqrt{2n/3}$ while the full width is $2n + 1$:`,
       },
       {
         t: "math",
         tex: String.raw`\frac{\text{effective width}}{\text{theoretical width}} \;\propto\; \frac{\sqrt{n}}{n} = \frac{1}{\sqrt{n}}`,
-        caption: "The effective receptive field shrinks relative to the theoretical one as depth grows.",
+        caption: "As depth grows, the effective receptive field shrinks compared with the theoretical one.",
       },
       {
         t: "p",
-        text: String.raw`Our ReLU networks with random He-initialised weights give standard deviations $1.30, 1.96, 3.05, 4.50$ px for $n = 2, 4, 8, 16$ — ratios close to $\sqrt 2 \approx 1.41$ per doubling (1.51, 1.56, 1.48), matching the $\sqrt n$ law, while the theoretical width doubles each time.`,
+        text: String.raw`Our ReLU networks with random He-initialised weights give standard deviations $1.30, 1.96, 3.05, 4.50$ px for $n = 2, 4, 8, 16$. Each doubling multiplies it by about $\sqrt 2 \approx 1.41$ (1.51, 1.56, 1.48), matching the $\sqrt n$ law, while the theoretical width doubles.`,
       },
     ],
 
     // ----------------------------------------------------------------- visual
     visual: [
-      { t: "sim", id: "receptive-field", caption: "Build a layer stack, pick an output unit and back-project it layer by layer; the table tracks output size, receptive field r and jump j." },
+      { t: "sim", id: "receptive-field", caption: "Build a layer stack, pick an output unit and trace it back layer by layer; the table tracks output size, receptive field r and jump j." },
       {
         t: "list",
         items: [
-          "Start with the **VGG-style** preset (input 48×48). The table shows r growing 3, 5, 6, 10, 14, 16, 24, 32, 40, 44 and j doubling at every pool — the same numbers as the first ten rows of the VGG-16 table in the math section. Press **Step** repeatedly: the gold interval widens one layer at a time, and the narration shows the back-projection formula [a·s − p, b·s − p + d(k − 1)] with the actual numbers.",
-          "Watch the *spacing* of the units in each row: after each pool the units sit twice as far apart in input coordinates. That spacing is the jump, and it is why the 3×3 convolutions after the last pool widen the region by 8 pixels each while the first ones widen it by 2.",
-          "Move the **Output unit** slider to 0. The back-projected interval now starts at a negative index: part of the receptive field lies in the zero padding, so border units see fewer real pixels than r. The 2-D input view shows the clipped region.",
-          "Choose **3×3 convs only** and add layers with **+ conv 3×3**: r grows by exactly 2 per layer. Then add a **+ pool 2×2** (r grows by 1, the jump doubles) followed by another **+ conv 3×3** — that conv adds 4. Swap layer types to see that order matters.",
-          "Choose **Dilated (1, 2, 4, 8)**: r = 3, 7, 15, 31 with stride 1 and no shrinking of the map. Then choose **Dilated (2, 2, 2) — gridding**: after stepping to the input, only every other pixel is highlighted. The narration counts the holes. This is the gridding artefact of naive dilation.",
-          "Tick **Effective RF heatmap**. The input grid is shaded by |∂output/∂input| of a random linear version of the stack (pooling replaced by averaging), averaged over 24 weight draws — a real backpropagation in your browser. The side panel reports the central square holding 50% and 90% of the gradient mass: for the VGG-style preset, half of the influence comes from a square about half as wide as the 44-pixel theoretical field.",
+          "Start with the **VGG-style** preset (input 48×48). r grows 3, 5, 6, 10, 14, 16, 24, 32, 40, 44 and j doubles at every pool — the first ten rows of the VGG-16 table in the math section. Press **Step** repeatedly: the gold interval widens one layer at a time, and the narration shows the back-projection formula [a·s − p, b·s − p + d(k − 1)] with real numbers.",
+          "Watch the *spacing* of units in each row: after each pool they sit twice as far apart. That spacing is the jump — why 3×3 convolutions after the last pool widen the region by 8 pixels each, the first ones by 2.",
+          "Move the **Output unit** slider to 0. The interval now starts at a negative index: part of the field lies in the zero padding, so border units see fewer real pixels than r.",
+          "Choose **3×3 convs only** and add **+ conv 3×3** layers: r grows by exactly 2 each. Add **+ pool 2×2** (r grows by 1, the jump doubles), then another **+ conv 3×3** — it adds 4. Order matters.",
+          "Choose **Dilated (1, 2, 4, 8)**: r = 3, 7, 15, 31 with stride 1 and no shrinking. Then choose **Dilated (2, 2, 2) — gridding** and step to the input: only every other pixel lights up, and the narration counts the holes. This is the gridding artefact of naive dilation.",
+          "Tick **Effective RF heatmap**. The input grid is shaded by |∂output/∂input| of a random linear version of the stack (pooling replaced by averaging), averaged over 24 weight draws — real backpropagation in your browser. The side panel reports the central square holding 50% and 90% of the gradient mass: for the VGG-style preset, half the influence comes from a square about half as wide as the 44-pixel theoretical field.",
         ],
       },
-      { t: "sim", id: "cnn-pipeline", caption: "Convolution → ReLU → max-pool, twice, on a real image: watch the maps shrink and coarsen at each pooling stage." },
+      { t: "sim", id: "cnn-pipeline", caption: "Convolution → ReLU → max-pool, twice, on a real image: watch the maps shrink and get coarser at each pooling stage." },
       {
         t: "list",
         items: [
-          "Step to the first max-pool stage. The 6 feature maps go from 62×62 to 31×31 — three quarters of the activations removed — yet the edge structure is still clearly visible: max pooling keeps the strongest responses.",
-          "Compare the maps after the second pool (15×15) with the first convolution's maps: each pixel now summarises a much larger area of the image (its receptive field is 3 + 1 + 2·2 + 1·2 = 10 pixels wide for 3×3 kernels and 2×2 pools), so the maps look blockier and more abstract.",
-          "Set **Layer-1 stride** to 2: the first convolution itself halves the resolution, the downsampling a strided convolution performs instead of pooling.",
+          "Step to the first max-pool stage. The 6 feature maps go from 62×62 to 31×31 — three quarters of the values gone — yet the edges are still clearly visible, because max pooling keeps the strongest responses.",
+          "Compare the maps after the second pool (15×15) with the first convolution's maps. Each pixel now summarises a much bigger area (receptive field 3 + 1 + 2·2 + 1·2 = 10 pixels for 3×3 kernels and 2×2 pools), so the maps look blockier and more abstract.",
+          "Set **Layer-1 stride** to 2: now the first convolution itself halves the resolution — downsampling by strided convolution instead of pooling.",
         ],
       },
     ],
@@ -355,7 +347,7 @@ const lesson: Lesson = {
     scratch: [
       {
         t: "p",
-        text: "Max and average pooling with their backward passes (checked against PyTorch autograd), overlapping-window gradient accumulation, global average pooling, a receptive-field calculator with dilation (reproducing the VGG-16 table), exact back-projection of an output unit to an input interval, and the equivariance-vs-invariance experiment from the mechanism section.",
+        text: "Max and average pooling with backward passes (checked against PyTorch autograd), gradient summing for overlapping windows, global average pooling, a receptive-field calculator with dilation (it reproduces the VGG-16 table), exact back-projection of one output unit, and the equivariance-vs-invariance experiment.",
       },
       {
         t: "code",
@@ -525,10 +517,10 @@ shift | conv map: equivariance err, change | 2x2 max-pool change | two pools | G
       {
         t: "list",
         items: [
-          "The backward pass of max pooling needs the argmax positions from the forward pass — that cache is why frameworks store pooling indices (and why `nn.MaxPool2d(return_indices=True)` + `nn.MaxUnpool2d` can invert the routing, as used in SegNet-style decoders).",
-          "`dx[...] += ...` (not `=`) matters for overlapping windows: the centre spike collects gradient from all four windows.",
-          "The back-projection for unit 3 gives input pixels 2–11, a width of 10, matching r = 10 for conv–conv–pool–conv; unit 0 is clipped to 0–5 by the border.",
-          "The shift experiment uses `np.roll` on an image whose shape stays clear of the border, so the conv map is exactly equivariant (error 0) and GAP exactly invariant up to round-off.",
+          "Max pooling's backward pass needs the argmax positions from the forward pass — why frameworks store pooling indices (and why `nn.MaxPool2d(return_indices=True)` + `nn.MaxUnpool2d` can undo the routing, as in SegNet-style decoders).",
+          "Using `dx[...] += ...` (not `=`) matters for overlapping windows: the centre spike collects gradient from all four windows.",
+          "Tracing back unit 3 gives input pixels 2–11, a width of 10, matching r = 10 for conv–conv–pool–conv. Unit 0 is clipped to 0–5 by the border.",
+          "The shift experiment uses `np.roll` on an image whose shape stays away from the border. So the conv map is exactly equivariant (error 0) and GAP is exactly invariant up to round-off.",
         ],
       },
     ],
@@ -543,7 +535,7 @@ shift | conv map: equivariance err, change | 2x2 max-pool change | two pools | G
             blocks: [
               {
                 t: "p",
-                text: "**1. A complete CNN with its shape/parameter table, and three head/downsampling variants trained on the same data.** About 15 seconds on a CPU.",
+                text: "**1. A complete CNN with its shape/parameter table, plus three head/downsampling variants trained on the same data.** About 15 seconds on a CPU.",
               },
               {
                 t: "code",
@@ -649,14 +641,14 @@ flatten model on 12x12 input -> RuntimeError: addmm: mat1 and mat2 shapes cannot
               {
                 t: "list",
                 items: [
-                  "`nn.AdaptiveAvgPool2d(1)` + `nn.Flatten()` is the idiomatic GAP head (equivalently `x.mean(dim=(2, 3))`).",
-                  "The GAP model accepts a 12×12 input and still outputs 10 logits; the flatten model fails because its first linear layer expects exactly 32·2·2 = 128 inputs.",
-                  "On this tiny dataset the three variants are within a few points of each other; exact accuracies can differ slightly across PyTorch versions and hardware even with fixed seeds.",
+                  "`nn.AdaptiveAvgPool2d(1)` + `nn.Flatten()` is the standard way to write a GAP head (same as `x.mean(dim=(2, 3))`).",
+                  "The GAP model takes a 12×12 input and still outputs 10 logits. The flatten model fails because its first linear layer expects exactly 32·2·2 = 128 inputs.",
+                  "On this tiny dataset the three variants land within a few points of each other. Exact accuracies can vary slightly across PyTorch versions and hardware, even with fixed seeds.",
                 ],
               },
               {
                 t: "p",
-                text: "**2. Adaptive pooling and the cost of classifier heads.**",
+                text: "**2. Adaptive pooling and what classifier heads cost.**",
               },
               {
                 t: "code",
@@ -704,7 +696,7 @@ GAP + 1 FC head:     513,000 params  (241x fewer)`,
               },
               {
                 t: "p",
-                text: "**3. Measuring the effective receptive field with autograd.** Back-propagate from the centre unit of random conv–ReLU stacks and see how the gradient mass is distributed over the input.",
+                text: "**3. Measuring the effective receptive field with autograd.** Backpropagate from the centre unit of random conv–ReLU stacks and see how the gradient mass spreads over the input.",
               },
               {
                 t: "code",
@@ -763,7 +755,7 @@ for depth in [2, 4, 8, 16]:
             blocks: [
               {
                 t: "p",
-                text: "The same architecture in Keras (channels-last). `MaxPooling2D`, `AveragePooling2D` and `GlobalAveragePooling2D` correspond to the PyTorch layers; `GlobalAveragePooling2D` already returns a flat (N, C) tensor, so no `Flatten` is needed.",
+                text: "The same model in Keras (channels-last). `MaxPooling2D`, `AveragePooling2D` and `GlobalAveragePooling2D` match the PyTorch layers. `GlobalAveragePooling2D` already returns a flat (N, C) tensor, so no `Flatten` is needed.",
               },
               {
                 t: "code",
@@ -806,14 +798,14 @@ print("12x12 input ->", model(tf.image.resize(X_te[:5], (12, 12))).shape)`,
 
     // ------------------------------------------------------------- variations
     variations: [
-      { t: "h", text: "Downsampling and aggregation operators" },
+      { t: "h", text: "Ways to shrink and summarise feature maps" },
       {
         t: "table",
-        head: ["Operator", "What it does", "Params", "Advantages", "Disadvantages", "Typical use"],
+        head: ["Operator", "What it does", "Params", "Pros", "Cons", "Typical use"],
         rows: [
-          ["Max pooling 2×2 / s2", "Max of each block", "0", "Keeps strongest activations; cheap; some shift tolerance", "Discards 75% of values; aliasing; sparse gradients", "VGG, classic CNNs"],
-          ["Overlapping max pool 3×3 / s2", "Max over overlapping windows", "0", "Slightly smoother, less aliasing", "More compute than 2×2", "AlexNet, ResNet stem"],
-          ["Average pooling", "Mean of each block", "0", "Low-pass, dense gradients", "Dilutes strong sparse features", "Transition layers (DenseNet), LeNet-style"],
+          ["Max pooling 2×2 / s2", "Max of each block", "0", "Keeps strongest values; cheap; some shift tolerance", "Throws away 75% of values; aliasing; sparse gradients", "VGG, classic CNNs"],
+          ["Overlapping max pool 3×3 / s2", "Max over overlapping windows", "0", "A bit smoother, less aliasing", "More compute than 2×2", "AlexNet, ResNet stem"],
+          ["Average pooling", "Mean of each block", "0", "Blurs (low-pass), dense gradients", "Weakens strong, rare features", "Transition layers (DenseNet), LeNet-style"],
           ["Stride-2 convolution", "Convolution at every other position", "C_out·C_in·k² + C_out", "Learned downsampling", "Extra compute; aliasing", "ResNet, MobileNet, most modern CNNs"],
           ["Blur + subsample (anti-aliased)", "Low-pass filter, then stride", "0 (fixed blur)", "Better shift stability", "Small extra cost", "Shift-robust CNNs (Zhang 2019)"],
           ["Global average pooling", "Mean of each whole map", "0", "Tiny head, any input size, invariance, CAM", "Discards spatial layout", "ResNet, Inception, MobileNet, EfficientNet heads"],
@@ -823,7 +815,7 @@ print("12x12 input ->", model(tf.image.resize(X_te[:5], (12, 12))).shape)`,
           ["Attention pooling", "Learned weighted average", "Small", "Content-dependent aggregation", "More complex", "CLIP's ResNet variant, ViT class token"],
         ],
       },
-      { t: "h", text: "Receptive-field growth strategies" },
+      { t: "h", text: "Ways to grow the receptive field" },
       {
         t: "table",
         head: ["Strategy", "RF growth per layer", "Cost", "Side effects"],
@@ -842,12 +834,12 @@ print("12x12 input ->", model(tf.image.resize(X_te[:5], (12, 12))).shape)`,
       {
         t: "list",
         items: [
-          "**Image classification backbones** — VGG uses 2×2 max pooling between stages; ResNet uses a 3×3/s2 max pool in the stem, stride-2 convolutions between stages and global average pooling before the classifier; MobileNet and EfficientNet end in GAP + a linear layer.",
-          "**Variable-size inputs** — GAP and adaptive pooling let a single trained classifier process images of different resolutions (e.g. evaluating at a higher resolution than training).",
-          "**Weakly supervised localisation and explanation** — Class Activation Mapping (Zhou et al., 2016) relies on the GAP + linear head to produce heatmaps of where each class's evidence lies; Grad-CAM generalises it via gradients.",
-          "**Segmentation and dense prediction** — architectures balance receptive field and resolution: dilated convolutions (DeepLab) or encoder–decoder designs with skip connections (U-Net) give large receptive fields without losing detail.",
-          "**Object detection** — feature maps at different strides (8, 16, 32 pixels) have receptive fields suited to small, medium and large objects; feature pyramid networks combine them. RoI pooling/RoIAlign are adaptive pooling over proposed boxes.",
-          "**Audio and time series** — 1-D max/average pooling and global pooling over time summarise spectrogram or sensor features; WaveNet-style dilated stacks achieve receptive fields of thousands of samples.",
+          "**Image classification backbones** — VGG puts 2×2 max pooling between stages. ResNet uses a 3×3/s2 max pool in the stem, stride-2 convolutions between stages and global average pooling before the classifier. MobileNet and EfficientNet end in GAP + a linear layer.",
+          "**Inputs of different sizes** — GAP and adaptive pooling let one trained classifier handle different resolutions (e.g. testing at a higher resolution than training).",
+          "**Weakly supervised localisation and explanation** — Class Activation Mapping (Zhou et al., 2016) uses the GAP + linear head to draw heatmaps of where each class's evidence lies; Grad-CAM extends it using gradients.",
+          "**Segmentation and dense prediction** — must balance receptive field and resolution: dilated convolutions (DeepLab) or encoder–decoder designs with skip connections (U-Net) give large receptive fields without losing detail.",
+          "**Object detection** — feature maps at strides of 8, 16 and 32 pixels have receptive fields suited to small, medium and large objects; feature pyramid networks combine them. RoI pooling/RoIAlign are adaptive pooling over proposed boxes.",
+          "**Audio and time series** — 1-D max/average pooling and global pooling over time summarise spectrogram or sensor features. WaveNet-style dilated stacks reach receptive fields of thousands of samples.",
         ],
       },
     ],
@@ -858,9 +850,9 @@ print("12x12 input ->", model(tf.image.resize(X_te[:5], (12, 12))).shape)`,
       {
         t: "list",
         items: [
-          "**Strengths**: parameter-free, cheap, shrinks compute by 4× per 2×2 stage, enlarges receptive fields, gives some tolerance to small shifts and deformations.",
-          "**Weaknesses**: throws information away irreversibly (bad for tasks needing precise positions — segmentation, keypoints); max pooling's gradient is sparse; subsampling aliases, so outputs can change noticeably under 1-pixel shifts; the invariance it provides is partial and local.",
-          "**Strided convolution vs pooling**: learnable and often slightly better at scale, at the cost of parameters and compute; neither is shift-invariant without explicit anti-aliasing.",
+          "**Strengths**: no parameters, cheap, cuts compute 4× per 2×2 stage, enlarges receptive fields, gives some tolerance to small shifts and distortions.",
+          "**Weaknesses**: throws information away for good (bad for tasks needing exact positions — segmentation, keypoints); max pooling's gradient is sparse; subsampling aliases, so outputs can change noticeably under 1-pixel shifts; its invariance is only partial and local.",
+          "**Strided convolution vs pooling**: learnable and often slightly better at scale, but costs parameters and compute. Neither is shift-invariant without explicit anti-aliasing.",
         ],
       },
       { t: "h", text: "Classifier heads" },
@@ -871,7 +863,7 @@ print("12x12 input ->", model(tf.image.resize(X_te[:5], (12, 12))).shape)`,
           ["Parameters (VGG-16 sizes)", "123,642,856", "513,000"],
           ["Input size", "Fixed", "Any"],
           ["Uses absolute position", "Yes", "No (translation invariant)"],
-          ["Overfitting risk", "High (needs dropout)", "Low (structural regulariser)"],
+          ["Overfitting risk", "High (needs dropout)", "Low (built-in regulariser)"],
           ["Interpretability", "Low", "Class activation maps for free"],
         ],
       },
@@ -879,9 +871,9 @@ print("12x12 input ->", model(tf.image.resize(X_te[:5], (12, 12))).shape)`,
       {
         t: "list",
         items: [
-          "A theoretical RF smaller than the objects of interest is a hard limit: the network literally cannot see the whole object from one unit.",
-          "A theoretical RF much larger than needed is not wasted: the effective RF is much smaller, so a margin is healthy.",
-          "Fast RF growth via early downsampling is cheap but sacrifices resolution; dense-prediction networks therefore downsample less, dilate, or upsample back with skip connections.",
+          "A theoretical RF smaller than the objects you care about is a hard limit: one unit literally cannot see the whole object.",
+          "A theoretical RF much larger than needed is not wasted: the effective RF is much smaller, so a safety margin is healthy.",
+          "Growing the RF fast with early downsampling is cheap but loses resolution. So dense-prediction networks downsample less, use dilation, or upsample back with skip connections.",
         ],
       },
     ],
@@ -891,31 +883,31 @@ print("12x12 input ->", model(tf.image.resize(X_te[:5], (12, 12))).shape)`,
       {
         t: "list",
         items: [
-          "**Saying pooling makes CNNs translation invariant.** Local pooling only tolerates small shifts within a window; our experiment shows a 1-pixel shift still changes a 2×2-pooled map by 76% (relative L2 change). Invariance at the output comes mainly from global pooling and data augmentation.",
-          "**Computing pooling output sizes as n/k.** The formula is ⌊(n + 2p − k)/s⌋ + 1. A 7×7 map with 2×2/s2 pooling becomes 3×3, not 3.5; a 3×3/s2 pool with p = 1 on 112 gives 56.",
-          "**Forgetting that pooling is per channel.** Max pooling a 64×32×32 tensor gives 64×16×16, never fewer channels. Channel reduction needs a 1×1 convolution.",
-          "**Wrong flatten size in the first linear layer.** Hard-coding `nn.Linear(32*7*7, …)` breaks when the input size or a padding changes. Fix: compute it by passing a dummy tensor, use `nn.LazyLinear`, or use GAP/adaptive pooling so the size is fixed.",
-          "**Assigning instead of accumulating in a hand-written max-pool backward.** With overlapping windows the same input can be the max of several windows; use `+=`.",
-          "**Counting padding or element-wise layers in the receptive field.** ReLU, BatchNorm and dropout do not change r; padding shifts the field but does not enlarge it. Conversely, forgetting pooling layers in the RF calculation underestimates it.",
-          "**Multiplying r by the stride.** The stride affects the *jump* for later layers, not the current layer's growth: r_l = r_{l−1} + (k_l − 1)·j_{l−1} uses the previous jump.",
+          "**Saying pooling makes CNNs translation invariant.** Local pooling only tolerates small shifts within a window; in our experiment a 1-pixel shift still changes a 2×2-pooled map by 76% (relative L2 change). Output invariance comes mainly from global pooling and data augmentation.",
+          "**Computing pooling output size as n/k.** The formula is ⌊(n + 2p − k)/s⌋ + 1. A 7×7 map with 2×2/s2 pooling becomes 3×3, not 3.5; a 3×3/s2 pool with p = 1 on 112 gives 56.",
+          "**Forgetting that pooling works per channel.** Max pooling a 64×32×32 tensor gives 64×16×16 — never fewer channels. To reduce channels, use a 1×1 convolution.",
+          "**Wrong flatten size in the first linear layer.** Hard-coding `nn.Linear(32*7*7, …)` breaks when the input size or padding changes. Fix: compute it with a dummy tensor, use `nn.LazyLinear`, or use GAP/adaptive pooling so the size is fixed.",
+          "**Assigning instead of adding in a hand-written max-pool backward.** With overlapping windows one input can be the max of several windows; use `+=`.",
+          "**Counting padding or element-wise layers in the receptive field.** ReLU, BatchNorm and dropout don't change r; padding moves the field but doesn't enlarge it. But leaving pooling layers out underestimates it.",
+          "**Multiplying r by the stride.** The stride changes the *jump* for later layers, not the current layer's growth: r_l = r_{l−1} + (k_l − 1)·j_{l−1} uses the previous jump.",
           "**Ignoring dilation in RF arithmetic.** A 3×3 kernel with dilation 4 spans 9 pixels: use k_eff = d(k − 1) + 1.",
-          "**Equating theoretical and effective receptive fields.** A unit whose theoretical RF covers the image may still be dominated by a small central region; check with gradients when long-range context matters.",
-          "**Using max pooling where averaging is intended (or vice versa) in the head.** Global max pooling gives a gradient to one position per map and can train slowly; GAP is the standard choice for classification.",
+          "**Treating theoretical and effective receptive fields as the same.** A unit whose theoretical RF covers the image may still be driven mostly by a small central region; check with gradients when long-range context matters.",
+          "**Using max pooling where averaging is meant (or the reverse) in the head.** Global max pooling sends gradient to one position per map and can train slowly; GAP is the standard choice for classification.",
         ],
       },
     ],
 
     // -------------------------------------------------------------- interview
     interview: [
-      { t: "qa", level: "beginner", q: "What does a 2×2 max-pooling layer with stride 2 do, and how many parameters does it have?", a: "It splits each channel into non-overlapping 2×2 blocks and keeps the largest value of each, halving height and width (⌊n/2⌋) and keeping the channel count. It has zero parameters. It reduces later compute by about 4×, enlarges the receptive field of subsequent layers and gives some tolerance to small shifts." },
-      { t: "qa", level: "beginner", q: "What is the difference between max pooling and average pooling?", a: "Max pooling outputs the maximum of each window, preserving the strongest detection and discarding the rest; its gradient goes only to the argmax. Average pooling outputs the mean, using every input, acting like a blur followed by subsampling; its gradient is spread equally (1/k² each). Max pooling is common inside classic CNNs on ReLU maps; averaging appears mostly as global average pooling at the end of networks." },
-      { t: "qa", level: "beginner", q: "What is a receptive field?", a: "The region of the input image that can influence a given unit. A single 3×3 convolution has a 3×3 receptive field; stacking layers grows it: two 3×3 convs see 5×5, three see 7×7, and downsampling makes later layers grow it faster. It determines how much context a unit can use — a unit cannot recognise an object larger than its receptive field." },
-      { t: "qa", level: "intermediate", q: "Derive the backward pass of max pooling and average pooling.", a: "For max pooling, Y_ij = X at the argmax (u*, v*) of window W_ij, so ∂Y_ij/∂X_uv is 1 at the argmax and 0 elsewhere; hence ∂L/∂X_uv = Σ_ij G_ij·1[(u,v) = argmax_ij]: the gradient is routed to the winners, summed if an input wins several overlapping windows. For average pooling, ∂Y_ij/∂X_uv = 1/k² for every (u,v) in the window, so ∂L/∂X_uv = Σ over windows containing (u,v) of G_ij/k². Example: with G = 0.8 on one 2×2 window, max sends 0.8 to the argmax; average sends 0.2 to each of the four inputs." },
-      { t: "qa", level: "intermediate", q: "Why did modern CNNs replace flatten + fully connected heads with global average pooling?", a: "Parameters and generalisation: flattening a 512×7×7 map into 4,096 units needs 102.8 M weights (VGG-16's three FC layers hold 123.6 M of its 138.4 M parameters), while GAP + linear needs 513 K for 1,000 classes. GAP has no parameters, acts as a structural regulariser, makes the network accept any input size, makes the prediction translation invariant, and enables class activation maps. Proposed in Network In Network (Lin et al., 2013) and used in GoogLeNet, ResNet and later models." },
-      { t: "qa", level: "intermediate", q: "Compute the receptive field of the ResNet stem: conv 7×7/s2, max-pool 3×3/s2, then two 3×3/s1 convs. What are the output sizes for a 224×224 input?", a: "r: conv7/s2 → 1 + 6·1 = 7, j = 2; pool3/s2 → 7 + 2·2 = 11, j = 4; conv3 → 11 + 2·4 = 19; conv3 → 27, j = 4. Sizes: conv (p = 3): ⌊(224 + 6 − 7)/2⌋ + 1 = 112; pool (p = 1): ⌊(112 + 2 − 3)/2⌋ + 1 = 56; the 3×3 convs with p = 1 keep 56×56. So after four layers each unit sees 27×27 pixels and neighbouring units are 4 pixels apart." },
-      { t: "qa", level: "advanced", q: "Is a CNN translation invariant? Discuss equivariance, pooling and aliasing.", a: "Convolution with stride 1 is translation equivariant (away from borders). Subsampling (pooling or striding) breaks exact equivariance: it holds only for shifts that are multiples of the cumulative stride, and other shifts can change the representation substantially because subsampling without low-pass filtering aliases high frequencies (Zhang, 2019, showed classifiers' outputs fluctuate under 1-pixel shifts and proposed blurring before subsampling). Local max pooling gives only partial tolerance to small shifts (in our experiment a 1-pixel shift still changes a pooled map by 76%). Approximate invariance of the final prediction comes from global average pooling (exactly invariant to shifts that keep content inside the image, apart from border/subsampling effects upstream) and from training with translated/cropped data." },
-      { t: "qa", level: "advanced", q: "What is the effective receptive field and why is it smaller than the theoretical one?", a: "It is the input region that actually has substantial influence on a unit, measured by |∂y/∂x_i|. The number of paths from an input pixel through a stack of convolutions to the output is largest at the centre and decays towards the edge; with random weights the summed contributions behave like a sum of independent steps, so the influence profile is roughly Gaussian with std ∝ √n for n layers, while the theoretical RF grows ∝ n. Luo et al. (2016) characterised this. Our measurement: for 16 stacked 3×3 conv–ReLU layers, theoretical RF 33 but half of the gradient mass lies in the central 11×11 and the std is 4.5 px. Downsampling, dilation, larger kernels, and attention enlarge it; training also tends to expand it somewhat." },
-      { t: "qa", level: "advanced", q: "How does dilation affect the receptive field, and what is the gridding problem?", a: "A k×k kernel with dilation d spaces its taps d apart, giving an effective size d(k − 1) + 1 with the same k² parameters, so r grows by d(k − 1)·j per layer without downsampling. Exponentially increasing dilations (1, 2, 4, 8) give r = 3, 7, 15, 31 for four 3×3 layers, covering every pixel. But if all layers share a common dilation factor (2, 2, 2), every tap lands on pixels with the same parity: the unit sees only every other pixel in each direction (a checkerboard of holes), which causes gridding artefacts. Remedies include mixing dilation rates with no common factor (hybrid dilated convolution) or adding undilated layers." },
+      { t: "qa", level: "beginner", q: "What does 2×2 max pooling with stride 2 do, and how many parameters does it have?", a: "It splits each channel into non-overlapping 2×2 blocks and keeps each block's largest value: height and width halve (⌊n/2⌋), channels stay. Zero parameters. It cuts later compute by about 4×, enlarges later receptive fields and gives some tolerance to small shifts." },
+      { t: "qa", level: "beginner", q: "What is the difference between max pooling and average pooling?", a: "Max pooling keeps each window's largest value (the strongest detection); its gradient goes only to the argmax. Average pooling outputs the mean, like a blur then subsampling; its gradient is shared equally (1/k² each). Max pooling is common inside classic CNNs on ReLU maps; averaging appears mostly as global average pooling at the end." },
+      { t: "qa", level: "beginner", q: "What is a receptive field?", a: "The region of the input image that can influence a given unit. One 3×3 convolution sees 3×3; two stacked see 5×5, three 7×7, and downsampling makes later layers grow it faster. It limits context: a unit cannot recognise an object larger than its receptive field." },
+      { t: "qa", level: "intermediate", q: "Derive the backward pass of max pooling and average pooling.", a: "Max pooling: Y_ij equals X at the argmax (u*, v*) of window W_ij, so ∂Y_ij/∂X_uv is 1 at the argmax and 0 elsewhere. Hence ∂L/∂X_uv = Σ_ij G_ij·1[(u,v) = argmax_ij]: the gradient goes to the winners, summed if an input wins several overlapping windows. Average pooling: ∂Y_ij/∂X_uv = 1/k² for every (u,v) in the window, so ∂L/∂X_uv = Σ over windows containing (u,v) of G_ij/k². Example: with G = 0.8 on one 2×2 window, max sends 0.8 to the argmax; average sends 0.2 to each of the four inputs." },
+      { t: "qa", level: "intermediate", q: "Why did modern CNNs replace flatten + fully connected heads with global average pooling?", a: "Parameters and generalisation. Flattening a 512×7×7 map into 4,096 units needs 102.8 M weights (VGG-16's three FC layers hold 123.6 M of its 138.4 M parameters); GAP + linear needs 513 K for 1,000 classes. GAP has no parameters, regularises, accepts any input size, makes the prediction translation invariant and enables class activation maps. Proposed in Network In Network (Lin et al., 2013); used in GoogLeNet, ResNet and later models." },
+      { t: "qa", level: "intermediate", q: "Compute the receptive field of the ResNet stem: conv 7×7/s2, max-pool 3×3/s2, then two 3×3/s1 convs. What are the output sizes for a 224×224 input?", a: "r: conv7/s2 → 1 + 6·1 = 7, j = 2; pool3/s2 → 7 + 2·2 = 11, j = 4; conv3 → 11 + 2·4 = 19; conv3 → 27, j = 4. Sizes: conv (p = 3): ⌊(224 + 6 − 7)/2⌋ + 1 = 112; pool (p = 1): ⌊(112 + 2 − 3)/2⌋ + 1 = 56; the 3×3 convs with p = 1 keep 56×56. So after four layers each unit sees 27×27 pixels, and neighbouring units are 4 pixels apart." },
+      { t: "qa", level: "advanced", q: "Is a CNN translation invariant? Discuss equivariance, pooling and aliasing.", a: "Stride-1 convolution is translation equivariant (away from borders). Subsampling (pooling or striding) breaks exact equivariance: it holds only for shifts that are multiples of the total stride. Other shifts can change the representation a lot, because subsampling without blurring aliases high frequencies (Zhang, 2019, showed classifier outputs wobble under 1-pixel shifts and proposed blurring first). Local max pooling gives only partial tolerance (in our experiment a 1-pixel shift still changes a pooled map by 76%). Approximate invariance of the prediction comes from global average pooling (exactly invariant to shifts that keep content inside the image, apart from border and subsampling effects earlier on) and from training on shifted/cropped data." },
+      { t: "qa", level: "advanced", q: "What is the effective receptive field and why is it smaller than the theoretical one?", a: "The input region that really influences a unit, measured by |∂y/∂x_i|. In a conv stack the centre pixel has the most paths to the output, edge pixels the fewest. With random weights contributions add up like independent steps, so the profile is roughly Gaussian with std ∝ √n for n layers, while the theoretical RF grows ∝ n (Luo et al., 2016). Our measurement: 16 stacked 3×3 conv–ReLU layers have theoretical RF 33, but half the gradient mass lies in the central 11×11 and the std is 4.5 px. Downsampling, dilation, larger kernels and attention enlarge it; training also tends to widen it somewhat." },
+      { t: "qa", level: "advanced", q: "How does dilation affect the receptive field, and what is the gridding problem?", a: "A k×k kernel with dilation d spaces its taps d apart: effective size d(k − 1) + 1 with the same k² parameters, so r grows by d(k − 1)·j per layer without downsampling. Dilations 1, 2, 4, 8 give r = 3, 7, 15, 31 for four 3×3 layers and cover every pixel. But if all layers share a common factor (2, 2, 2), every tap lands on pixels of the same parity: the unit sees only every other pixel in each direction (a checkerboard of holes) — gridding artefacts. Fixes: mix dilation rates with no common factor (hybrid dilated convolution) or add undilated layers." },
     ],
 
     // --------------------------------------------------------------- practice
@@ -935,13 +927,13 @@ print("12x12 input ->", model(tf.image.resize(X_te[:5], (12, 12))).shape)`,
             q: "An upstream gradient of 0.8 arrives at one output of a 2×2 average-pooling layer. What gradient does each of the four inputs receive?",
             answer: 0.2,
             tolerance: 0.001,
-            explain: "Average pooling spreads the gradient equally: 0.8/4 = 0.2.",
+            explain: "Average pooling shares the gradient equally: 0.8/4 = 0.2.",
           },
           {
             q: "In the backward pass of max pooling, the inputs that were not the maximum of their window receive…",
             options: ["the average of the upstream gradient", "zero gradient", "the same gradient as the maximum", "a gradient proportional to their value"],
             answer: 1,
-            explain: "The max is locally a selection of one input, so only the argmax has a non-zero derivative; everything else gets 0.",
+            explain: "Locally the max just picks one input, so only the argmax has a non-zero derivative; all others get 0.",
           },
           {
             kind: "numeric",
@@ -968,7 +960,7 @@ print("12x12 input ->", model(tf.image.resize(X_te[:5], (12, 12))).shape)`,
             q: "Which component is mainly responsible for the (approximate) translation invariance of a modern CNN classifier's prediction?",
             options: ["Each 3×3 convolution", "Local 2×2 max pooling", "Global average pooling (plus augmentation)", "The ReLU non-linearity"],
             answer: 2,
-            explain: "Convolutions are equivariant, local pooling gives only small-shift tolerance; averaging over all positions removes dependence on where features occur.",
+            explain: "Convolutions are equivariant and local pooling only tolerates small shifts; averaging over all positions removes any dependence on where features are.",
           },
           {
             q: "Doubling the number of stacked 3×3 stride-1 convolutions approximately…",
@@ -979,15 +971,15 @@ print("12x12 input ->", model(tf.image.resize(X_te[:5], (12, 12))).shape)`,
               "quadruples the effective RF",
             ],
             answer: 1,
-            explain: "Theoretical r = 2n + 1 grows linearly; the gradient profile's std grows like √n (measured: 3.05 → 4.50 px from 8 to 16 layers).",
+            explain: "Theoretical r = 2n + 1 grows linearly; the std of the gradient profile grows like √n (measured: 3.05 → 4.50 px from 8 to 16 layers).",
           },
         ],
       },
       {
         t: "exercise",
         title: "Receptive field and shapes of the ResNet stem",
-        prompt: "A 224×224 image passes through: conv 7×7, stride 2, padding 3 → max-pool 3×3, stride 2, padding 1 → conv 3×3, stride 1, padding 1 → conv 3×3, stride 1, padding 1. (a) Give the spatial output size after each layer. (b) Fill in r and j after each layer. (c) Which input pixel interval (columns) does output unit 10 of the last layer see? (d) If the second conv had dilation 2 (padding 2), what would the final r be?",
-        hint: "Sizes: ⌊(n + 2p − k_eff)/s⌋ + 1. RF: r_l = r_{l−1} + (k_eff − 1)·j_{l−1}, j_l = j_{l−1}·s_l. Back-project [a, b] → [a·s − p, b·s − p + d(k − 1)] from the last layer to the first.",
+        prompt: "A 224×224 image passes through: conv 7×7, stride 2, padding 3 → max-pool 3×3, stride 2, padding 1 → conv 3×3, stride 1, padding 1 → conv 3×3, stride 1, padding 1. (a) Give the spatial output size after each layer. (b) Fill in r and j after each layer. (c) Which input columns does output unit 10 of the last layer see? (d) If the second conv had dilation 2 (padding 2), what would the final r be?",
+        hint: "Sizes: ⌊(n + 2p − k_eff)/s⌋ + 1. RF: r_l = r_{l−1} + (k_eff − 1)·j_{l−1}, j_l = j_{l−1}·s_l. Back-project [a, b] → [a·s − p, b·s − p + d(k − 1)], going from the last layer to the first.",
         solution: [
           {
             t: "table",
@@ -1002,15 +994,15 @@ print("12x12 input ->", model(tf.image.resize(X_te[:5], (12, 12))).shape)`,
           },
           {
             t: "p",
-            text: "(c) Back-projection of unit 10: last conv [10·1 − 1, 10·1 − 1 + 2] = [9, 11]; previous conv [8, 12]; max-pool [8·2 − 1, 12·2 − 1 + 2] = [15, 25]; first conv [15·2 − 3, 25·2 − 3 + 6] = [27, 53]. Width 53 − 27 + 1 = 27 = r. (d) The dilated conv has k_eff = 2·2 + 1 = 5, adding (5 − 1)·4 = 16 instead of 8, so r = 19 + 16 = 35.",
+            text: "(c) Tracing unit 10 back: last conv [10·1 − 1, 10·1 − 1 + 2] = [9, 11]; previous conv [8, 12]; max-pool [8·2 − 1, 12·2 − 1 + 2] = [15, 25]; first conv [15·2 − 3, 25·2 − 3 + 6] = [27, 53]. Width 53 − 27 + 1 = 27 = r. (d) The dilated conv has k_eff = 2·2 + 1 = 5, so it adds (5 − 1)·4 = 16 instead of 8, giving r = 19 + 16 = 35.",
           },
         ],
       },
       {
         t: "exercise",
         title: "Verify the receptive-field formula with autograd",
-        prompt: "Write a function that computes (k_eff, r, j) for a stack described by (type, k, s, p, d) tuples, and a back-projection function that returns the exact input interval of one output unit. Then build the same stack in PyTorch with single-channel convolutions (strictly positive weights, so no contributions cancel) and average pooling, back-propagate from the centre output unit of a 64×64 input, and check that the input pixels with non-zero gradient span exactly the predicted interval. Use the stack conv 3×3/s1/p1 → conv 3×3/s2/p1 → pool 2×2/s2 → conv 3×3/s1/p2/d2 → conv 3×3/s1/p1.",
-        hint: "Average pooling gives every tap a gradient; max pooling would route it to one pixel and make the non-zero region look smaller than the receptive field.",
+        prompt: "Write a function that computes (k_eff, r, j) for a stack of (type, k, s, p, d) tuples, and a back-projection function giving the exact input interval of one output unit. Build the same stack in PyTorch with single-channel convolutions (strictly positive weights, so nothing cancels) and average pooling. Backpropagate from the centre output unit of a 64×64 input and check that the pixels with non-zero gradient span exactly the predicted interval. Stack: conv 3×3/s1/p1 → conv 3×3/s2/p1 → pool 2×2/s2 → conv 3×3/s1/p2/d2 → conv 3×3/s1/p1.",
+        hint: "Use average pooling: it gives every tap a gradient. Max pooling would send it to one pixel and make the non-zero region look smaller than the receptive field.",
         solution: [
           {
             t: "code",
@@ -1079,7 +1071,7 @@ input cols 18 to 48 -> width 31`,
           },
           {
             t: "p",
-            text: "The formula predicts r = 31, the back-projection predicts input columns 18–48, and autograd finds non-zero gradient exactly on rows and columns 18–48. Note how the dilated layer (k_eff = 5) after a cumulative stride of 4 adds 16 pixels at once.",
+            text: "The formula predicts r = 31, back-projection predicts input columns 18–48, and autograd finds non-zero gradient exactly on rows and columns 18–48. Notice how the dilated layer (k_eff = 5), coming after a total stride of 4, adds 16 pixels at once.",
           },
         ],
       },
@@ -1090,20 +1082,20 @@ input cols 18 to 48 -> width 31`,
       {
         t: "list",
         items: [
-          "Pooling summarises each window per channel with a fixed rule: max (strongest response) or average (mean). No parameters; output size ⌊(n + 2p − k)/s⌋ + 1.",
-          "Backward: max pooling routes each upstream gradient to its argmax (accumulating over overlapping windows); average pooling spreads G/k² to every input of the window.",
-          "Stride-2 convolutions downsample with learned weights and are the norm in modern CNNs; any subsampling aliases unless low-pass filtered first.",
-          "Flatten + FC heads are huge (VGG-16: 123.6 M of 138.4 M parameters) and fix the input size; GAP + linear (Network In Network, 2013) is tiny (513 K), size-agnostic and translation invariant; adaptive pooling fixes the output size for any input.",
-          "Convolution is equivariant; local pooling gives only small-shift tolerance (growing with depth); global pooling gives invariance.",
-          "Receptive field: r_l = r_{l−1} + (k_eff − 1)·j_{l−1}, j_l = j_{l−1}·s_l, k_eff = d(k − 1) + 1. Growth accelerates after downsampling; VGG-16's pool5 sees 212×212 pixels.",
-          "Effective RF ≈ Gaussian, width ∝ √depth vs theoretical ∝ depth (16 stacked 3×3 convs: 33 theoretical, half of the influence within 11×11).",
-          "A full CNN = [conv–ReLU ×2 → downsample] × stages → GAP → linear; track shape, parameters and receptive field layer by layer.",
+          "Pooling summarises each window of each channel with a fixed rule: max (strongest response) or average (mean). No parameters; output size ⌊(n + 2p − k)/s⌋ + 1.",
+          "Backward: max pooling sends each upstream gradient to its argmax (adding up over overlapping windows); average pooling gives G/k² to every input in the window.",
+          "Stride-2 convolutions downsample with learned weights and are the norm in modern CNNs; any subsampling aliases unless you blur first.",
+          "Flatten + FC heads are huge (VGG-16: 123.6 M of 138.4 M parameters) and lock the input size. GAP + linear (Network In Network, 2013) is tiny (513 K), works with any size and is translation invariant. Adaptive pooling fixes the output size for any input.",
+          "Convolution is equivariant; local pooling only tolerates small shifts (more with depth); global pooling gives invariance.",
+          "Receptive field: r_l = r_{l−1} + (k_eff − 1)·j_{l−1}, j_l = j_{l−1}·s_l, k_eff = d(k − 1) + 1. Growth speeds up after downsampling; VGG-16's pool5 sees 212×212 pixels.",
+          "Effective RF ≈ Gaussian, width ∝ √depth versus theoretical ∝ depth (16 stacked 3×3 convs: 33 theoretical, half the influence within 11×11).",
+          "A full CNN = [conv–ReLU ×2 → downsample] × stages → GAP → linear. Track shape, parameters and receptive field layer by layer.",
         ],
       },
       {
         t: "math",
         tex: String.raw`\frac{\partial L}{\partial X_{uv}}\Big|_{\max} = \sum_{ij} G_{ij}\mathbf{1}[(u,v)=\arg\max \mathcal{W}_{ij}],\quad \frac{\partial L}{\partial X_{uv}}\Big|_{\text{avg}} = \sum_{ij:(u,v)\in\mathcal{W}_{ij}}\frac{G_{ij}}{k^2},\quad r_\ell = r_{\ell-1} + \big(d_\ell(k_\ell-1)\big)j_{\ell-1},\quad j_\ell = j_{\ell-1}s_\ell`,
-        caption: "Key formulas of the lesson.",
+        caption: "The lesson's key formulas.",
       },
     ],
 
@@ -1112,10 +1104,10 @@ input cols 18 to 48 -> width 31`,
       {
         t: "list",
         items: [
-          "[Dilated, Transposed, Depthwise and Pointwise Convolutions](/learn/m08/conv-variants) — dilation was introduced here as a receptive-field tool; next see it in full, together with transposed convolutions for upsampling (the inverse of downsampling) and the depthwise-separable layers of efficient networks.",
-          "[Classic CNN Architectures: LeNet to ConvNeXt](/learn/m08/cnn-architectures) — every architecture there is a particular choice of the building blocks in this lesson: where to downsample, which pooling, which head, how large a receptive field.",
-          "[Batch, Layer and Group Normalization](/learn/m07/normalization) — the layer placed between convolution and ReLU in almost every modern CNN, which made deep stacks like VGG and ResNet easy to train.",
-          "[Residual and Skip Connections](/learn/m07/residual-connections) — how very deep stacks (and thus large receptive fields) became trainable.",
+          "[Dilated, Transposed, Depthwise and Pointwise Convolutions](/learn/m08/conv-variants) — dilation in full, transposed convolutions for upsampling, and the depthwise-separable layers of efficient networks.",
+          "[Classic CNN Architectures: LeNet to ConvNeXt](/learn/m08/cnn-architectures) — each architecture is a choice of this lesson's blocks: where to downsample, which pooling, which head, how large a receptive field.",
+          "[Batch, Layer and Group Normalization](/learn/m07/normalization) — the layer between convolution and ReLU in almost every modern CNN.",
+          "[Residual and Skip Connections](/learn/m07/residual-connections) — how very deep stacks (and so large receptive fields) became trainable.",
         ],
       },
     ],

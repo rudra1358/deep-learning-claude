@@ -404,7 +404,7 @@ const lesson: Lesson = {
   id: "m06/lr-schedules",
   title: "Learning-Rate Schedules, Warm-up and Gradient Clipping",
   summary:
-    "Why a single constant learning rate is a compromise between speed and precision, and the schedules that remove it: step, exponential, polynomial/linear, cosine annealing and warm restarts, linear warm-up, the Transformer inverse-square-root schedule, one-cycle, ReduceLROnPlateau and the LR range test; the linear scaling rule for batch size; gradient clipping by norm and by value; and PyTorch's lr_scheduler API with its most common bugs — all backed by real training runs.",
+    "Why one fixed learning rate forces a trade-off between speed and precision, and the schedules that remove it: step, exponential, polynomial/linear, cosine annealing and warm restarts, linear warm-up, the Transformer inverse-square-root schedule, one-cycle, ReduceLROnPlateau and the LR range test; the linear scaling rule for batch size; gradient clipping by norm and by value; and PyTorch's lr_scheduler API with its most common bugs — all backed by real training runs.",
   minutes: 75,
   level: "intermediate",
   prerequisites: ["m06/gradient-descent", "m06/momentum-adaptive", "m03/training-basics"],
@@ -415,21 +415,17 @@ const lesson: Lesson = {
     intro: [
       {
         t: "p",
-        text: "The learning rate η is the most important hyperparameter of almost every training run, and there is no reason it should be the same on step 1 and on step 1 000 000. Early in training the parameters are far from any good solution and large steps make fast progress; late in training the parameters are close to a minimum and the remaining error is dominated by the noise of mini-batch gradients, which only a small step can average away. A **learning-rate schedule** makes η a function of the step, $\\eta_t$, so that one run gets both behaviours.",
+        text: "The learning rate η is the most important setting in almost every training run, and there is no reason it should be the same on step 1 and step 1 000 000. Early on, the weights are far from a good solution, so big steps make fast progress. Late in training, the weights are close to a minimum and the leftover error comes mostly from mini-batch noise, which only small steps can average away. A **learning-rate schedule** makes η change with the step, $\\eta_t$, so one run gets both.",
       },
       {
         t: "p",
-        text: "Schedules have a long history. Robbins and Monro (1951) already showed that stochastic approximation needs a decaying step size. Deep-learning practice settled first on **step decay** (divide η by 10 when the validation error plateaus, as in AlexNet and ResNet), then on smooth **cosine annealing** (Loshchilov & Hutter, SGDR, 2016), **linear warm-up** for large batches (Goyal et al., 2017) and for Transformers (Vaswani et al., 2017), and **one-cycle** policies (Smith, 2017–2018). Today the standard recipe for large models is linear warm-up followed by cosine (or linear) decay, together with **gradient clipping**, which caps the size of any single update when a rare batch produces an exploding gradient.",
-      },
-      {
-        t: "p",
-        text: "This lesson derives why decay is necessary from a model of SGD noise, gives the exact formula of every common schedule (and checks each against PyTorch's implementation), explains what warm-up actually fixes, shows how to choose a peak learning rate with an LR range test and how to rescale it with the batch size, and measures the effect of each schedule and of clipping in real training runs.",
+        text: "Robbins and Monro (1951) already showed that noisy optimisation needs a shrinking step size. Deep learning first used **step decay** (divide η by 10 when validation error stops improving, as in AlexNet and ResNet), then smooth **cosine annealing** (Loshchilov & Hutter, SGDR, 2016), **linear warm-up** for large batches (Goyal et al., 2017) and Transformers (Vaswani et al., 2017), and **one-cycle** (Smith, 2017–2018). Today's standard for large models is linear warm-up, then cosine (or linear) decay, plus **gradient clipping**, which caps any single update when a rare batch produces a huge gradient.",
       },
       {
         t: "callout",
         kind: "key",
         title: "Main results",
-        text: String.raw`With a constant $\eta$ SGD converges to a **noise floor** proportional to $\eta$ — the speed/precision compromise. Decay removes it. On digits with 30% noisy labels, a constant rate reached 81.2% test accuracy while step, cosine, warm-up + cosine and one-cycle reached 91.7–92.9% (same model, data and seeds). Warm-up raised an 8-layer Adam network from 82.7% to 90.0%. Clipping the gradient norm at 1.0 turned an unstable peak rate (72% accuracy) into a stable one (96.6%).`,
+        text: String.raw`With a constant $\eta$, SGD settles on a **noise floor** proportional to $\eta$ — the speed/precision trade-off. Decay removes it. On digits with 30% wrong labels, a constant rate reached 81.2% test accuracy while step, cosine, warm-up + cosine and one-cycle reached 91.7–92.9% (same model, data and seeds). Warm-up raised an 8-layer Adam network from 82.7% to 90.0%. Clipping the gradient norm at 1.0 turned an unstable peak rate (72% accuracy) into a stable one (96.6%).`,
       },
     ],
 
@@ -439,9 +435,9 @@ const lesson: Lesson = {
         t: "list",
         items: [
           String.raw`[Gradient Descent and Its Descendants](/learn/m06/gradient-descent) — the update rule, the stability condition $\eta < 2/\lambda_{\max}$ on a quadratic, mini-batch gradient noise with variance $\propto 1/B$, and the Robbins–Monro conditions.`,
-          String.raw`[Momentum and Adaptive Optimizers in Depth](/learn/m06/momentum-adaptive) — the effective step $\eta/(1-\beta)$ of momentum, Adam's normalised step and its bias correction, which explain why warm-up helps Adam.`,
-          "[Training basics: epochs, batches and iterations](/learn/m03/training-basics) — schedules are defined per iteration or per epoch; mixing the two up is the most common bug.",
-          "[Classification losses](/learn/m05/classification-losses) — the cross-entropy loss used in the training experiments.",
+          String.raw`[Momentum and Adaptive Optimizers in Depth](/learn/m06/momentum-adaptive) — momentum's effective step $\eta/(1-\beta)$, and Adam's normalised step and bias correction, which explain why warm-up helps Adam.`,
+          "[Training basics: epochs, batches and iterations](/learn/m03/training-basics) — schedules count in iterations or in epochs; mixing the two up is the most common bug.",
+          "[Classification losses](/learn/m05/classification-losses) — the cross-entropy loss used in the experiments.",
         ],
       },
     ],
@@ -452,20 +448,20 @@ const lesson: Lesson = {
         t: "callout",
         kind: "analogy",
         title: "Parking a car",
-        text: "Driving to a parking space, you go fast on the open road, slow down as you approach, and creep the last metre. Driving the whole way at parking speed takes forever; trying to park at highway speed overshoots the space every time. A learning-rate schedule is exactly this speed profile. **Warm-up** is pulling out of the driveway carefully before accelerating — at the start you do not yet know the road (the optimizer's statistics are empty and the network is in a fragile state). **Gradient clipping** is a speed limiter: whatever the accelerator says, the car never exceeds a set speed, so one bad reading of the road cannot launch you into a wall.",
+        text: "To park, you drive fast on the open road, slow down as you get close, and creep the last metre. Driving the whole way at parking speed takes forever; parking at highway speed overshoots every time. A learning-rate schedule is that speed plan. **Warm-up** is pulling out of the driveway gently before speeding up — at the start the optimizer knows nothing yet and the network is fragile. **Gradient clipping** is a speed limiter: one bad reading of the road can't launch you into a wall.",
       },
       {
         t: "p",
-        text: "Why can't a constant learning rate do both jobs? Because each step moves the parameters by η times a **noisy** gradient. Far from the minimum the true gradient is large and the noise is a small perturbation of it; a big η makes fast progress. Near the minimum the true gradient is tiny, but the mini-batch noise is not: every step kicks the parameters by about η times the noise, so they jitter around the minimum in a cloud whose size grows with η. Shrinking η shrinks the cloud — but if you start with a small η you waste most of the run getting there.",
+        text: "Why can't one fixed rate do both jobs? Each step moves the weights by η times a **noisy** gradient. Far from the minimum, the true gradient is big and the noise is small next to it, so a big η makes fast progress. Near the minimum, the true gradient is tiny but the noise is not. Every step kicks the weights by about η times the noise, so they jitter around the minimum in a cloud whose size grows with η. A smaller η shrinks the cloud — but starting small wastes most of the run getting there.",
       },
       {
         t: "list",
         items: [
-          "**Schedule** — the function step → learning rate.",
-          "**Peak (base) learning rate** — the largest η the schedule uses; most schedules are written as a multiplier of it.",
-          "**Warm-up** — a short initial phase in which η ramps up from near 0 to the peak.",
-          "**Decay / annealing** — the phase in which η decreases towards 0 or a small floor.",
-          "**Gradient clipping** — capping the gradient's norm (or each component) before the optimizer step.",
+          "**Schedule** — the rule step → learning rate.",
+          "**Peak (base) learning rate** — the largest η used; most schedules are written as a multiplier of it.",
+          "**Warm-up** — a short first phase where η ramps up from near 0 to the peak.",
+          "**Decay / annealing** — the phase where η falls toward 0 or a small floor.",
+          "**Gradient clipping** — capping the gradient's size (or each component) before the optimizer step.",
         ],
       },
     ],
@@ -478,19 +474,19 @@ const lesson: Lesson = {
         items: [
           { title: "Forward and backward pass", text: "Compute the mini-batch loss and call `loss.backward()` to fill every parameter's `.grad`." },
           { title: "Optional: unscale (mixed precision)", text: "With a gradient scaler, call `scaler.unscale_(optimizer)` first — otherwise you would clip the scaled gradients." },
-          { title: "Clip", text: String.raw`Compute the global norm $\lVert g\rVert$ over all parameters; if it exceeds $c$, multiply every gradient by $c/\lVert g\rVert$ (PyTorch: clip_grad_norm_).` },
+          { title: "Clip", text: String.raw`Compute the global norm $\lVert g\rVert$ over all parameters; if it is above $c$, multiply every gradient by $c/\lVert g\rVert$ (PyTorch: clip_grad_norm_).` },
           { title: "Optimizer step with the current η", text: "The optimizer reads `param_group['lr']`, which the scheduler set." },
           { title: "Scheduler step", text: "`scheduler.step()` computes the learning rate for the **next** step and writes it into the optimizer. Call it once per iteration for iteration-based schedules, once per epoch for epoch-based ones — never both." },
         ],
       },
-      { t: "h", text: "The anatomy of a modern schedule" },
+      { t: "h", text: "The parts of a modern schedule" },
       {
         t: "table",
         head: ["Phase", "Typical length", "What happens", "Why"],
         rows: [
           ["Warm-up", "0.5–10% of training (e.g. 2000 steps for LLMs, 5 epochs in Goyal et al.)", "η rises linearly from ≈0 to the peak", "optimizer statistics are empty, early curvature and gradients are large; large batches need a gentle start"],
-          ["Plateau (optional)", "0–80%", "η stays at the peak", "fast exploration; used by step schedules and warm-up-stable-decay variants"],
-          ["Decay", "the rest", "η decreases (cosine, linear, steps, 1/√t)", "shrink the noise cloud, settle into a minimum"],
+          ["Plateau (optional)", "0–80%", "η stays at the peak", "fast exploring; used by step schedules and warm-up-stable-decay"],
+          ["Decay", "the rest", "η falls (cosine, linear, steps, 1/√t)", "shrink the noise cloud, settle into a minimum"],
           ["Floor", "end", String.raw`$\eta_{\min}$ = 0 or ≈1–10% of the peak`, "a small non-zero floor keeps learning if training is extended"],
         ],
       },
@@ -499,15 +495,15 @@ const lesson: Lesson = {
         t: "steps",
         items: [
           { title: "Start tiny", text: String.raw`Begin with a very small η (e.g. $10^{-4}$ or less).` },
-          { title: "Increase exponentially every step", text: String.raw`Multiply η by a constant factor each mini-batch so that it spans 5–7 orders of magnitude in about 100 steps.` },
-          { title: "Record a smoothed loss", text: "Mini-batch losses are noisy; use an EMA of the loss." },
-          { title: "Stop when the loss explodes", text: "For example when it exceeds 4× its initial value." },
-          { title: "Read off η", text: "The loss falls fastest well below the point where it bottoms out. Common heuristics: the η at the steepest descent of the curve, or about one tenth of the η at the minimum. For one-cycle, the η at the minimum is often used as the maximum." },
+          { title: "Grow it by a fixed factor every step", text: String.raw`Multiply η by a constant each mini-batch so it covers 5–7 orders of magnitude in about 100 steps.` },
+          { title: "Record a smoothed loss", text: "Mini-batch losses are noisy; use an EMA (running average) of the loss." },
+          { title: "Stop when the loss explodes", text: "For example when it passes 4× its starting value." },
+          { title: "Read off η", text: "The loss falls fastest well below the point where it bottoms out. Common rules: the η where the curve drops most steeply, or about a tenth of the η at the minimum. For one-cycle, the η at the minimum is often used as the maximum." },
         ],
       },
       {
         t: "p",
-        text: "The test was introduced with cyclical learning rates (Smith, 2017) and popularised by fastai's `lr_find`. It costs one short run and replaces a grid search over the most important hyperparameter with a single plot. It finds the **largest stable** η for the current state of the network; the schedule then decides how that η evolves.",
+        text: "The test came with cyclical learning rates (Smith, 2017) and was made popular by fastai's `lr_find`. One short run replaces a grid search. It finds the **largest stable** η for the network right now; the schedule then decides how η changes.",
       },
     ],
 
@@ -516,12 +512,12 @@ const lesson: Lesson = {
       { t: "h", text: "1. Why a constant learning rate is a compromise: the noise floor" },
       {
         t: "p",
-        text: String.raw`Model one eigen-direction of the loss near a minimum: $L(x) = \tfrac{\lambda}{2}x^2$ with curvature $\lambda$, and a stochastic gradient $\lambda x_t + \xi_t$ whose noise $\xi_t$ has mean 0 and variance $\sigma^2$ (mini-batch noise). SGD with constant $\eta$ gives`,
+        text: String.raw`Model one direction of the loss near a minimum: $L(x) = \tfrac{\lambda}{2}x^2$ with curvature $\lambda$, and a noisy gradient $\lambda x_t + \xi_t$ whose noise $\xi_t$ has mean 0 and variance $\sigma^2$ (mini-batch noise). SGD with constant $\eta$ gives`,
       },
       { t: "math", tex: String.raw`x_{t+1} = (1 - \eta\lambda)\,x_t - \eta\,\xi_t` },
       {
         t: "p",
-        text: String.raw`Take expectations: the mean $\mathbb{E}[x_t] = (1-\eta\lambda)^t x_0$ decays geometrically — the "bias" term that a large $\eta$ kills fast. For the variance, $\xi_t$ is independent of $x_t$, so $\operatorname{Var}[x_{t+1}] = (1-\eta\lambda)^2 \operatorname{Var}[x_t] + \eta^2\sigma^2$. Its fixed point is`,
+        text: String.raw`On average, $\mathbb{E}[x_t] = (1-\eta\lambda)^t x_0$ shrinks geometrically — the part a large $\eta$ removes fast. For the spread: $\xi_t$ is independent of $x_t$, so $\operatorname{Var}[x_{t+1}] = (1-\eta\lambda)^2 \operatorname{Var}[x_t] + \eta^2\sigma^2$. It settles where both sides are equal:`,
       },
       {
         t: "math",
@@ -530,19 +526,19 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Two forces pull in opposite directions. The time to reach the floor scales like $1/(\eta\lambda)$ — favouring large $\eta$. The floor itself scales like $\eta\sigma^2$ — favouring small $\eta$. No constant value is good at both. With $\lambda = \sigma = 1$, $x_0 = 10$ and averaging over 2000 runs: $\eta = 0.5$ reaches its floor within 100 steps but stays at 0.160 (prediction 0.1667); $\eta = 0.01$ has a floor of 0.0025 but is still at 6.70 after 100 steps. Starting at 0.5 and then decaying like $1/t$ reaches **0.00017** after 3000 steps — below the floor of every constant rate tried. This is the quantitative reason for schedules; it is also why the Robbins–Monro conditions ($\sum\eta_t = \infty$, $\sum\eta_t^2 < \infty$) require a decaying rate for exact convergence.`,
+        text: String.raw`Two forces pull against each other. The time to reach the floor grows like $1/(\eta\lambda)$, which favours a large $\eta$. The floor itself grows like $\eta\sigma^2$, which favours a small $\eta$. No fixed value wins both. With $\lambda = \sigma = 1$, $x_0 = 10$, averaged over 2000 runs: $\eta = 0.5$ reaches its floor within 100 steps but stays at 0.160 (prediction 0.1667); $\eta = 0.01$ has a floor of 0.0025 but is still at 6.70 after 100 steps. Starting at 0.5 and then decaying like $1/t$ reaches **0.00017** after 3000 steps — below the floor of every constant rate tried. That is why schedules exist, and why the Robbins–Monro conditions ($\sum\eta_t = \infty$, $\sum\eta_t^2 < \infty$) need a decaying rate for exact convergence.`,
       },
       {
         t: "callout",
         kind: "note",
-        title: "When the floor is irrelevant",
-        text: String.raw`If the model can fit every training example exactly (an over-parameterised network on clean data), the per-example gradients all vanish at the solution, so $\sigma^2 \to 0$ there and a constant rate can converge too. The training experiment below shows this: on clean digits the schedule barely matters, but with 30% noisy labels — which cannot all be fitted, so the gradient noise stays — decaying schedules win by more than 10 percentage points.`,
+        title: "When the floor doesn't matter",
+        text: String.raw`If the model can fit every training example exactly (a big network on clean data), every example's gradient is zero at the solution, so $\sigma^2 \to 0$ there and a constant rate can converge too. The experiment below shows this: on clean digits the schedule barely matters, but with 30% wrong labels — which can't all be fitted, so gradient noise stays — decaying schedules win by more than 10 percentage points.`,
       },
 
       { t: "h", text: "2. The schedules" },
       {
         t: "p",
-        text: String.raw`Notation: $t = 0, 1, \dots, T-1$ is the step (or epoch), $T$ the total, $\eta_0$ the peak learning rate, $\eta_{\min}$ the final floor (often 0), $W$ the warm-up length.`,
+        text: String.raw`Notation: $t = 0, 1, \dots, T-1$ is the step (or epoch), $T$ the total, $\eta_0$ the peak, $\eta_{\min}$ the final floor (often 0), $W$ the warm-up length.`,
       },
       {
         t: "table",
@@ -550,29 +546,29 @@ const lesson: Lesson = {
         rows: [
           ["Constant", String.raw`$\eta_t = \eta_0$`, "—", "baseline; noise floor ∝ η"],
           ["Step decay", String.raw`$\eta_t = \eta_0\,\gamma^{\lfloor t/s\rfloor}$`, String.raw`step size $s$, factor $\gamma$ (often 0.1)`, "classic ImageNet recipe; MultiStep uses explicit milestones"],
-          ["Exponential", String.raw`$\eta_t = \eta_0\,\gamma^{t}$`, String.raw`$\gamma$ slightly below 1`, String.raw`smooth; $\gamma = (\eta_T/\eta_0)^{1/T}$ hits a target final value`],
+          ["Exponential", String.raw`$\eta_t = \eta_0\,\gamma^{t}$`, String.raw`$\gamma$ slightly below 1`, String.raw`smooth; $\gamma = (\eta_T/\eta_0)^{1/T}$ hits a chosen final value`],
           ["Polynomial / linear", String.raw`$\eta_t = (\eta_0 - \eta_{\min})(1 - t/T)^p + \eta_{\min}$`, String.raw`power $p$ ($p = 1$: linear)`, "linear decay to 0 is common for BERT-style fine-tuning"],
           ["Cosine annealing", String.raw`$\eta_t = \eta_{\min} + \tfrac12(\eta_0-\eta_{\min})\big(1+\cos(\pi t/T)\big)$`, String.raw`$T$, $\eta_{\min}$`, "slow decay at first, fastest in the middle, gentle at the end"],
-          ["Cosine with warm restarts (SGDR)", String.raw`cosine with $t \to t - t_i$ inside cycle $i$ of length $T_i = T_0\,T_{\text{mult}}^{\,i}$`, String.raw`$T_0$, $T_{\text{mult}}$`, "periodic jumps back to the peak; any cycle end is a usable model"],
-          ["Linear warm-up", String.raw`$\eta_t = \eta_0\,(t+1)/W$ for $t < W$`, String.raw`$W$`, "always combined with a decay"],
+          ["Cosine with warm restarts (SGDR)", String.raw`cosine with $t \to t - t_i$ inside cycle $i$ of length $T_i = T_0\,T_{\text{mult}}^{\,i}$`, String.raw`$T_0$, $T_{\text{mult}}$`, "jumps back to the peak each cycle; any cycle end gives a usable model"],
+          ["Linear warm-up", String.raw`$\eta_t = \eta_0\,(t+1)/W$ for $t < W$`, String.raw`$W$`, "always paired with a decay"],
           ["Warm-up + cosine", String.raw`warm-up, then cosine over the remaining $T - W$ steps`, String.raw`$W$, $T$, $\eta_{\min}$`, "the standard Transformer / LLM recipe"],
           ["Inverse square root (Transformer)", String.raw`$\eta_t = d_{\text{model}}^{-1/2}\min\!\big(t^{-1/2},\ t\,W^{-3/2}\big)$`, String.raw`$d_{\text{model}}$, $W$ (= 4000)`, String.raw`Vaswani et al. 2017; $t$ counts from 1; peak at $t = W$`],
-          ["One-cycle", String.raw`cosine from $\eta_{\max}/25$ up to $\eta_{\max}$ over 30% of training, then cosine down to $\eta_{\max}/(25\cdot 10^4)$`, "max_lr, pct_start, div_factor, final_div_factor", "PyTorch defaults shown; momentum is cycled inversely (0.95 → 0.85 → 0.95)"],
-          ["ReduceLROnPlateau", String.raw`$\eta \leftarrow \gamma\,\eta$ if the monitored metric has not improved for $p$ epochs`, String.raw`factor $\gamma$ = 0.1, patience $p$ = 10 (PyTorch defaults)`, "reactive, not a function of t; needs a validation metric"],
+          ["One-cycle", String.raw`cosine from $\eta_{\max}/25$ up to $\eta_{\max}$ over 30% of training, then cosine down to $\eta_{\max}/(25\cdot 10^4)$`, "max_lr, pct_start, div_factor, final_div_factor", "PyTorch defaults shown; momentum moves the opposite way (0.95 → 0.85 → 0.95)"],
+          ["ReduceLROnPlateau", String.raw`$\eta \leftarrow \gamma\,\eta$ if the watched metric has not improved for $p$ epochs`, String.raw`factor $\gamma$ = 0.1, patience $p$ = 10 (PyTorch defaults)`, "reacts to the run, not a function of t; needs a validation metric"],
         ],
       },
       {
         t: "p",
-        text: String.raw`**Cosine annealing in detail.** At $t = 0$, $\cos 0 = 1$ gives $\eta_0$; at $t = T/2$, $\cos(\pi/2) = 0$ gives the midpoint $(\eta_0+\eta_{\min})/2$; at $t = T$, $\cos\pi = -1$ gives $\eta_{\min}$. Its derivative $-\tfrac{\pi}{2T}(\eta_0-\eta_{\min})\sin(\pi t/T)$ is zero at both ends, so the rate leaves the peak slowly (long exploration) and approaches the floor slowly (long fine settling). Loshchilov & Hutter ("SGDR: Stochastic Gradient Descent with Warm Restarts", 2016) introduced it together with **restarts**: after each cycle the rate jumps back to $\eta_0$, with cycle lengths $T_0, T_0 T_{\text{mult}}, T_0 T_{\text{mult}}^2, \dots$ The jump can kick the parameters out of a narrow basin into a possibly better one, and the end of every cycle gives a well-annealed model.`,
+        text: String.raw`**Cosine annealing up close.** At $t = 0$, $\cos 0 = 1$ gives $\eta_0$; at $t = T/2$, $\cos(\pi/2) = 0$ gives the midpoint $(\eta_0+\eta_{\min})/2$; at $t = T$, $\cos\pi = -1$ gives $\eta_{\min}$. Its slope $-\tfrac{\pi}{2T}(\eta_0-\eta_{\min})\sin(\pi t/T)$ is zero at both ends, so the rate leaves the peak slowly (long exploring) and nears the floor slowly (long settling). Loshchilov & Hutter ("SGDR: Stochastic Gradient Descent with Warm Restarts", 2016) added **restarts**: after each cycle the rate jumps back to $\eta_0$, with cycle lengths $T_0, T_0 T_{\text{mult}}, T_0 T_{\text{mult}}^2, \dots$ The jump can kick the weights out of a narrow valley into a possibly better one, and every cycle end gives a well-settled model.`,
       },
       {
         t: "p",
-        text: String.raw`**The original Transformer schedule.** Vaswani et al. ("Attention Is All You Need", 2017) used Adam with $\beta_2 = 0.98$, $\epsilon = 10^{-9}$ and $\eta_t = d_{\text{model}}^{-1/2}\min(t^{-1/2}, t\cdot W^{-3/2})$ with $W = 4000$. For $t \le W$ the second term is smaller: $\eta_t = d_{\text{model}}^{-1/2}\,t\,W^{-3/2}$ grows linearly. For $t \ge W$ the first is smaller: $\eta_t \propto 1/\sqrt t$. They meet at $t = W$, where $\eta = (d_{\text{model}}W)^{-1/2}$. With $d_{\text{model}} = 512$: $1.747\times10^{-7}$ at step 1, peak $6.988\times10^{-4}$ at step 4000, half the peak ($3.494\times10^{-4}$) at step 16 000 (4× the warm-up, so $\sqrt{4} = 2$), and $1.398\times10^{-4}$ at step 100 000. The $1/\sqrt t$ tail never reaches zero, which suits training of unknown length.`,
+        text: String.raw`**The original Transformer schedule.** Vaswani et al. ("Attention Is All You Need", 2017) used Adam with $\beta_2 = 0.98$, $\epsilon = 10^{-9}$ and $\eta_t = d_{\text{model}}^{-1/2}\min(t^{-1/2}, t\cdot W^{-3/2})$ with $W = 4000$. For $t \le W$ the second term is smaller, so $\eta_t = d_{\text{model}}^{-1/2}\,t\,W^{-3/2}$ grows linearly. For $t \ge W$ the first is smaller, so $\eta_t \propto 1/\sqrt t$. They meet at $t = W$, where $\eta = (d_{\text{model}}W)^{-1/2}$. With $d_{\text{model}} = 512$: $1.747\times10^{-7}$ at step 1, peak $6.988\times10^{-4}$ at step 4000, half the peak ($3.494\times10^{-4}$) at step 16 000 (4× the warm-up, and $\sqrt{4} = 2$), and $1.398\times10^{-4}$ at step 100 000. The $1/\sqrt t$ tail never hits zero, which suits runs of unknown length.`,
       },
       { t: "h", text: "Worked example: every schedule at the same steps" },
       {
         t: "p",
-        text: String.raw`Peak $\eta_0 = 0.1$, $T = 1000$ steps, warm-up $W = 100$. Step decay: $\gamma = 0.1$ every 300 steps. Exponential: $\gamma = 0.01^{1/1000} = 0.995405$, so that $\eta_{1000} = 0.001$. Inverse-sqrt is normalised to peak $\eta_0$: $\eta_t = \eta_0\min\big((t+1)/W, \sqrt{W/(t+1)}\big)$.`,
+        text: String.raw`Peak $\eta_0 = 0.1$, $T = 1000$ steps, warm-up $W = 100$. Step decay: $\gamma = 0.1$ every 300 steps. Exponential: $\gamma = 0.01^{1/1000} = 0.995405$, so that $\eta_{1000} = 0.001$. Inverse-sqrt is scaled to peak at $\eta_0$: $\eta_t = \eta_0\min\big((t+1)/W, \sqrt{W/(t+1)}\big)$.`,
       },
       {
         t: "table",
@@ -589,28 +585,28 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Check two entries by hand. Cosine at $t = 250$: $\tfrac12(0.1)(1 + \cos(\pi/4)) = 0.05 \times 1.70711 = 0.085355$. Warm-up + cosine at $t = 250$: the cosine phase has run for $250 - 100 = 150$ of its $900$ steps, so $\eta = 0.05\,(1 + \cos(\pi \cdot 150/900)) = 0.05\,(1 + \cos 30°) = 0.05 \times 1.86603 = 0.093301$. Inverse sqrt at $t = 999$: $0.1\sqrt{100/1000} = 0.031623$.`,
+        text: String.raw`Check a few by hand. Cosine at $t = 250$: $\tfrac12(0.1)(1 + \cos(\pi/4)) = 0.05 \times 1.70711 = 0.085355$. Warm-up + cosine at $t = 250$: the cosine part has run $250 - 100 = 150$ of its $900$ steps, so $\eta = 0.05\,(1 + \cos(\pi \cdot 150/900)) = 0.05\,(1 + \cos 30°) = 0.05 \times 1.86603 = 0.093301$. Inverse sqrt at $t = 999$: $0.1\sqrt{100/1000} = 0.031623$.`,
       },
 
       { t: "h", text: "3. Warm-up: what it fixes" },
       {
         t: "list",
         items: [
-          String.raw`**Adam's statistics are empty.** At $t = 1$ the bias-corrected second moment is just $g_1^2$, so Adam's first step is $\pm\eta$ in **every** coordinate, whatever the gradient's reliability; for the next tens of steps $\hat v$ is an average of a handful of samples and has high variance. Liu et al. ("On the Variance of the Adaptive Learning Rate and Beyond", ICLR 2020, the RAdam paper) identified this variance as a main reason warm-up is needed for Adam: a small $\eta$ during the first steps keeps these poorly estimated updates small.`,
-          String.raw`**Large curvature at initialisation.** The stability condition $\eta < 2/\lambda_{\max}$ refers to the current curvature. Early in training curvature and gradient norms can be much larger than later; a peak rate that is perfectly stable after a few hundred steps can blow up on step 1. Warm-up lets the network first move into a region where the peak rate is stable.`,
-          String.raw`**Large-batch training.** The linear scaling rule (next section) makes the peak rate large. Goyal et al. (2017) found that applying it from the first iteration hurt accuracy and proposed a gradual warm-up from $\eta$ to $k\eta$ over 5 epochs; with it, ResNet-50 trained with batch 8192 matched the accuracy of batch 256.`,
-          "**Post-LayerNorm Transformers.** Xiong et al. (2020, \"On Layer Normalization in the Transformer Architecture\") showed that in the original Post-LN Transformer the gradients of parameters near the output are large at initialisation, making warm-up essential, while the Pre-LN arrangement trains reasonably without it.",
+          String.raw`**Adam's statistics start empty.** At $t = 1$ the bias-corrected second moment is just $g_1^2$, so Adam's first step is $\pm\eta$ in **every** coordinate, however unreliable the gradient. For the next tens of steps $\hat v$ averages only a handful of samples and jumps around. Liu et al. ("On the Variance of the Adaptive Learning Rate and Beyond", ICLR 2020, the RAdam paper) named this a main reason Adam needs warm-up: a small $\eta$ early keeps these shaky updates small.`,
+          String.raw`**High curvature at the start.** The stability rule $\eta < 2/\lambda_{\max}$ uses the curvature right now. Early on, curvature and gradient sizes can be much larger than later, so a peak rate that is fine after a few hundred steps can blow up on step 1. Warm-up lets the network first move somewhere the peak rate is safe.`,
+          String.raw`**Large-batch training.** The linear scaling rule (next section) makes the peak rate large. Goyal et al. (2017) found that using it from the first step hurt accuracy, so they warmed up gradually from $\eta$ to $k\eta$ over 5 epochs; with that, ResNet-50 with batch 8192 matched the accuracy of batch 256.`,
+          "**Post-LayerNorm Transformers.** Xiong et al. (2020, \"On Layer Normalization in the Transformer Architecture\") showed that in the original Post-LN Transformer, gradients near the output are large at the start, so warm-up is essential, while the Pre-LN layout trains reasonably without it.",
         ],
       },
       {
         t: "p",
-        text: String.raw`In our own run (framework section), an 8-layer MLP without normalisation trained with Adam at $\eta = 10^{-2}$ and cosine decay reached 82.7% mean test accuracy over 5 seeds; adding a 10% linear warm-up raised it to 90.0%, with the same peak and the same decay.`,
+        text: String.raw`In our own run (framework section), an 8-layer MLP without normalisation, trained with Adam at $\eta = 10^{-2}$ and cosine decay, reached 82.7% mean test accuracy over 5 seeds. Adding a 10% linear warm-up raised it to 90.0%, with the same peak and decay.`,
       },
 
       { t: "h", text: "4. The linear scaling rule for batch size" },
       {
         t: "p",
-        text: String.raw`Let $k$ consecutive small-batch SGD steps use gradients $g_1, \dots, g_k$ at nearly the same parameters. They move the weights by $-\eta\sum_j g_j$. One large-batch step with $k$ times the batch uses the average $\bar g = \tfrac1k\sum_j g_j$ and moves by $-\eta'\bar g$. Matching the two requires`,
+        text: String.raw`Say $k$ small-batch SGD steps use gradients $g_1, \dots, g_k$ at nearly the same weights. Together they move the weights by $-\eta\sum_j g_j$. One step with a $k$ times bigger batch uses the average $\bar g = \tfrac1k\sum_j g_j$ and moves by $-\eta'\bar g$. For the two to match:`,
       },
       {
         t: "math",
@@ -618,13 +614,13 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The approximation "nearly the same parameters" fails when the weights change quickly — at the start of training (hence warm-up) — and the rule as a whole stops working beyond a problem-dependent batch size, where noise is no longer what limits progress and the larger rate simply becomes unstable. For Adam-type optimizers, whose step does not scale with the gradient size, a square-root rule $\eta' = \sqrt k\,\eta$ is a frequently used heuristic. Treat both rules as starting points for tuning, not laws.`,
+        text: String.raw`"Nearly the same weights" fails when weights change fast — at the start of training (hence warm-up). The rule also stops working past a batch size that depends on the problem, where noise no longer limits progress and the bigger rate just becomes unstable. For Adam-type optimizers, whose step doesn't grow with gradient size, a square-root rule $\eta' = \sqrt k\,\eta$ is a common rule of thumb. Treat both as starting points for tuning, not laws.`,
       },
 
       { t: "h", text: "5. Gradient clipping" },
       {
         t: "p",
-        text: String.raw`Let $g$ be the concatenation of all parameter gradients and $c > 0$ a threshold.`,
+        text: String.raw`Let $g$ be all parameter gradients joined into one vector and $c > 0$ a threshold.`,
       },
       {
         t: "math",
@@ -632,14 +628,18 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**By norm** (Pascanu, Mikolov & Bengio, 2013, for recurrent networks) rescales the whole vector by one factor: the direction is preserved and the update length is capped at $\eta c$ for SGD ($\eta c/(1-\beta)$ in steady state with momentum). The norm is computed **globally**, over all parameters together, which is what PyTorch's clip_grad_norm_ does. **By value** clamps each component independently: cheaper to reason about per parameter, but it changes the direction of the gradient. Example: $g = (3, 4, 12)$, $\lVert g\rVert = 13$, $c = 5$. By norm: $g \cdot 5/13 = (1.1538, 1.5385, 4.6154)$, norm exactly 5, same direction (cosine similarity 1). By value: $(3, 4, 5)$, norm 7.07, and the cosine similarity with the original direction drops to 0.9247 — the largest component was cut much more than the others.`,
+        text: String.raw`**By norm** (Pascanu, Mikolov & Bengio, 2013, for recurrent networks) shrinks the whole vector by one factor. The direction stays the same and the update length is capped at $\eta c$ for SGD ($\eta c/(1-\beta)$ once momentum settles). The norm is measured **globally**, over all parameters at once, as PyTorch's clip_grad_norm_ does. **By value** clamps each component on its own, which changes the direction.`,
+      },
+      {
+        t: "p",
+        text: String.raw`Example: $g = (3, 4, 12)$, $\lVert g\rVert = 13$, $c = 5$. By norm: $g \cdot 5/13 = (1.1538, 1.5385, 4.6154)$, norm exactly 5, same direction (cosine similarity 1). By value: $(3, 4, 5)$, norm 7.07, and the cosine similarity with the original falls to 0.9247 — the largest component was cut much more than the rest.`,
       },
       {
         t: "list",
         items: [
-          "**When to use it.** Recurrent networks (exploding gradients through time), Transformers and LLMs (clipping at a global norm of 1.0 is near-universal), reinforcement learning, and any run with occasional loss spikes. It is cheap insurance: if the norm is normally below $c$, it changes nothing.",
-          "**How to pick c.** Log the global gradient norm for a few hundred steps and set $c$ a little above its typical value, so that only outliers are clipped. If almost every step is clipped, clipping has become a hidden learning-rate reduction (an update of length η·c regardless of the gradient).",
-          "**With Adam** clipping matters less, because Adam already normalises per coordinate — but it still limits the influence of one huge gradient on m and v. In our Adam run clipping alone did not replace warm-up (85.5% vs 90.0%).",
+          "**When to use it.** Recurrent networks (gradients exploding through time), Transformers and LLMs (clipping at a global norm of 1.0 is almost universal), reinforcement learning, and any run with occasional loss spikes. It is cheap insurance: if the norm is usually below $c$, it changes nothing.",
+          "**How to pick c.** Log the global gradient norm for a few hundred steps and set $c$ a little above its usual value, so only outliers get clipped. If almost every step is clipped, clipping has turned into a hidden learning-rate cut (every update has length η·c whatever the gradient).",
+          "**With Adam** clipping matters less, because Adam already normalises each coordinate — but it still stops one huge gradient from distorting m and v. In our Adam run, clipping alone did not replace warm-up (85.5% vs 90.0%).",
         ],
       },
       {
@@ -655,18 +655,18 @@ const lesson: Lesson = {
     visual: [
       {
         t: "p",
-        text: "The simulator overlays the selected schedules on one plot and, at the same time, trains a real model with each of them: logistic regression on 400 fixed examples with two badly scaled features (scales 1 and 3), 15% flipped labels (so gradient noise never vanishes) and 3% outliers with 8× larger features (so a few mini-batches produce very large gradients). The optimizer is mini-batch SGD with momentum 0.9 and batch size 8; every schedule sees exactly the same mini-batches. The lower plot shows the full training loss minus its minimum (found with Newton's method), on a log scale and smoothed over 10 steps.",
+        text: "The simulator draws the chosen schedules on one plot and trains a real model with each: logistic regression on 400 fixed examples with two badly scaled features (scales 1 and 3), 15% flipped labels (so gradient noise never goes away) and 3% outliers with 8× larger features (so a few mini-batches give very large gradients). The optimizer is SGD with momentum 0.9 and batch size 8, with the same mini-batches for every schedule. The lower plot shows training loss minus its minimum (found with Newton's method), log scale, smoothed over 10 steps.",
       },
       { t: "sim", id: "lr-schedule", caption: "Learning-rate schedules and their effect on a real noisy training run. Select schedules, press Play, and watch the gold marker move along the LR curves while the loss curves grow below." },
       {
         t: "list",
         items: [
-          "**Constant vs cosine (defaults, η₀ = 0.05).** For the first third both runs behave alike, because the cosine rate is still close to the peak. Then the cosine run keeps improving as its rate shrinks while the constant run jitters on its noise floor. Averaged over the last 50 steps the excess loss is about 0.13 for constant and 0.0035 for cosine — a factor of almost 40 from the schedule alone.",
-          "**Raise η₀ to 0.1.** The constant and cosine runs blow up within the first 60 steps (average excess loss over those steps about 0.86), because the curvature at the start (about 10, printed under the table) makes η = 0.1 too large for momentum SGD there. Warm-up + cosine averages 0.06 over the same steps: its first steps use a tiny rate. Later, when warm-up reaches the peak, outlier batches still cause spikes.",
-          "**Now tick Clip gradient norm (c = 1).** The spikes shrink by about an order of magnitude; the table counts how many steps were clipped (roughly 60–80 of 600). The constant run still ends on its noise floor (about 0.13): clipping limits single steps, it does not anneal.",
-          "**Step decay.** The loss curve drops in a staircase right after each decay point (steps 150, 300, 450 by default) — each drop is the noise cloud shrinking with the rate.",
-          "**Cosine + restarts.** With T₀ = 100 the cycles are 100, 200 and 400 steps long. Each restart sends the loss up (from 0.035 at step 100 to about 0.2 twenty steps later), and the next cycle anneals it back down. Set T = 700 so the run ends exactly at a cycle end; at the default T = 600 it stops in the middle of a cycle, with a higher loss.",
-          "**Inverse square root and one-cycle.** Inverse sqrt never decays to zero, so its final loss (about 0.014) sits between constant and cosine. One-cycle starts at η₀/25, climbs to the peak and anneals to almost zero; it ends among the lowest losses, and at η₀ = 0.1 it has the lowest of all eight.",
+          "**Constant vs cosine (defaults, η₀ = 0.05).** For the first third both runs look alike, because the cosine rate is still near the peak. Then the cosine run keeps improving as its rate shrinks, while the constant run jitters on its noise floor. Over the last 50 steps the excess loss is about 0.13 for constant and 0.0035 for cosine — almost 40× from the schedule alone.",
+          "**Raise η₀ to 0.1.** The constant and cosine runs blow up within the first 60 steps (average excess loss about 0.86): the starting curvature (about 10, shown under the table) makes η = 0.1 too big for momentum SGD there. Warm-up + cosine averages 0.06 over those steps thanks to its tiny early rate. Once warm-up reaches the peak, outlier batches still cause spikes.",
+          "**Now tick Clip gradient norm (c = 1).** The spikes shrink about 10×; the table counts the clipped steps (roughly 60–80 of 600). The constant run still ends on its noise floor (about 0.13): clipping limits single steps, it does not shrink the rate.",
+          "**Step decay.** The loss drops like a staircase right after each decay point (steps 150, 300, 450 by default) — each drop is the noise cloud shrinking with the rate.",
+          "**Cosine + restarts.** With T₀ = 100 the cycles last 100, 200 and 400 steps. Each restart pushes the loss up (from 0.035 at step 100 to about 0.2 twenty steps later), and the next cycle brings it back down. Set T = 700 so the run ends exactly at a cycle end; at the default T = 600 it stops mid-cycle, with a higher loss.",
+          "**Inverse square root and one-cycle.** Inverse sqrt never decays to zero, so its final loss (about 0.014) sits between constant and cosine. One-cycle starts at η₀/25, climbs to the peak and anneals to almost zero; it ends among the lowest losses, and at η₀ = 0.1 it is the lowest of all eight.",
         ],
       },
     ],
@@ -675,7 +675,7 @@ const lesson: Lesson = {
     scratch: [
       {
         t: "p",
-        text: "Everything in NumPy: one function that builds every schedule (including SGDR restarts and PyTorch-identical one-cycle), a two-layer MLP with SGD + momentum and global-norm clipping, an LR range test, and the real experiment — handwritten digits (8×8 images, 1257 training and 540 test images), once with clean labels and once with 30% of the training labels replaced by random ones. Every schedule uses the same peak rate (0.2), the same 30 epochs and the same 5 seeds.",
+        text: "All in NumPy: one function that builds every schedule (including SGDR restarts and a PyTorch-identical one-cycle), a two-layer MLP with SGD + momentum and global-norm clipping, an LR range test, and the real experiment — handwritten digits (8×8 images, 1257 training and 540 test), once with clean labels and once with 30% of the training labels swapped for random ones. Every schedule uses the same peak (0.2), 30 epochs and 5 seeds.",
       },
       {
         t: "code",
@@ -688,10 +688,10 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`**LR range test.** The smoothed loss is flat up to about $10^{-2}$, falls steeply between 0.03 and 0.4, bottoms out at 0.343 and explodes by 3.5. The peak rate used in the experiment, 0.2, sits in the steep-descent region; the "one tenth of the minimum" heuristic (0.034) would be a conservative choice.`,
+          String.raw`**LR range test.** The smoothed loss is flat up to about $10^{-2}$, falls steeply between 0.03 and 0.4, bottoms out at 0.343 and explodes by 3.5. The peak used in the experiment, 0.2, is in the steep part; the "tenth of the minimum" rule (0.034) would be a cautious choice.`,
           "**Clean labels: the schedule barely matters.** All five schedules give 97.6–97.8% mean test accuracy, within the seed-to-seed spread. The network fits the clean training set almost exactly, so gradient noise vanishes near the solution and a constant rate has no noise floor to fight (the note in Math section 1).",
-          "**Noisy labels: decay is essential.** With 30% random labels the gradient noise never vanishes. The constant rate ends at 81.2% (and test NLL 0.736) with a wide spread across seeds (75.7–86.7%) — the final weights are a random point in the noise cloud. Every decaying schedule lands at 91.7–92.9% with a much narrower spread; one-cycle and warm-up + cosine are best here, but the differences between decaying schedules are small compared with the gap to constant.",
-          "**Clipping.** A peak rate of 0.6 with cosine decay is unstable: 72% mean accuracy, one seed at 58%. Clipping the global norm at 2.0, 1.0 and 0.5 gives 90.2%, 96.6% and 97.2% — clipping caps each step at η·c (divided by 1 − β with momentum), which removes the occasional catastrophic step without changing the many ordinary ones.",
+          "**Noisy labels: decay is essential.** With 30% random labels the gradient noise never goes away. The constant rate ends at 81.2% (test NLL 0.736) with a wide spread across seeds (75.7–86.7%) — the final weights are a random point in the noise cloud. Every decaying schedule lands at 91.7–92.9% with a much tighter spread; one-cycle and warm-up + cosine are best, but by little compared with the gap to constant.",
+          "**Clipping.** A peak of 0.6 with cosine decay is unstable: 72% mean accuracy, one seed at 58%. Clipping the global norm at 2.0, 1.0 and 0.5 gives 90.2%, 96.6% and 97.2%. Clipping caps each step at η·c (divided by 1 − β with momentum), which removes the rare disastrous step without touching the many normal ones.",
         ],
       },
     ],
@@ -706,7 +706,7 @@ const lesson: Lesson = {
             blocks: [
               {
                 t: "p",
-                text: "`torch.optim.lr_scheduler` provides every schedule of this lesson. The program checks each against its closed-form formula over 1000 steps, reproduces the most common scheduler bug, and then runs a real experiment: an 8-layer MLP on digits trained with Adam (η = 1e-2) and cosine decay, with and without a linear warm-up built from `SequentialLR(LinearLR, CosineAnnealingLR)`, and with `clip_grad_norm_` instead of warm-up.",
+                text: "`torch.optim.lr_scheduler` has every schedule in this lesson. The program checks each against its formula over 1000 steps, reproduces the most common scheduler bug, and runs a real experiment: an 8-layer MLP on digits trained with Adam (η = 1e-2) and cosine decay, with and without a linear warm-up built from `SequentialLR(LinearLR, CosineAnnealingLR)`, and with `clip_grad_norm_` instead of warm-up.",
               },
               {
                 t: "code",
@@ -718,12 +718,12 @@ const lesson: Lesson = {
               {
                 t: "list",
                 items: [
-                  "Every PyTorch scheduler matches its formula to machine precision. `LambdaLR(opt, f)` multiplies the optimizer's initial lr by `f(step)`, which makes it the most flexible way to write warm-up + anything.",
-                  "**The bug.** `CosineAnnealingLR(T_max=10)` intends 10 epochs, but `scheduler.step()` is called every batch: the rate reaches 0 after 10 batches and then **rises again** (PyTorch's cosine is periodic beyond T_max), so the run oscillates between 0.1 and 0 every 20 batches instead of decaying once. Fix: either `T_max = epochs * len(loader)` with per-batch stepping, or per-epoch stepping — and print the lr a few times to check.",
-                  "**Warm-up result.** Same peak, same decay, same seeds: no warm-up 82.7%, 10% warm-up 90.0%, clipping at 1.0 without warm-up 85.5%. Warm-up addresses the start-up problem directly; clipping only partly substitutes for it.",
-                  "Call `optimizer.step()` before `scheduler.step()`; the reverse order skips the first value of the schedule (PyTorch warns about it).",
-                  "`OneCycleLR` must be stepped every batch with `total_steps = epochs * steps_per_epoch`; stepping past `total_steps` raises an error. It also cycles the momentum (or Adam's β₁) inversely to the learning rate unless `cycle_momentum=False`.",
-                  "`ReduceLROnPlateau` is the exception to the API: call `scheduler.step(val_loss)` once per epoch, with the monitored metric.",
+                  "Every PyTorch scheduler matches its formula to machine precision. `LambdaLR(opt, f)` multiplies the optimizer's starting lr by `f(step)`, the most flexible way to write warm-up + anything.",
+                  "**The bug.** `CosineAnnealingLR(T_max=10)` means 10 epochs, but `scheduler.step()` is called every batch: the rate hits 0 after 10 batches and then **rises again** (PyTorch's cosine repeats past T_max), so it swings between 0.1 and 0 every 20 batches instead of decaying once. Fix: either `T_max = epochs * len(loader)` with per-batch stepping, or per-epoch stepping — and print the lr a few times to check.",
+                  "**Warm-up result.** Same peak, decay and seeds: no warm-up 82.7%, 10% warm-up 90.0%, clipping at 1.0 without warm-up 85.5%. Warm-up fixes the start-up problem directly; clipping only partly stands in for it.",
+                  "Call `optimizer.step()` before `scheduler.step()`; the other order skips the schedule's first value (PyTorch warns about it).",
+                  "`OneCycleLR` must be stepped every batch with `total_steps = epochs * steps_per_epoch`; stepping past `total_steps` raises an error. It also moves momentum (or Adam's β₁) opposite to the learning rate unless `cycle_momentum=False`.",
+                  "`ReduceLROnPlateau` is the odd one out: call `scheduler.step(val_loss)` once per epoch, with the watched metric.",
                 ],
               },
               {
@@ -809,8 +809,8 @@ plateau = tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.1, p
               {
                 t: "list",
                 items: [
-                  "Keras schedules are evaluated on the optimizer's iteration counter, so they are per-batch by construction — the per-epoch/per-batch mix-up is less likely than in PyTorch, but `decay_steps` must still be given in batches.",
-                  "`clipnorm` clips each variable separately (the per-tensor variant), `global_clipnorm` clips the joint norm like PyTorch's `clip_grad_norm_`, `clipvalue` clips element-wise.",
+                  "Keras schedules run on the optimizer's step counter, so they are per-batch by design — the epoch/batch mix-up is less likely than in PyTorch, but `decay_steps` must still be in batches.",
+                  "`clipnorm` clips each variable separately, `global_clipnorm` clips the joint norm like PyTorch's `clip_grad_norm_`, and `clipvalue` clips each element.",
                 ],
               },
             ],
@@ -825,17 +825,17 @@ plateau = tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.1, p
         t: "table",
         head: ["Schedule", "Advantages", "Disadvantages", "Typical use"],
         rows: [
-          ["Constant", "simplest; no knowledge of training length needed", "noise floor ∝ η; final model is a random point of the noise cloud", "quick experiments, interpolating models, as part of other schedules"],
-          ["Step / multi-step", "simple, interpretable, strong results on CNNs", "milestones must be tuned; abrupt changes", "ResNet-style ImageNet/CIFAR training"],
-          ["Exponential", "smooth, one parameter", "decays fastest early, when large steps are still useful", "older papers, RL, small models"],
+          ["Constant", "simplest; no need to know the run length", "noise floor ∝ η; final model is a random point in the noise cloud", "quick experiments, models that fit the data exactly, as part of other schedules"],
+          ["Step / multi-step", "simple, easy to read, strong results on CNNs", "milestones need tuning; sudden changes", "ResNet-style ImageNet/CIFAR training"],
+          ["Exponential", "smooth, one parameter", "decays fastest early, when big steps still help", "older papers, RL, small models"],
           ["Linear / polynomial decay", "simple, reaches exactly 0 at T", "needs T in advance", "BERT-style fine-tuning (with warm-up)"],
-          ["Cosine annealing", "few hyperparameters, long high-LR phase and gentle end, robust", "needs T in advance", "default for many vision and language models"],
-          ["Cosine with warm restarts (SGDR)", "anytime models at cycle ends, possible escapes from poor basins, snapshot ensembles", "loss spikes at restarts; cycle lengths to tune", "long runs of unknown length, ensembling"],
-          ["Warm-up + cosine / linear", "stable start for Adam and large batches + annealed end", "two extra hyperparameters (W, floor)", "Transformers, LLMs, ViTs: the standard"],
-          ["Inverse square root", "no fixed T; theory-motivated 1/√t decay", "never anneals to a small value", "original Transformer; continual or open-ended training"],
+          ["Cosine annealing", "few settings, long high-rate phase and gentle end, robust", "needs T in advance", "default for many vision and language models"],
+          ["Cosine with warm restarts (SGDR)", "usable model at every cycle end, chances to escape poor valleys, snapshot ensembles", "loss spikes at restarts; cycle lengths to tune", "long runs of unknown length, ensembling"],
+          ["Warm-up + cosine / linear", "stable start for Adam and large batches + settled end", "two extra settings (W, floor)", "Transformers, LLMs, ViTs: the standard"],
+          ["Inverse square root", "no fixed T; theory-backed 1/√t decay", "never gets down to a small value", "original Transformer; continual or open-ended training"],
           ["One-cycle", "fast training at a high peak; often best for a fixed short budget", "budget must be known; extra momentum cycling", "fastai-style training, small-budget vision"],
           ["ReduceLROnPlateau", "adapts to the run; no T needed", "reactive and noisy; needs a validation metric; patience wastes epochs", "small projects without a known budget"],
-          ["Warm-up–stable–decay (WSD)", "constant peak for most of training, short final decay; checkpoints can be decayed later", "decay phase length to tune", "recent LLM pre-training variants"],
+          ["Warm-up–stable–decay (WSD)", "peak rate for most of training, short final decay; checkpoints can be decayed later", "decay length to tune", "recent LLM pre-training variants"],
         ],
       },
     ],
@@ -845,12 +845,12 @@ plateau = tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.1, p
       {
         t: "list",
         items: [
-          String.raw`**ImageNet ResNets.** He et al. (2016) trained with SGD + momentum, $\eta = 0.1$ for batch 256, divided by 10 when the error plateaued — the canonical step schedule. Goyal et al. (2017) scaled the same recipe to batch 8192 with $\eta = 3.2$ and 5 epochs of linear warm-up, training ResNet-50 in one hour.`,
+          String.raw`**ImageNet ResNets.** He et al. (2016) used SGD + momentum, $\eta = 0.1$ for batch 256, divided by 10 when error stalled — the classic step schedule. Goyal et al. (2017) scaled it to batch 8192 with $\eta = 3.2$ and 5 epochs of linear warm-up, training ResNet-50 in one hour.`,
           String.raw`**The original Transformer.** Adam with $\beta_2 = 0.98$ and the inverse-square-root schedule with 4000 warm-up steps (Vaswani et al., 2017).`,
-          String.raw`**Large language models.** GPT-3 (Brown et al., 2020) and LLaMA (Touvron et al., 2023) report AdamW with linear warm-up, cosine decay to 10% of the peak rate, and gradient clipping at 1.0 — the template most open LLM training recipes follow.`,
+          String.raw`**Large language models.** GPT-3 (Brown et al., 2020) and LLaMA (Touvron et al., 2023) report AdamW with linear warm-up, cosine decay to 10% of the peak, and gradient clipping at 1.0 — the template most open LLM recipes follow.`,
           String.raw`**Fine-tuning.** BERT-style fine-tuning uses AdamW with a small peak ($2\times10^{-5}$–$5\times10^{-5}$ in the BERT paper's search), a short warm-up and linear decay to zero over a few epochs.`,
-          "**Recurrent networks and RL.** Gradient-norm clipping (Pascanu et al., 2013) is standard for LSTMs and GRUs; policy-gradient methods commonly clip the gradient norm (often at 0.5) and anneal the learning rate linearly.",
-          "**Fast training on a budget.** One-cycle schedules (Smith, 2018) with an LR range test are the default in fastai's `fit_one_cycle` and are widely used to train image classifiers in few epochs.",
+          "**Recurrent networks and RL.** Gradient-norm clipping (Pascanu et al., 2013) is standard for LSTMs and GRUs; policy-gradient methods often clip the gradient norm (often at 0.5) and lower the learning rate linearly.",
+          "**Fast training on a budget.** One-cycle (Smith, 2018) with an LR range test is the default in fastai's `fit_one_cycle`, widely used to train image classifiers in few epochs.",
         ],
       },
     ],
@@ -860,12 +860,12 @@ plateau = tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.1, p
       {
         t: "list",
         items: [
-          "**Schedules trade knowledge of the budget for performance.** Cosine, linear and one-cycle need T in advance; extending a finished cosine run means restarting the decay. Inverse-sqrt, plateau and warm-up–stable–decay schedules are friendlier to open-ended training.",
-          "**Most decaying schedules perform similarly.** In our noisy-label run, step, cosine, warm-up + cosine and one-cycle were within about 1.2 points of each other and all more than 10 points above constant. Choosing *some* sensible decay matters far more than choosing *which*.",
-          String.raw`**The peak rate dominates.** A schedule rescales the peak; a peak that is too high (0.6 in our run) or too low cannot be rescued by the shape. Find it first (range test, small sweep).`,
-          "**Warm-up costs a little time and adds a hyperparameter**, but removes a large class of early divergences, especially with Adam, large batches and deep un-normalised or Post-LN networks.",
-          "**Clipping is insurance, not optimisation.** It costs one norm computation per step and is invisible when gradients are normal. When it triggers constantly, it silently changes the effective learning rate and hides the real problem (too high η, bad data, numerical issues).",
-          "**Interaction with the optimizer.** Momentum multiplies the effective step by 1/(1−β); Adam's step is already normalised. The same schedule shape therefore has different effects on SGD and on Adam — re-tune the peak when switching.",
+          "**Knowing the budget buys performance.** Cosine, linear and one-cycle need T in advance; extending a finished cosine run means restarting the decay. Inverse-sqrt, plateau and warm-up–stable–decay suit open-ended training better.",
+          "**Most decaying schedules perform alike.** In our noisy-label run, step, cosine, warm-up + cosine and one-cycle were within about 1.2 points of each other, all more than 10 points above constant. Picking *some* sensible decay matters far more than *which*.",
+          String.raw`**The peak rate matters most.** A schedule only rescales the peak; a peak that is too high (0.6 in our run) or too low can't be saved by the shape. Find it first (range test, small sweep).`,
+          "**Warm-up costs a little time and one more setting**, but prevents many early blow-ups, especially with Adam, large batches and deep un-normalised or Post-LN networks.",
+          "**Clipping is insurance, not optimisation.** It costs one norm per step and does nothing when gradients are normal. If it fires all the time, it quietly changes the effective learning rate and hides the real problem (η too high, bad data, numerical issues).",
+          "**It depends on the optimizer.** Momentum multiplies the effective step by 1/(1−β); Adam's step is already normalised. So the same schedule shape acts differently on SGD and Adam — re-tune the peak when you switch.",
         ],
       },
     ],
@@ -875,31 +875,31 @@ plateau = tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.1, p
       {
         t: "list",
         items: [
-          "**Stepping the scheduler at the wrong frequency.** T_max or step_size given in epochs but `scheduler.step()` called every batch (or vice versa): the schedule runs 50–1000× too fast or too slow. The PyTorch output above shows the rate oscillating between 0.1 and 0 every 20 batches. Fix: count T in the same unit you step in, and log the lr.",
-          "**Calling `scheduler.step()` before `optimizer.step()`.** The first value of the schedule is skipped (PyTorch warns). Fix: optimizer first, scheduler second.",
-          "**Forgetting the scheduler state when resuming.** Restarting from a checkpoint without `scheduler.load_state_dict(...)` restarts warm-up and the decay from the peak. Save `scheduler.state_dict()` together with the model and optimizer.",
-          "**Running a cosine schedule past T_max.** PyTorch's `CosineAnnealingLR` is periodic: after T_max the rate climbs back towards the peak. If you extend training, rebuild the schedule.",
+          "**Stepping the scheduler at the wrong rate.** T_max or step_size given in epochs but `scheduler.step()` called every batch (or the reverse): the schedule runs 50–1000× too fast or slow. The PyTorch output above shows the rate swinging between 0.1 and 0 every 20 batches. Fix: count T in the unit you step in, and log the lr.",
+          "**Calling `scheduler.step()` before `optimizer.step()`.** The schedule's first value is skipped (PyTorch warns). Fix: optimizer first, scheduler second.",
+          "**Forgetting scheduler state when resuming.** Restarting from a checkpoint without `scheduler.load_state_dict(...)` restarts warm-up and the decay from the peak. Save `scheduler.state_dict()` with the model and optimizer.",
+          "**Running a cosine schedule past T_max.** PyTorch's `CosineAnnealingLR` repeats: after T_max the rate climbs back toward the peak. If you extend training, rebuild the schedule.",
           "**Clipping per tensor when you meant the global norm.** Clipping each tensor separately changes the update direction (cosine similarity 0.972 in the exercise) and over-weights small tensors like biases. Use `clip_grad_norm_` over all parameters (or Keras's `global_clipnorm`).",
-          "**Clipping scaled gradients in mixed precision.** With `GradScaler`, the gradients are multiplied by a large scale factor; clipping them before `scaler.unscale_(optimizer)` clips at the wrong threshold. Fix: unscale, then clip, then `scaler.step`.",
-          "**Applying the linear scaling rule without warm-up**, or far beyond the batch sizes where it holds. Fix: warm up over a few epochs and verify that accuracy matches the small-batch baseline.",
-          "**Tuning the schedule before the peak rate.** The shape is a second-order effect. Fix: LR range test or a coarse sweep of the peak first.",
-          "**Expecting a schedule to help an interpolating model on clean data.** As our clean-label run shows, the gain can be zero; the benefit appears when gradient noise persists (noisy labels, large datasets, data augmentation, regularisation).",
-          "**Decaying to exactly zero when you may continue training.** A zero rate wastes the final steps of an extended run; a floor of a few percent of the peak (LLaMA-style 10%) keeps the model trainable.",
+          "**Clipping scaled gradients in mixed precision.** `GradScaler` multiplies gradients by a big factor; clipping before `scaler.unscale_(optimizer)` uses the wrong threshold. Fix: unscale, then clip, then `scaler.step`.",
+          "**Using the linear scaling rule without warm-up**, or far past the batch sizes where it holds. Fix: warm up over a few epochs and check that accuracy matches the small-batch baseline.",
+          "**Tuning the schedule before the peak rate.** The shape is a smaller effect. Fix: LR range test or a rough sweep of the peak first.",
+          "**Expecting a schedule to help a model that fits clean data exactly.** As our clean-label run shows, the gain can be zero; it appears when gradient noise stays (noisy labels, large datasets, data augmentation, regularisation).",
+          "**Decaying to exactly zero when you might train longer.** A zero rate wastes the last steps of an extended run; a floor of a few percent of the peak (LLaMA-style 10%) keeps the model trainable.",
         ],
       },
     ],
 
     /* ------------------------------------------------------------------ */
     interview: [
-      { t: "qa", level: "beginner", q: "Why do we decrease the learning rate during training?", a: String.raw`Because each SGD step uses a noisy gradient. With a constant rate the parameters converge only to a cloud around the minimum whose expected excess loss is about $\eta\sigma^2/4$ (for a quadratic with gradient-noise variance $\sigma^2$). A large rate gets close quickly but leaves a large cloud; a small rate gives a small cloud but takes far longer. Starting large and decaying gets both: fast progress early and a small final error.` },
-      { t: "qa", level: "beginner", q: "What is learning-rate warm-up?", a: String.raw`Starting training with a small learning rate and increasing it (usually linearly) to the peak over the first few hundred or thousand steps, before the decay phase. It prevents early divergence when the optimizer's statistics (Adam's second moment) are poorly estimated, when the network starts in a high-curvature region, or when the peak rate is large because of a large batch.` },
-      { t: "qa", level: "beginner", q: "What does gradient clipping by norm do, and how is it different from clipping by value?", a: String.raw`Clipping by norm computes the norm of the whole gradient vector and, if it exceeds a threshold $c$, rescales the vector to have norm exactly $c$; the direction is unchanged. Clipping by value clamps each component to $[-c, c]$ independently, which can change the direction. For $g = (3, 4, 12)$ and $c = 5$: by norm gives $(1.15, 1.54, 4.62)$, by value gives $(3, 4, 5)$.` },
-      { t: "qa", level: "intermediate", q: "Write the cosine annealing formula and explain its shape.", a: String.raw`$\eta_t = \eta_{\min} + \tfrac12(\eta_0 - \eta_{\min})(1 + \cos(\pi t/T))$. It equals $\eta_0$ at $t = 0$, the midpoint at $t = T/2$ and $\eta_{\min}$ at $t = T$. Its slope is proportional to $\sin(\pi t/T)$, zero at both ends: the rate stays near the peak for a long time (exploration), decays fastest in the middle, and spends a long time near the floor (fine convergence). SGDR restarts it periodically with cycle lengths $T_0, T_0T_{\text{mult}}, \dots$` },
-      { t: "qa", level: "intermediate", q: "State the linear scaling rule and its limitations.", a: String.raw`When the mini-batch size is multiplied by $k$, multiply the learning rate by $k$ (Goyal et al., 2017). Justification: $k$ small steps $-\eta\sum_j g_j$ equal one large step $-k\eta\,\bar g$ if the gradients barely change over those steps. It fails early in training, when parameters change fast (hence gradual warm-up), and beyond a problem-dependent batch size where the larger rate is simply unstable. For Adam a square-root rule is a common heuristic. In all cases it is a starting point that should be validated.` },
-      { t: "qa", level: "intermediate", q: "Give the original Transformer learning-rate schedule and compute its peak for d_model = 512.", a: String.raw`$\eta_t = d_{\text{model}}^{-1/2}\min(t^{-1/2}, t\,W^{-3/2})$ with $W = 4000$. It rises linearly for $t \le W$ and decays like $1/\sqrt t$ afterwards. The peak is at $t = W$: $\eta = (d_{\text{model}} W)^{-1/2} = (512 \times 4000)^{-1/2} = 6.99\times10^{-4}$. At step 16 000 it is half that, $3.49\times10^{-4}$.` },
-      { t: "qa", level: "intermediate", q: "How do you choose the peak learning rate with an LR range test?", a: "Train for about 100 mini-batches while increasing the learning rate exponentially from a tiny value (1e-6 to 1e-4) to a large one (1–10), recording an exponentially smoothed loss, and stop when the loss explodes. Plot loss against log learning rate. The loss is flat at tiny rates, falls steeply in a middle range, bottoms out and then blows up. Choose the peak in the steep-descent region — commonly the point of steepest descent or about a tenth of the rate at the minimum; for one-cycle, the rate near the minimum is often used as the maximum." },
-      { t: "qa", level: "advanced", q: "Why does Adam in particular benefit from warm-up, even with bias correction?", a: String.raw`Bias correction removes the mean bias of $v_t$ but not its variance. At $t = 1$, $\hat v_1 = g_1^2$, so the first update is exactly $\pm\eta$ in every coordinate, regardless of whether $g_1$ carries signal; over the next tens of steps $\hat v$ averages only a few samples, so the per-coordinate effective rate $\eta/\sqrt{\hat v}$ fluctuates strongly — Liu et al. (2020) analysed exactly this variance and proposed RAdam to correct it. Since Adam's step does not shrink with the gradient's size, nothing else limits these noisy early moves except η itself; a warm-up keeps η small until $\hat v$ is reliable. In our 8-layer MLP, adding 10% warm-up to Adam at η = 1e-2 raised mean test accuracy from 82.7% to 90.0%.` },
-      { t: "qa", level: "advanced", q: "A cosine schedule was configured with T_max = 100 (epochs), but the loss oscillates periodically and never settles. What happened and how do you fix it?", a: "The scheduler was stepped every batch instead of every epoch, so the cosine completed its decay in 100 batches. PyTorch's CosineAnnealingLR is periodic beyond T_max, so the rate then rose back to the peak and kept cycling with period 200 batches; each rise kicks the model out of the basin it was settling into. Fix: set T_max = epochs × batches_per_epoch when stepping per batch (or step once per epoch), log `scheduler.get_last_lr()` regularly, and save and restore the scheduler state when resuming." },
+      { t: "qa", level: "beginner", q: "Why do we decrease the learning rate during training?", a: String.raw`Because each SGD step uses a noisy gradient. With a constant rate the weights only reach a cloud around the minimum, with expected extra loss about $\eta\sigma^2/4$ (for a quadratic with gradient-noise variance $\sigma^2$). A large rate gets close fast but leaves a big cloud; a small rate gives a small cloud but takes far longer. Starting large and decaying gets both: fast early progress and a small final error.` },
+      { t: "qa", level: "beginner", q: "What is learning-rate warm-up?", a: String.raw`Starting with a small learning rate and raising it (usually linearly) to the peak over the first few hundred or thousand steps, before the decay phase. It prevents early blow-ups when the optimizer's statistics (Adam's second moment) are still poor, when the network starts in a high-curvature region, or when the peak is large because of a large batch.` },
+      { t: "qa", level: "beginner", q: "What does gradient clipping by norm do, and how is it different from clipping by value?", a: String.raw`Clipping by norm measures the size of the whole gradient vector and, if it is above a threshold $c$, rescales it to size exactly $c$; the direction stays the same. Clipping by value clamps each component to $[-c, c]$ on its own, which can change the direction. For $g = (3, 4, 12)$ and $c = 5$: by norm gives $(1.15, 1.54, 4.62)$, by value gives $(3, 4, 5)$.` },
+      { t: "qa", level: "intermediate", q: "Write the cosine annealing formula and explain its shape.", a: String.raw`$\eta_t = \eta_{\min} + \tfrac12(\eta_0 - \eta_{\min})(1 + \cos(\pi t/T))$. It equals $\eta_0$ at $t = 0$, the midpoint at $t = T/2$ and $\eta_{\min}$ at $t = T$. Its slope is proportional to $\sin(\pi t/T)$, zero at both ends: the rate stays near the peak for a long time (exploring), falls fastest in the middle, and lingers near the floor (fine settling). SGDR restarts it with cycle lengths $T_0, T_0T_{\text{mult}}, \dots$` },
+      { t: "qa", level: "intermediate", q: "State the linear scaling rule and its limitations.", a: String.raw`When the batch size is multiplied by $k$, multiply the learning rate by $k$ (Goyal et al., 2017). Reason: $k$ small steps $-\eta\sum_j g_j$ equal one big step $-k\eta\,\bar g$ if the gradients barely change over those steps. It fails early in training, when weights change fast (hence gradual warm-up), and past a problem-dependent batch size where the bigger rate is just unstable. For Adam a square-root rule is a common rule of thumb. Either way, check it.` },
+      { t: "qa", level: "intermediate", q: "Give the original Transformer learning-rate schedule and compute its peak for d_model = 512.", a: String.raw`$\eta_t = d_{\text{model}}^{-1/2}\min(t^{-1/2}, t\,W^{-3/2})$ with $W = 4000$. It rises linearly for $t \le W$ and decays like $1/\sqrt t$ after. The peak is at $t = W$: $\eta = (d_{\text{model}} W)^{-1/2} = (512 \times 4000)^{-1/2} = 6.99\times10^{-4}$. At step 16 000 it is half that, $3.49\times10^{-4}$.` },
+      { t: "qa", level: "intermediate", q: "How do you choose the peak learning rate with an LR range test?", a: "Train for about 100 mini-batches while growing the learning rate exponentially from tiny (1e-6 to 1e-4) to large (1–10), record a smoothed loss, and stop when the loss explodes. Plot loss against log learning rate: flat at tiny rates, steep drop in the middle, a bottom, then a blow-up. Pick the peak in the steep part — often where it drops fastest, or about a tenth of the rate at the minimum; for one-cycle, the rate near the minimum is often used as the maximum." },
+      { t: "qa", level: "advanced", q: "Why does Adam in particular benefit from warm-up, even with bias correction?", a: String.raw`Bias correction fixes the average of $v_t$ but not how much it jumps around. At $t = 1$, $\hat v_1 = g_1^2$, so the first update is exactly $\pm\eta$ in every coordinate, whether or not $g_1$ carries signal. Over the next tens of steps $\hat v$ averages only a few samples, so each coordinate's effective rate $\eta/\sqrt{\hat v}$ swings a lot — Liu et al. (2020) studied exactly this and proposed RAdam to fix it. Adam's step doesn't shrink with gradient size, so only η limits these noisy early moves; warm-up keeps η small until $\hat v$ is reliable. In our 8-layer MLP, adding 10% warm-up to Adam at η = 1e-2 raised mean test accuracy from 82.7% to 90.0%.` },
+      { t: "qa", level: "advanced", q: "A cosine schedule was configured with T_max = 100 (epochs), but the loss oscillates periodically and never settles. What happened and how do you fix it?", a: "The scheduler was stepped every batch instead of every epoch, so the cosine finished its decay in 100 batches. PyTorch's CosineAnnealingLR repeats past T_max, so the rate climbed back to the peak and kept cycling every 200 batches; each climb kicks the model out of the valley it was settling into. Fix: set T_max = epochs × batches_per_epoch when stepping per batch (or step once per epoch), log `scheduler.get_last_lr()` regularly, and save and restore the scheduler state when resuming." },
     ],
 
     /* ------------------------------------------------------------------ */
@@ -912,31 +912,31 @@ plateau = tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.1, p
           { kind: "numeric", q: "Peak of the Transformer schedule for d_model = 1024 and W = 4000, (d_model·W)^(−1/2)? (give it ×10⁴, i.e. 4.94 for 4.94e-4)", answer: 4.941, tolerance: 0.01, explain: "(1024 × 4000)^(−1/2) = 1/2023.9 = 4.941e-4." },
           { kind: "numeric", q: "Constant-η SGD on L = ½x² (λ = 1) with gradient noise σ² = 1. Using E[L]∞ = ησ²/(2(2 − ηλ)), what is the noise floor for η = 0.2?", answer: 0.05556, tolerance: 0.0002, explain: "0.2/(2 × 1.8) = 0.2/3.6 = 0.05556." },
           { kind: "numeric", q: "Clip g = (6, 8) by norm with threshold c = 5. What is the first component after clipping?", answer: 3, tolerance: 0.001, explain: "‖g‖ = 10, scale 5/10 = 0.5, so g → (3, 4)." },
-          { q: "A training script sets CosineAnnealingLR(opt, T_max=epochs) and calls scheduler.step() after every batch. What happens?", options: ["The schedule is exactly right", "The learning rate decays to the minimum after `epochs` batches and then oscillates back up periodically", "PyTorch raises an error", "The learning rate stays constant"], answer: 1, explain: "T_max is counted in calls to step(); PyTorch's cosine is periodic beyond T_max, so the rate cycles every 2·T_max batches." },
-          { q: "In our digits experiment, why did the schedule matter with 30% noisy labels but not with clean labels?", options: ["Noisy labels make the network smaller", "With clean labels the network fits the data and gradient noise vanishes near the solution; noisy labels keep gradient noise alive, so a constant rate stays on a noise floor", "Cosine schedules only work with noisy data", "Clean labels require a larger learning rate"], answer: 1, explain: "The noise floor ησ²/4 requires σ² > 0 at the solution; an interpolating model on clean data has σ² ≈ 0 there." },
-          { q: "Which statement about gradient clipping by global norm is correct?", options: ["It changes the direction of the update", "It caps the update length while keeping its direction", "It clamps every component to [−c, c]", "It must be applied after optimizer.step()"], answer: 1, explain: "All gradients are multiplied by the same factor min(1, c/‖g‖), so the direction is preserved; it must run between backward() and step()." },
+          { q: "A training script sets CosineAnnealingLR(opt, T_max=epochs) and calls scheduler.step() after every batch. What happens?", options: ["The schedule is exactly right", "The learning rate decays to the minimum after `epochs` batches and then oscillates back up periodically", "PyTorch raises an error", "The learning rate stays constant"], answer: 1, explain: "T_max counts calls to step(); PyTorch's cosine repeats past T_max, so the rate cycles every 2·T_max batches." },
+          { q: "In our digits experiment, why did the schedule matter with 30% noisy labels but not with clean labels?", options: ["Noisy labels make the network smaller", "With clean labels the network fits the data and gradient noise vanishes near the solution; noisy labels keep gradient noise alive, so a constant rate stays on a noise floor", "Cosine schedules only work with noisy data", "Clean labels require a larger learning rate"], answer: 1, explain: "The noise floor ησ²/4 needs σ² > 0 at the solution; a model that fits clean data exactly has σ² ≈ 0 there." },
+          { q: "Which statement about gradient clipping by global norm is correct?", options: ["It changes the direction of the update", "It caps the update length while keeping its direction", "It clamps every component to [−c, c]", "It must be applied after optimizer.step()"], answer: 1, explain: "Every gradient is multiplied by the same factor min(1, c/‖g‖), so the direction is kept; it must run between backward() and step()." },
         ],
       },
       {
         t: "exercise",
         title: "Numerical: design a warm-up + cosine schedule",
-        prompt: "You train for 20 epochs of 500 batches with AdamW, peak η = 3e-4, 5% linear warm-up (multiplier (t+1)/W) and cosine decay to a floor of 10% of the peak over the remaining steps. (a) How many warm-up steps W and decay steps are there? (b) What is η at t = 0, t = 249 and t = W − 1? (c) What is η halfway through the decay phase and at the very last step t = 9999? (d) If the batch size is doubled (250 batches per epoch, same epochs), what peak would the square-root heuristic for Adam suggest, and how many warm-up steps keep the warm-up at 5%?",
+        prompt: "You train for 20 epochs of 500 batches with AdamW, peak η = 3e-4, 5% linear warm-up (multiplier (t+1)/W) and cosine decay to a floor of 10% of the peak over the remaining steps. (a) How many warm-up steps W and decay steps are there? (b) What is η at t = 0, t = 249 and t = W − 1? (c) What is η halfway through the decay and at the last step t = 9999? (d) If the batch size doubles (250 batches per epoch, same epochs), what peak does the square-root rule for Adam suggest, and how many warm-up steps keep warm-up at 5%?",
         hint: "Cosine with a floor: η = η_min + ½(η₀ − η_min)(1 + cos(π·progress)), with η_min = 3e-5.",
         solution: [
           { t: "p", text: String.raw`(a) $T = 20 \times 500 = 10\,000$ steps; $W = 0.05\,T = 500$; decay over $9\,500$ steps.` },
           { t: "p", text: String.raw`(b) $t = 0$: $3\times10^{-4}\times 1/500 = 6\times10^{-7}$. $t = 249$: $3\times10^{-4}\times 250/500 = 1.5\times10^{-4}$. $t = W-1 = 499$: $3\times10^{-4}$ (the peak).` },
           { t: "p", text: String.raw`(c) Halfway (progress 0.5, $t = 500 + 4750 = 5250$): $\cos(\pi/2) = 0$, so $\eta = 3\times10^{-5} + \tfrac12(2.7\times10^{-4}) = 1.65\times10^{-4}$. Last step $t = 9999$: progress $9499/9500 = 0.999895$, $\cos(0.999895\pi) = -0.99999995$, so $\eta \approx 3\times10^{-5} + 1.35\times10^{-4}\times 5\times10^{-8} \approx 3.0\times10^{-5}$, the floor.` },
-          { t: "p", text: String.raw`(d) Batch ×2 → square-root rule: $\eta' = \sqrt2 \times 3\times10^{-4} = 4.24\times10^{-4}$. The run now has $20 \times 250 = 5000$ steps, so a 5% warm-up is 250 steps. (A linear rule would suggest $6\times10^{-4}$; either should be validated.)` },
+          { t: "p", text: String.raw`(d) Batch ×2 → square-root rule: $\eta' = \sqrt2 \times 3\times10^{-4} = 4.24\times10^{-4}$. The run now has $20 \times 250 = 5000$ steps, so 5% warm-up is 250 steps. (A linear rule would suggest $6\times10^{-4}$; check either one.)` },
         ],
       },
       {
         t: "exercise",
         title: "Coding: implement global-norm clipping and compare with PyTorch",
-        prompt: "Implement clipping by global norm for a list of NumPy gradient arrays (one scaling factor for all), verify it against torch.nn.utils.clip_grad_norm_ (which adds 1e-6 to the norm), and compare it with the common mistake of clipping every tensor separately: report the cosine similarity of each clipped update with the raw gradient and what happens to a small bias gradient.",
-        hint: "Flatten and concatenate all arrays to measure the joint norm and the angle.",
+        prompt: "Implement clipping by global norm for a list of NumPy gradient arrays (one scaling factor for all), check it against torch.nn.utils.clip_grad_norm_ (which adds 1e-6 to the norm), and compare it with the common mistake of clipping each tensor separately: report the cosine similarity of each clipped update with the raw gradient and what happens to a small bias gradient.",
+        hint: "Flatten and join all arrays to measure the joint norm and the angle.",
         solution: [
           { t: "code", lang: "python", title: "clip_global_norm.py", code: EX_PY, output: EX_OUT },
-          { t: "p", text: String.raw`Global clipping matches PyTorch exactly and preserves the direction (cosine 1.0000). Per-tensor clipping leaves the small bias gradient untouched (0.2647) while shrinking the weight gradient 12-fold, so relative to the weights the bias is now over-weighted and the update direction turns by $\arccos 0.972 \approx 13.6°$. With global clipping the bias is scaled by the same factor as everything else (0.0217).` },
+          { t: "p", text: String.raw`Global clipping matches PyTorch exactly and keeps the direction (cosine 1.0000). Per-tensor clipping leaves the small bias gradient untouched (0.2647) while shrinking the weight gradient 12-fold, so the bias is now over-weighted and the update direction turns by $\arccos 0.972 \approx 13.6°$. With global clipping the bias is scaled by the same factor as everything else (0.0217).` },
         ],
       },
     ],
@@ -946,14 +946,14 @@ plateau = tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.1, p
       {
         t: "list",
         items: [
-          String.raw`Constant-η SGD converges to a noise floor $\mathbb{E}[L]_\infty = \eta\sigma^2/(2(2-\eta\lambda)) \approx \eta\sigma^2/4$; time to reach it $\propto 1/(\eta\lambda)$. Decay resolves the trade-off.`,
+          String.raw`Constant-η SGD settles on a noise floor $\mathbb{E}[L]_\infty = \eta\sigma^2/(2(2-\eta\lambda)) \approx \eta\sigma^2/4$; time to reach it $\propto 1/(\eta\lambda)$. Decay resolves the trade-off.`,
           String.raw`Step: $\eta_0\gamma^{\lfloor t/s\rfloor}$. Exponential: $\eta_0\gamma^t$. Polynomial: $(\eta_0-\eta_{\min})(1-t/T)^p + \eta_{\min}$. Cosine: $\eta_{\min} + \tfrac12(\eta_0-\eta_{\min})(1+\cos(\pi t/T))$; SGDR restarts it with periods $T_0 T_{\text{mult}}^i$.`,
           String.raw`Linear warm-up $\eta_0 (t+1)/W$; Transformer schedule $d_{\text{model}}^{-1/2}\min(t^{-1/2}, tW^{-3/2})$ with peak $(d_{\text{model}}W)^{-1/2}$; one-cycle: up to max_lr over 30%, then anneal to max_lr/(2.5·10⁵).`,
-          "Warm-up protects against poorly estimated Adam statistics, high initial curvature, large-batch peak rates and Post-LN Transformers.",
-          String.raw`Linear scaling rule: batch ×k → η ×k (with warm-up; breaks down at very large batches); square-root rule is a common Adam heuristic.`,
-          String.raw`Clip by global norm: $g \leftarrow g\min(1, c/\lVert g\rVert)$, direction preserved; by value: clamp each component, direction changes. Clip after backward (and after unscaling) and before step.`,
+          "Warm-up protects against unreliable early Adam statistics, high starting curvature, large-batch peak rates and Post-LN Transformers.",
+          String.raw`Linear scaling rule: batch ×k → η ×k (with warm-up; breaks at very large batches); the square-root rule is a common Adam rule of thumb.`,
+          String.raw`Clip by global norm: $g \leftarrow g\min(1, c/\lVert g\rVert)$, direction kept; by value: clamp each component, direction changes. Clip after backward (and after unscaling) and before step.`,
           "PyTorch: StepLR, MultiStepLR, ExponentialLR, CosineAnnealingLR, CosineAnnealingWarmRestarts, OneCycleLR, LambdaLR, LinearLR, SequentialLR, ReduceLROnPlateau(step(metric)). Step the scheduler in the same unit as its length, after optimizer.step().",
-          "Measured: schedules barely matter on clean, interpolable data; with noisy labels decay gave +10–12 points over constant; warm-up gave +7 points for deep Adam; clipping turned an unstable peak rate into a stable one.",
+          "Measured: schedules barely matter on clean data the model can fit; with noisy labels decay gave +10–12 points over constant; warm-up gave +7 points for deep Adam; clipping made an unstable peak rate stable.",
         ],
       },
     ],
@@ -963,10 +963,10 @@ plateau = tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.1, p
       {
         t: "list",
         items: [
-          "[Weight Initialization](/learn/m07/initialization) — initial gradient scale is what warm-up and clipping protect against; good initialisation reduces the need for both.",
-          "[Batch, Layer and Group Normalization](/learn/m07/normalization) — normalisation changes the effective learning rate of the weights it follows and makes larger peak rates stable; Pre-LN vs Post-LN decides how much warm-up a Transformer needs.",
+          "[Weight Initialization](/learn/m07/initialization) — the starting gradient size is what warm-up and clipping guard against; good initialisation reduces the need for both.",
+          "[Batch, Layer and Group Normalization](/learn/m07/normalization) — normalisation changes the effective learning rate of the weights before it and makes higher peaks stable; Pre-LN vs Post-LN decides how much warm-up a Transformer needs.",
           "[Regularization: L1, L2, Dropout, Early Stopping](/learn/m07/regularization) — weight decay, whose per-step strength ηλ follows the schedule, and early stopping, which interacts with when the rate decays.",
-          "[Residual and Skip Connections](/learn/m07/residual-connections) — another way of keeping gradients well-scaled in deep networks, so that clipping is a safeguard rather than a necessity.",
+          "[Residual and Skip Connections](/learn/m07/residual-connections) — another way to keep gradients well-sized in deep networks, so clipping is a safety net rather than a must.",
         ],
       },
     ],

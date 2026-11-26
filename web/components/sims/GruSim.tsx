@@ -86,22 +86,22 @@ export default function GruSim() {
   if (sub === "reset") {
     eqTitle = "r_t = σ(W_r·[h_{t−1}, x_t] + b_r)";
     eqLines = [`unit 1: ${expand(w.W.r[0], zin, w.b.r[0], st.pre.r[0])}`, `r_t = σ(${vec(st.pre.r)}) = ${vec(st.r)}`, `r_t ⊙ h_{t−1} = ${vec(st.r)} ⊙ ${vec(st.hPrev)} = ${vec(st.rh)}`];
-    explain = "The reset gate decides, per unit, how much of the old state the candidate may look at. r ≈ 0 lets the candidate ignore history and be computed almost from x_t alone.";
+    explain = "The reset gate decides, for each unit, how much of the old memory the candidate may look at. If r ≈ 0, the candidate ignores the past and is built almost only from x_t.";
   } else if (sub === "candidate") {
     eqTitle = "h̃_t = tanh(W_h·[r_t ⊙ h_{t−1}, x_t] + b_h)";
     eqLines = [`unit 1: ${expand(w.W.h[0], [...st.rh, ...st.x], w.b.h[0], st.pre.h[0])}`, `h̃_t = tanh(${vec(st.pre.h)}) = ${vec(st.htilde)}`];
-    explain = "The candidate is a vanilla-RNN-style proposal for the new state, in (−1, 1). It sees the old state only through the reset gate.";
+    explain = "The candidate is a suggested new state, between −1 and 1, made the same way a plain RNN would. It sees the old state only through the reset gate.";
   } else if (sub === "update") {
     eqTitle = "z_t = σ(W_z·[h_{t−1}, x_t] + b_z)";
     eqLines = [`unit 1: ${expand(w.W.z[0], zin, w.b.z[0], st.pre.z[0])}`, `z_t = σ(${vec(st.pre.z)}) = ${vec(st.z)}`, `1 − z_t = ${vec(st.z.map((v) => 1 - v))}`];
-    explain = `z is the fraction of each unit that is rewritten at this step. With b_z = ${fmt(bz, 1)} the mean z so far is ${fmt(meanZ, 2)}: lower b_z → smaller z → the state is copied forward almost unchanged.`;
+    explain = `z is how much of each unit gets rewritten at this step. With b_z = ${fmt(bz, 1)}, the average z so far is ${fmt(meanZ, 2)}. Lower b_z means smaller z, so the memory is carried forward almost unchanged.`;
   } else {
     eqTitle = "h_t = (1 − z_t) ⊙ h_{t−1} + z_t ⊙ h̃_t";
     eqLines = [`kept (1 − z_t) ⊙ h_{t−1} = ${vec(st.keep)}`, `written z_t ⊙ h̃_t = ${vec(st.write)}`, `h_t = ${vec(st.h)}`];
     explain =
       t + 1 < seq.length
-        ? `A per-unit weighted average of old state and candidate — no matrix on the (1 − z) path, so it acts like an identity connection when z ≈ 0. h_t is passed to step ${t + 2}.`
-        : "Last time step: h_T would normally feed a classifier or regression head.";
+        ? `Each unit blends its old state with the candidate. The (1 − z) path has no matrix, so when z ≈ 0 the old state passes straight through. h_t now goes to step ${t + 2}.`
+        : "This is the last step. Normally h_T would now go to a final layer that makes the prediction.";
   }
 
   // ---------- Vector panel rows ----------
@@ -139,7 +139,7 @@ export default function GruSim() {
   return (
     <SimShell
       title="GRU Cell, Step by Step"
-      subtitle={`Input size 1, hidden size ${hidden}, seeded weights; compared with a vanilla RNN of the same size. Every number is computed live.`}
+      subtitle={`Input size 1, hidden size ${hidden}, fixed random weights. We compare it with a plain RNN of the same size. Every number is computed live.`}
       controls={
         <div className="space-y-2">
           <Controls s={s} />
@@ -174,7 +174,7 @@ export default function GruSim() {
             </div>
           </Narration>
           <div className="text-xs text-muted">
-            Try: with the default pulse sequence, set b_z = −3 and the memory probe for the GRU stays almost flat for all 10 steps; set b_z = +2 and it collapses faster than the vanilla RNN&apos;s. Values between −3 and 3, up to 12 steps.
+            Try this: with the default sequence, set b_z = −3. The GRU&apos;s memory bars stay almost level for all 10 steps. Set b_z = +2 and they shrink faster than the plain RNN&apos;s. Values from −3 to 3, up to 12 steps.
           </div>
         </div>
       }
@@ -273,7 +273,7 @@ export default function GruSim() {
       </div>
 
       {/* timeline */}
-      <div className="mt-4 text-xs text-muted">Timeline: input, update gate z_t and hidden state h_t for every processed time step (columns).</div>
+      <div className="mt-4 text-xs text-muted">Timeline: the input, update gate z_t and hidden state h_t at each step so far (one column per step).</div>
       <div className="overflow-x-auto">
         <svg viewBox={`0 0 ${tlW} ${tlH}`} className="h-auto w-full" style={{ minWidth: Math.min(tlW, 520) }} role="img" aria-label="Timeline of update gate and hidden state across time steps">
           {Array.from({ length: seq.length }, (_, tau) => (
@@ -307,13 +307,13 @@ export default function GruSim() {
           })}
         </svg>
       </div>
-      <div className="mt-1 font-mono text-[11px] text-muted">mean update-gate value over steps 1..{t + 1}: {fmt(meanZ, 3)}</div>
+      <div className="mt-1 font-mono text-[11px] text-muted">average update gate over steps 1..{t + 1}: {fmt(meanZ, 3)}</div>
 
       {/* memory probe: GRU vs vanilla RNN */}
       <div className="mt-4 rounded-lg border border-border p-3">
-        <div className="text-xs font-medium">Memory probe: GRU vs vanilla RNN on the same sequence</div>
+        <div className="text-xs font-medium">Memory test: GRU vs plain RNN on the same sequence</div>
         <div className="mb-2 text-xs text-muted">
-          Add 1 to x_1 and rerun both models. Bars show ‖Δh_t‖ — how much the hidden state at step t still changes because of that first input. A long-memory model keeps the bars tall.
+          We add 1 to the first input x_1 and run both models again. Each bar shows ‖Δh_t‖: how much the state at step t still changes because of that first input. A model with long memory keeps its bars tall.
         </div>
         <div className="overflow-x-auto">
           <svg viewBox={`0 0 ${tlW} ${pSvgH}`} className="h-auto w-full" style={{ minWidth: Math.min(tlW, 520) }} role="img" aria-label="Memory probe: change in hidden state caused by perturbing the first input, for the GRU and a vanilla RNN">

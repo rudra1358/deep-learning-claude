@@ -8,7 +8,7 @@ export default function CodePage() {
   return (
     <Container wide>
       <PageHeader eyebrow="Code playground" title="Run Python in your browser">
-        Edit and run NumPy, Matplotlib and scikit-learn code with a real CPython interpreter compiled to WebAssembly (Pyodide). Code never leaves your machine.
+        Edit and run NumPy, Matplotlib and scikit-learn code. Real Python runs right in your browser (using Pyodide), so your code never leaves your computer.
       </PageHeader>
       <CodePlayground />
     </Container>

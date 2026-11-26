@@ -4,7 +4,7 @@ const lesson: Lesson = {
   id: "m09/gru-variants",
   title: "GRU, Bidirectional and Stacked RNNs",
   summary:
-    "The gated recurrent unit in full — update and reset gates, the two interpolation conventions, where the reset gate really sits in PyTorch, and why the (1 − z) path keeps gradients alive — then bidirectional and stacked recurrent networks, sequence packing, and a measured comparison of RNN, GRU, LSTM and bidirectional models on a task that needs future context.",
+    "The gated recurrent unit in full — update and reset gates, the two ways of writing the blend, where PyTorch really puts the reset gate, and why the (1 − z) path keeps gradients alive — then bidirectional and stacked RNNs, sequence packing, and a measured comparison of RNN, GRU, LSTM and bidirectional models on a task that needs future context.",
   minutes: 80,
   level: "intermediate",
   prerequisites: ["m09/rnn-basics", "m09/bptt", "m09/lstm", "m03/activation-functions"],
@@ -13,72 +13,43 @@ const lesson: Lesson = {
   sections: {
     // ------------------------------------------------------------------ intro
     intro: [
-      {
-        t: "p",
-        text: "A **Gated Recurrent Unit** (GRU) is a recurrent cell that, like the [LSTM](/learn/m09/lstm), uses learned gates to decide what to remember and what to overwrite — but with a single state vector $h_t$ and two gates instead of a separate cell state and three gates. The **update gate** $z_t$ decides how much of each hidden unit is rewritten at this step; the **reset gate** $r_t$ decides how much of the old state is used to compute the proposed new content.",
-      },
-      {
-        t: "p",
-        text: "The GRU was introduced by **Cho et al. (2014)**, *Learning Phrase Representations using RNN Encoder–Decoder for Statistical Machine Translation*, as the hidden unit of their encoder–decoder. Later that year **Chung, Gulcehre, Cho and Bengio (2014)**, *Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling*, compared it with the LSTM and a plain tanh RNN on polyphonic music and raw speech modelling: both gated units clearly beat the tanh RNN, and neither gated unit was consistently better than the other.",
-      },
-      {
-        t: "p",
-        text: "This lesson also covers two ways of *combining* recurrent layers that apply to any cell type. A **bidirectional RNN** (Schuster and Paliwal, 1997, *Bidirectional Recurrent Neural Networks*) runs one RNN forwards and another backwards over the same sequence, so every position's representation summarises both its past and its future. A **stacked** (deep) RNN feeds the hidden-state sequence of one recurrent layer into the next. Together with **sequence packing** — the mechanism frameworks use to process batches of sequences with different lengths correctly — these are the building blocks of practically every pre-Transformer sequence model: taggers, speech recognisers, translation encoders and contextual embeddings.",
-      },
-      {
-        t: "callout",
-        kind: "key",
-        title: "The one idea to remember",
-        text: String.raw`A GRU's new state is a per-unit weighted average of its old state and a candidate: $h_t = (1-z_t)\odot h_{t-1} + z_t \odot \tilde h_t$. When $z_t \approx 0$ the state is copied forward unchanged — an identity connection through time, opened and closed by a learned gate.`,
-      },
+      { t: "p", text: "A **Gated Recurrent Unit** (GRU) is a recurrent cell that, like the [LSTM](/learn/m09/lstm), uses learned gates to decide what to remember and what to overwrite. But it has one state vector $h_t$ and two gates, instead of a separate cell state and three gates. The **update gate** $z_t$ decides how much of each hidden unit is rewritten this step. The **reset gate** $r_t$ decides how much of the old state is used to build the proposed new content." },
+      { t: "p", text: "**Cho et al. (2014)** introduced the GRU as the hidden unit of their translation encoder–decoder. Later that year **Chung, Gulcehre, Cho and Bengio (2014)** compared it with the LSTM and a plain tanh RNN on music and raw speech modelling. Both gated units clearly beat the tanh RNN, and neither was consistently better than the other." },
+      { t: "p", text: "The lesson also covers two ways to *combine* recurrent layers, for any cell type:" },
+      { t: "list", items: [
+        "A **bidirectional RNN** (Schuster and Paliwal, 1997) runs one RNN forwards and another backwards over the same sequence, so each position's representation sums up both its past and its future.",
+        "A **stacked** (deep) RNN feeds one layer's sequence of hidden states into the next layer.",
+      ] },
+      { t: "p", text: "Add **sequence packing** — how frameworks correctly batch sequences of different lengths — and you have the building blocks of nearly every pre-Transformer sequence model: taggers, speech recognisers, translation encoders and contextual embeddings." },
+      { t: "callout", kind: "key", title: "The one idea to remember", text: "A GRU's new state is a per-unit weighted average of its old state and a candidate: $h_t = (1-z_t)\\odot h_{t-1} + z_t \\odot \\tilde h_t$. When $z_t \\approx 0$ the state is copied forward unchanged — a shortcut through time that a learned gate opens and closes." },
     ],
 
     // ------------------------------------------------------------------ prerequisites
     prerequisites: [
-      {
-        t: "list",
-        items: [
-          String.raw`[Sequential data and vanilla RNNs](/learn/m09/rnn-basics) — the recurrence $h_t = \tanh(W_{hh}h_{t-1} + W_{xh}x_t + b)$, hidden states and unrolling. The GRU's candidate is exactly this computation with a gate in front of $h_{t-1}$.`,
-          "[Backpropagation through time](/learn/m09/bptt) — the gradient reaching an early state is a product of per-step Jacobians $\\partial h_t/\\partial h_{t-1}$; we will compute this Jacobian for the GRU.",
-          "[Long Short-Term Memory](/learn/m09/lstm) — gates as sigmoid layers in $(0,1)$, the additive cell update and the forget-gate bias trick. This lesson builds on it and does not repeat it.",
-          "[Activation functions](/learn/m03/activation-functions) — $\\sigma(a) = 1/(1+e^{-a})$ with $\\sigma' = \\sigma(1-\\sigma)$, and $\\tanh$ with $\\tanh' = 1-\\tanh^2$.",
-          "[Jacobians](/learn/m02/jacobians-hessians) and the element-wise product $\\odot$ — needed for the gradient derivation.",
-        ],
-      },
+      { t: "list", items: [
+        "[Sequential data and vanilla RNNs](/learn/m09/rnn-basics) — the update $h_t = \\tanh(W_{hh}h_{t-1} + W_{xh}x_t + b)$, hidden states and unrolling. The GRU's candidate is exactly this, with a gate in front of $h_{t-1}$.",
+        "[Backpropagation through time](/learn/m09/bptt) — the gradient reaching an early state is a product of per-step Jacobians $\\partial h_t/\\partial h_{t-1}$; we compute this Jacobian for the GRU.",
+        "[Long Short-Term Memory](/learn/m09/lstm) — gates as sigmoid layers in $(0,1)$, the additive cell update and the forget-bias trick. We build on it without repeating it.",
+        "[Activation functions](/learn/m03/activation-functions) — $\\sigma(a) = 1/(1+e^{-a})$ with $\\sigma' = \\sigma(1-\\sigma)$, and $\\tanh$ with $\\tanh' = 1-\\tanh^2$.",
+        "[Jacobians](/learn/m02/jacobians-hessians) and the element-wise product $\\odot$ — needed for the gradient derivation.",
+      ] },
     ],
 
     // ------------------------------------------------------------------ intuition
     intuition: [
-      {
-        t: "callout",
-        kind: "analogy",
-        title: "Editing a shared document",
-        text: "Think of the hidden state as a document with one paragraph per hidden unit. At every step an editor reads the new input. First she decides how much of the *current* document to consult while drafting (the **reset gate**): to start a fresh topic she ignores what is written. Then she drafts replacement paragraphs (the **candidate**). Finally, paragraph by paragraph, she decides how much of the old text to replace with her draft (the **update gate**). A paragraph whose update value is near zero is left exactly as it was — so a fact written on page one can survive untouched until page fifty.",
-      },
-      {
-        t: "p",
-        text: "The LSTM solves the forgetting problem of vanilla RNNs with a separate memory (the cell state), a forget gate, an input gate and an output gate. The GRU asks: do we need all of that? It makes three simplifications:",
-      },
-      {
-        t: "list",
-        items: [
-          String.raw`**One state.** There is no separate cell state; $h_t$ is both memory and output. Nothing like the LSTM's output gate hides parts of memory from the rest of the network.`,
-          String.raw`**Coupled forget and write.** Instead of independent forget and input gates, one update gate does both: keep a fraction $1-z_t$ of the old value and write a fraction $z_t$ of the new one. Keeping more automatically means writing less.`,
-          String.raw`**A reset gate for the candidate.** The candidate is computed like a vanilla RNN state, except that the old state is first multiplied by $r_t$. With $r_t \approx 0$ the candidate depends almost only on the current input, which lets a unit "start over" (for example at a phrase boundary).`,
-        ],
-      },
-      {
-        t: "p",
-        text: "Bidirectionality and stacking are separate ideas. Reading a sentence like \"the **bank** of the river\", the meaning of *bank* is settled by words that come *after* it. A forward RNN at position 2 has not seen them yet; a backward RNN has. Concatenating the two gives every position access to the whole sentence. Stacking layers, as in deep feed-forward networks, lets lower layers compute local features and higher layers compose them into more abstract ones.",
-      },
+      { t: "callout", kind: "analogy", title: "Editing a shared document", text: "Think of the hidden state as a document with one paragraph per hidden unit. At each step an editor reads the new input. First she decides how much of the *current* document to consult while drafting (the **reset gate**) — to start a fresh topic, she ignores what is written. Then she drafts replacement paragraphs (the **candidate**). Finally, paragraph by paragraph, she decides how much old text to replace with her draft (the **update gate**). A paragraph with an update value near zero stays exactly as it was, so a fact written on page one can survive untouched until page fifty." },
+      { t: "p", text: "The LSTM fixes the vanilla RNN's forgetting with a separate memory (the cell state) plus forget, input and output gates. The GRU asks: do we need all that? It makes three simplifications:" },
+      { t: "list", items: [
+        "**One state.** No separate cell state: $h_t$ is both memory and output. Nothing like the LSTM's output gate hides memory from the rest of the network.",
+        "**Forget and write are tied.** One update gate does both jobs: keep a fraction $1-z_t$ of the old value and write a fraction $z_t$ of the new one. Keeping more automatically means writing less.",
+        "**A reset gate for the candidate.** The candidate is computed like a vanilla RNN state, except the old state is first multiplied by $r_t$. With $r_t \\approx 0$ the candidate depends almost only on the current input, so a unit can \"start over\" (say, at a phrase boundary).",
+      ] },
+      { t: "p", text: "Bidirectionality and stacking are separate ideas. In \"the **bank** of the river\", the meaning of *bank* is settled by words that come *after* it. A forward RNN at position 2 has not seen them yet; a backward RNN has. Joining the two gives every position the whole sentence. Stacking layers, as in deep feed-forward nets, lets lower layers find local features and higher layers combine them into more abstract ones." },
     ],
 
     // ------------------------------------------------------------------ mechanism
     mechanism: [
-      {
-        t: "p",
-        text: String.raw`Notation for one time step: $x_t \in \mathbb{R}^d$ is the input, $h_{t-1} \in \mathbb{R}^h$ the previous hidden state. Each of the three internal layers has a weight matrix of shape $h \times (h+d)$ acting on a concatenated vector, and a bias of size $h$. We write the interpolation with $z_t$ = **fraction updated**, the convention of Chung et al. (2014); the next callout explains the other convention, which PyTorch and Keras use.`,
-      },
+      { t: "p", text: "Notation for one step: $x_t \\in \\mathbb{R}^d$ is the input and $h_{t-1} \\in \\mathbb{R}^h$ the previous hidden state. Each of the three inner layers has an $h \\times (h+d)$ weight matrix acting on a stacked vector, and a bias of size $h$. We write the blend with $z_t$ = **fraction updated** (the convention of Chung et al., 2014); the callout below explains the other convention, used by PyTorch and Keras." },
       {
         t: "steps",
         items: [
@@ -89,7 +60,7 @@ const lesson: Lesson = {
           },
           {
             title: "2. Candidate state — the proposed new content",
-            text: String.raw`Shape $h$, values in $(-1,1)$. A vanilla-RNN step whose recurrent input is the *reset* state $r_t \odot h_{t-1}$. This is the original placement of Cho et al. (2014).`,
+            text: "Shape $h$, values in $(-1,1)$. A vanilla-RNN step whose recurrent input is the *reset* state $r_t \\odot h_{t-1}$. This is where Cho et al. (2014) originally put the reset.",
             tex: String.raw`\tilde h_t = \tanh\!\left(W_h\,[r_t \odot h_{t-1};\,x_t] + b_h\right)`,
           },
           {
@@ -98,100 +69,54 @@ const lesson: Lesson = {
             tex: String.raw`z_t = \sigma\!\left(W_z\,[h_{t-1};x_t] + b_z\right)`,
           },
           {
-            title: "4. New hidden state — interpolate",
-            text: String.raw`Each unit moves a fraction $z_t$ of the way from its old value towards the candidate. Because $h_{t-1}$ and $\tilde h_t$ are both in $(-1,1)$ and the weights sum to 1, so is $h_t$.`,
+            title: "4. New hidden state — blend",
+            text: "Each unit moves a fraction $z_t$ of the way from its old value towards the candidate. $h_{t-1}$ and $\\tilde h_t$ are both in $(-1,1)$ and the weights sum to 1, so $h_t$ is too.",
             tex: String.raw`h_t = (1-z_t)\odot h_{t-1} + z_t \odot \tilde h_t`,
           },
         ],
       },
-      {
-        t: "callout",
-        kind: "warning",
-        title: "Two conventions for z — check before you copy equations or weights",
-        text: String.raw`Cho et al. (2014), PyTorch's nn.GRU and Keras's GRU write $h_t = z_t \odot h_{t-1} + (1-z_t)\odot \tilde h_t$: there $z_t$ is the fraction **kept** (the [LSTM lesson](/learn/m09/lstm) quotes this form). Chung et al. (2014) and many tutorials write $h_t = (1-z_t)\odot h_{t-1} + z_t\odot\tilde h_t$, with $z_t$ the fraction **updated** — the form used in this lesson and its simulator. The two are the same model family: since $1-\sigma(a) = \sigma(-a)$, negating $W_z$ and $b_z$ converts one into the other. What changes is the sign of everything you say about $z$: "small $z$ = long memory" here is "large $z$ = long memory" in PyTorch.`,
-      },
-      {
-        t: "h",
-        text: "Where the reset gate sits: the PyTorch / cuDNN variant",
-      },
-      {
-        t: "p",
-        text: String.raw`PyTorch's nn.GRU documentation gives $n_t = \tanh(W_{in}x_t + b_{in} + r_t \odot (W_{hn}h_{t-1} + b_{hn}))$: the reset gate multiplies the recurrent term **after** the matrix multiply (and after its bias), not the state before it. This is the formulation used by NVIDIA's cuDNN kernel, because it lets all three recurrent matrix products $W_{hr}h, W_{hz}h, W_{hn}h$ be computed as one $3h \times h$ multiply before the gates are known. Keras exposes the choice as reset_after (default True in TensorFlow 2, matching cuDNN); reset_after=False gives the original Cho placement. The two placements are **different functions** — in the worked example below they give $h_t$ values that differ in the second decimal — so weights trained with one cannot be loaded into the other. The NumPy implementation in this lesson reproduces PyTorch's version bit for bit.`,
-      },
-      {
-        t: "table",
-        head: ["Quantity", "Shape (one example)", "Shape (batch B)", "Range"],
-        rows: [
-          ["$x_t$", "$d$", "$B \\times d$", "any"],
-          ["$h_{t-1}$, $h_t$, $\\tilde h_t$", "$h$", "$B \\times h$", "$(-1,1)$"],
-          ["$W_r, W_z, W_h$", "$h \\times (h+d)$ each", "shared", "—"],
-          ["$r_t$, $z_t$", "$h$", "$B \\times h$", "$(0,1)$"],
-          ["PyTorch weight_ih_l0 / weight_hh_l0", "$3h \\times d$ / $3h \\times h$, blocks $r, z, n$", "shared", "—"],
-          ["PyTorch bias_ih_l0, bias_hh_l0", "$3h$ each", "shared", "—"],
-        ],
-      },
-      {
-        t: "h",
-        text: "Bidirectional RNNs",
-      },
-      {
-        t: "list",
-        ordered: true,
-        items: [
-          String.raw`A **forward** RNN reads $x_1, \dots, x_T$ and produces $\overrightarrow{h}_1, \dots, \overrightarrow{h}_T$; $\overrightarrow{h}_t$ summarises $x_1..x_t$.`,
-          String.raw`A **backward** RNN, with its own weights, reads $x_T, \dots, x_1$ and produces $\overleftarrow{h}_T, \dots, \overleftarrow{h}_1$; $\overleftarrow{h}_t$ summarises $x_t..x_T$.`,
-          String.raw`The output at position $t$ is the concatenation $y_t = [\overrightarrow{h}_t; \overleftarrow{h}_t] \in \mathbb{R}^{2h}$, which depends on the **entire** sequence. Both passes are independent and can run in parallel.`,
-          String.raw`For a whole-sequence summary use the two **final** states: $\overrightarrow{h}_T$ (forward, at the last position) and $\overleftarrow{h}_1$ (backward, at the *first* position). In PyTorch these are h_n[0] and h_n[1] — not output[:, -1], whose backward half has seen only $x_T$.`,
-        ],
-      },
-      {
-        t: "callout",
-        kind: "warning",
-        title: "When you cannot use a bidirectional RNN",
-        text: String.raw`The backward pass needs $x_T$ before it can produce anything, so a bidirectional model can only be used when the whole sequence is available at prediction time: tagging a finished sentence, encoding a source sentence for translation, classifying a recorded utterance. It is **not** usable for causal or online tasks — next-token language modelling (the backward RNN would see the answer), streaming speech recognition with low latency, real-time control or forecasting. Training a bidirectional model on next-step prediction leaks the target and gives a meaninglessly low loss.`,
-      },
-      {
-        t: "h",
-        text: "Stacked (deep) RNNs",
-      },
-      {
-        t: "p",
-        text: String.raw`In an $L$-layer stack, layer 1 reads $x_1..x_T$; layer $\ell > 1$ reads the hidden-state sequence $h^{(\ell-1)}_1..h^{(\ell-1)}_T$ of the layer below. Each layer has its own weights and its own recurrence, so the state at $(\ell, t)$ depends on $(\ell, t-1)$ and $(\ell-1, t)$. With bidirectional layers, layer $\ell+1$ reads the $2h$-dimensional concatenations, so its input size is $2h$. Three practical additions:`,
-      },
-      {
-        t: "list",
-        items: [
-          "**Dropout between layers.** Zaremba, Sutskever and Vinyals (2014), *Recurrent Neural Network Regularization*, applied dropout only to the non-recurrent (layer-to-layer) connections, leaving the recurrent path intact. PyTorch's `dropout` argument does exactly this: it applies to the outputs of every layer except the last, and it has no effect when `num_layers=1` (PyTorch warns).",
-          "**Residual connections between layers.** $h^{(\\ell)}_t = h^{(\\ell-1)}_t + \\mathrm{RNN}^{(\\ell)}(\\cdot)_t$, as in [residual networks](/learn/m07/residual-connections). Google's Neural Machine Translation system (Wu et al., 2016) used residual connections in its 8-layer LSTM encoder and decoder, which the authors reported was necessary to train stacks that deep; only its bottom encoder layer was bidirectional.",
-          "**Depth is usually small.** 2–4 recurrent layers is typical; beyond that, gains are small unless residual connections are used, and each layer adds a full sequential pass.",
-        ],
-      },
-      {
-        t: "h",
-        text: "Variable-length sequences and packing",
-      },
-      {
-        t: "p",
-        text: "To batch sequences of different lengths they are padded to the longest length. A plain RNN then keeps stepping through the padding: a forward RNN's final state is computed *after* the padding, and a backward RNN starts *on* the padding. `torch.nn.utils.rnn.pack_padded_sequence` turns the padded batch plus a lengths vector into a `PackedSequence` that stores only real time steps (sorted by length internally); the RNN then processes, at each time step, only the sequences that are still active. `h_n` holds each sequence's true final state, and `pad_packed_sequence` converts the output back to a padded tensor with zeros after each sequence's end.",
-      },
+      { t: "callout", kind: "warning", title: "Two conventions for z — check before you copy equations or weights", text: "Cho et al. (2014), PyTorch's nn.GRU and Keras's GRU write $h_t = z_t \\odot h_{t-1} + (1-z_t)\\odot \\tilde h_t$: there $z_t$ is the fraction **kept** (the [LSTM lesson](/learn/m09/lstm) quotes this form). Chung et al. (2014) and many tutorials write $h_t = (1-z_t)\\odot h_{t-1} + z_t\\odot\\tilde h_t$, with $z_t$ the fraction **updated** — the form used here and in the simulator. It is the same model family: since $1-\\sigma(a) = \\sigma(-a)$, negating $W_z$ and $b_z$ turns one into the other. What flips is everything you say about $z$: \"small $z$ = long memory\" here is \"large $z$ = long memory\" in PyTorch." },
+      { t: "h", text: "Where the reset gate sits: the PyTorch / cuDNN variant" },
+      { t: "p", text: "PyTorch's nn.GRU docs give $n_t = \\tanh(W_{in}x_t + b_{in} + r_t \\odot (W_{hn}h_{t-1} + b_{hn}))$. The reset gate multiplies the recurrent term **after** the matrix multiply (and its bias), not the state before it. NVIDIA's cuDNN kernel uses this form because all three recurrent products $W_{hr}h, W_{hz}h, W_{hn}h$ can then be done as one $3h \\times h$ multiply before the gates are known. Keras offers the choice as reset_after (default True in TensorFlow 2, matching cuDNN); reset_after=False gives Cho's original placement." },
+      { t: "p", text: "The two placements are **different functions** — in the worked example below their $h_t$ differs in the second decimal — so weights trained with one cannot be loaded into the other. This lesson's NumPy code reproduces PyTorch's version bit for bit." },
+      { t: "table", head: ["Quantity", "Shape (one example)", "Shape (batch B)", "Range"], rows: [
+        ["$x_t$", "$d$", "$B \\times d$", "any"],
+        ["$h_{t-1}$, $h_t$, $\\tilde h_t$", "$h$", "$B \\times h$", "$(-1,1)$"],
+        ["$W_r, W_z, W_h$", "$h \\times (h+d)$ each", "shared", "—"],
+        ["$r_t$, $z_t$", "$h$", "$B \\times h$", "$(0,1)$"],
+        ["PyTorch weight_ih_l0 / weight_hh_l0", "$3h \\times d$ / $3h \\times h$, blocks $r, z, n$", "shared", "—"],
+        ["PyTorch bias_ih_l0, bias_hh_l0", "$3h$ each", "shared", "—"],
+      ] },
+      { t: "h", text: "Bidirectional RNNs" },
+      { t: "list", ordered: true, items: [
+        "A **forward** RNN reads $x_1, \\dots, x_T$ and produces $\\overrightarrow{h}_1, \\dots, \\overrightarrow{h}_T$; $\\overrightarrow{h}_t$ sums up $x_1..x_t$.",
+        "A **backward** RNN, with its own weights, reads $x_T, \\dots, x_1$ and produces $\\overleftarrow{h}_T, \\dots, \\overleftarrow{h}_1$; $\\overleftarrow{h}_t$ sums up $x_t..x_T$.",
+        "The output at position $t$ is the joined vector $y_t = [\\overrightarrow{h}_t; \\overleftarrow{h}_t] \\in \\mathbb{R}^{2h}$, which depends on the **entire** sequence. The two passes are independent and can run in parallel.",
+        "For a whole-sequence summary, use the two **final** states: $\\overrightarrow{h}_T$ (forward, at the last position) and $\\overleftarrow{h}_1$ (backward, at the *first* position). In PyTorch these are h_n[0] and h_n[1] — not output[:, -1], whose backward half has seen only $x_T$.",
+      ] },
+      { t: "callout", kind: "warning", title: "When you cannot use a bidirectional RNN", text: "The backward pass needs $x_T$ before it can produce anything. So a bidirectional model only works when the whole sequence is there at prediction time: tagging a finished sentence, encoding a source sentence for translation, classifying a recorded clip. It is **not** usable for causal or online tasks — next-token language modelling (the backward RNN would see the answer), low-latency streaming speech recognition, real-time control or forecasting. Training one on next-step prediction leaks the target and gives a meaninglessly low loss." },
+      { t: "h", text: "Stacked (deep) RNNs" },
+      { t: "p", text: "In an $L$-layer stack, layer 1 reads $x_1..x_T$, and layer $\\ell > 1$ reads the hidden-state sequence $h^{(\\ell-1)}_1..h^{(\\ell-1)}_T$ of the layer below. Each layer has its own weights and recurrence, so the state at $(\\ell, t)$ depends on $(\\ell, t-1)$ and $(\\ell-1, t)$. With bidirectional layers, layer $\\ell+1$ reads the $2h$-wide joined vectors, so its input size is $2h$. Three practical additions:" },
+      { t: "list", items: [
+        "**Dropout between layers.** Zaremba, Sutskever and Vinyals (2014) applied dropout only to the layer-to-layer connections, leaving the recurrent path alone. PyTorch's `dropout` argument does exactly this: it applies to every layer's output except the last, and does nothing when `num_layers=1` (PyTorch warns).",
+        "**Residual connections between layers.** $h^{(\\ell)}_t = h^{(\\ell-1)}_t + \\mathrm{RNN}^{(\\ell)}(\\cdot)_t$, as in [residual networks](/learn/m07/residual-connections). Google's translation system (Wu et al., 2016) used them in its 8-layer LSTM encoder and decoder and reported they were needed to train stacks that deep; only its bottom encoder layer was bidirectional.",
+        "**Depth is usually small.** 2–4 recurrent layers is typical. Beyond that gains are small without residual connections, and each layer adds a full sequential pass.",
+      ] },
+      { t: "h", text: "Variable-length sequences and packing" },
+      { t: "p", text: "To batch sequences of different lengths, we pad them to the longest one. A plain RNN then keeps stepping through the padding: a forward RNN's final state is computed *after* the padding, and a backward RNN starts *on* it." },
+      { t: "p", text: "`torch.nn.utils.rnn.pack_padded_sequence` takes the padded batch plus a lengths vector and builds a `PackedSequence` holding only real time steps (sorted by length internally). At each step the RNN then processes only the sequences still running. `h_n` holds each sequence's true final state, and `pad_packed_sequence` turns the output back into a padded tensor with zeros after each sequence ends." },
     ],
 
     // ------------------------------------------------------------------ math
     math: [
-      {
-        t: "h",
-        text: "Variables",
-      },
-      {
-        t: "list",
-        items: [
-          "$t$ — time index; $T$ — sequence length; $d$ — input size; $h$ — hidden size.",
-          "$x_t \\in \\mathbb{R}^d$ — input; $h_t \\in \\mathbb{R}^h$ — hidden state; $\\tilde h_t \\in (-1,1)^h$ — candidate.",
-          "$r_t, z_t \\in (0,1)^h$ — reset and update gates.",
-          "$W_r, W_z, W_h \\in \\mathbb{R}^{h\\times(h+d)}$; we split each as $W_\\ast = [U_\\ast \\; V_\\ast]$ with recurrent part $U_\\ast \\in \\mathbb{R}^{h\\times h}$ and input part $V_\\ast \\in \\mathbb{R}^{h \\times d}$. Biases $b_r, b_z, b_h \\in \\mathbb{R}^h$.",
-          "$\\sigma$ — logistic sigmoid; $\\odot$ — element-wise product; $\\operatorname{diag}(v)$ — diagonal matrix with $v$ on the diagonal.",
-        ],
-      },
+      { t: "h", text: "Variables" },
+      { t: "list", items: [
+        "$t$ — time step; $T$ — sequence length; $d$ — input size; $h$ — hidden size.",
+        "$x_t \\in \\mathbb{R}^d$ — input; $h_t \\in \\mathbb{R}^h$ — hidden state; $\\tilde h_t \\in (-1,1)^h$ — candidate.",
+        "$r_t, z_t \\in (0,1)^h$ — reset and update gates.",
+        "$W_r, W_z, W_h \\in \\mathbb{R}^{h\\times(h+d)}$; we split each as $W_\\ast = [U_\\ast \\; V_\\ast]$, with recurrent part $U_\\ast \\in \\mathbb{R}^{h\\times h}$ and input part $V_\\ast \\in \\mathbb{R}^{h \\times d}$. Biases $b_r, b_z, b_h \\in \\mathbb{R}^h$.",
+        "$\\sigma$ — sigmoid; $\\odot$ — element-wise product; $\\operatorname{diag}(v)$ — diagonal matrix with $v$ on the diagonal.",
+      ] },
       {
         t: "math",
         tex: String.raw`\begin{aligned}
@@ -212,14 +137,8 @@ h_t &= (1-z_t)\odot n_t + z_t \odot h_{t-1}
 \end{aligned}`,
         caption: "torch.nn.GRU as documented: z = fraction kept, reset applied after the recurrent matrix multiply, two bias vectors.",
       },
-      {
-        t: "h",
-        text: "Worked numerical step (h = 2, d = 1)",
-      },
-      {
-        t: "p",
-        text: String.raw`Take $x_t = 1$ and $h_{t-1} = (0.5, -0.3)$, so $[h_{t-1}; x_t] = (0.5, -0.3, 1)$. Each weight row multiplies $(h_1, h_2, x)$. The update bias is $b_z = (-1, -1)$, which biases the cell towards keeping its state; all other biases are 0.`,
-      },
+      { t: "h", text: "Worked numerical step (h = 2, d = 1)" },
+      { t: "p", text: "Take $x_t = 1$ and $h_{t-1} = (0.5, -0.3)$, so $[h_{t-1}; x_t] = (0.5, -0.3, 1)$. Each weight row multiplies $(h_1, h_2, x)$. The update bias $b_z = (-1, -1)$ nudges the cell towards keeping its state; all other biases are 0." },
       {
         t: "math",
         tex: String.raw`W_r=\begin{pmatrix}0.4&-0.2&0.3\\0.1&0.5&-0.6\end{pmatrix},\;
@@ -245,24 +164,15 @@ W_h=\begin{pmatrix}0.6&-0.4&0.9\\-0.5&0.7&0.4\end{pmatrix}`,
             tex: String.raw`z_t = \sigma(-1.41,\;-1.03) = (0.1962,\;0.2631)`,
           },
           {
-            title: "Interpolate",
+            title: "Blend",
             text: "Kept: $(1-z_t)\\odot h_{t-1} = (0.8038 \\times 0.5,\\; 0.7369 \\times -0.3) = (0.4019, -0.2211)$. Written: $z_t \\odot \\tilde h_t = (0.1962 \\times 0.8113,\\; 0.2631 \\times 0.1696) = (0.1592, 0.0446)$.",
             tex: String.raw`h_t = (0.4019 + 0.1592,\;-0.2211 + 0.0446) = (0.5611,\;-0.1765)`,
           },
         ],
       },
-      {
-        t: "p",
-        text: String.raw`With the reset gate applied after the matrix multiply (PyTorch placement), the candidate's pre-activation becomes $V_h x + r_t\odot(U_h h_{t-1}) = (0.9 + 0.6365 \times 0.42,\; 0.4 + 0.3318 \times (-0.46)) = (1.1673, 0.2474)$, so $\tilde h_t = (0.8234, 0.2424)$ and $h_t = (0.5635, -0.1573)$ — close to, but not the same as, $(0.5611, -0.1765)$.`,
-      },
-      {
-        t: "h",
-        text: "The Jacobian: an identity-like path through time",
-      },
-      {
-        t: "p",
-        text: String.raw`Differentiate $h_t = (1-z_t)\odot h_{t-1} + z_t\odot\tilde h_t$ with respect to $h_{t-1}$, remembering that $z_t$ and $\tilde h_t$ also depend on $h_{t-1}$ (product rule):`,
-      },
+      { t: "p", text: "With the reset applied after the matrix multiply (PyTorch placement), the candidate's pre-activation becomes $V_h x + r_t\\odot(U_h h_{t-1}) = (0.9 + 0.6365 \\times 0.42,\\; 0.4 + 0.3318 \\times (-0.46)) = (1.1673, 0.2474)$. So $\\tilde h_t = (0.8234, 0.2424)$ and $h_t = (0.5635, -0.1573)$ — close to $(0.5611, -0.1765)$, but not the same." },
+      { t: "h", text: "The Jacobian: an identity-like path through time" },
+      { t: "p", text: "Differentiate $h_t = (1-z_t)\\odot h_{t-1} + z_t\\odot\\tilde h_t$ with respect to $h_{t-1}$. Remember that $z_t$ and $\\tilde h_t$ also depend on $h_{t-1}$ (product rule):" },
       {
         t: "math",
         tex: String.raw`\frac{\partial h_t}{\partial h_{t-1}} = \underbrace{\operatorname{diag}(1-z_t)}_{\text{direct copy}} \;+\; \underbrace{\operatorname{diag}(z_t)\,\frac{\partial \tilde h_t}{\partial h_{t-1}}}_{\text{through the candidate}} \;+\; \underbrace{\operatorname{diag}(\tilde h_t - h_{t-1})\,\frac{\partial z_t}{\partial h_{t-1}}}_{\text{through the gate}}`,
@@ -272,14 +182,8 @@ W_h=\begin{pmatrix}0.6&-0.4&0.9\\-0.5&0.7&0.4\end{pmatrix}`,
         tex: String.raw`\frac{\partial z_t}{\partial h_{t-1}} = \operatorname{diag}\big(z_t(1-z_t)\big)U_z,\qquad
 \frac{\partial \tilde h_t}{\partial h_{t-1}} = \operatorname{diag}(1-\tilde h_t^2)\,U_h\Big(\operatorname{diag}(r_t) + \operatorname{diag}(h_{t-1})\operatorname{diag}\big(r_t(1-r_t)\big)U_r\Big)`,
       },
-      {
-        t: "p",
-        text: String.raw`The first term is the key. It contains **no weight matrix and no activation derivative** — just $1-z_t$. If a unit's $z_t \approx 0$, its entry is $\approx 1$, the other two terms are scaled by $z_t$ or $z_t(1-z_t)$ and nearly vanish, and the Jacobian along that unit is close to the identity. Over $k$ steps the direct path contributes $\prod (1-z_\tau)$, a decay rate the network *learns* per unit and per step — the GRU's counterpart of the LSTM's $\prod f_\tau$. A vanilla RNN, whose Jacobian $\operatorname{diag}(1-h_t^2)W_{hh}$ always passes through the weight matrix, has no such path.`,
-      },
-      {
-        t: "p",
-        text: String.raw`In the worked example the three terms are $\begin{pmatrix}0.8038&0\\0&0.7369\end{pmatrix} + \begin{pmatrix}0.0277&-0.0089\\-0.0884&0.0564\end{pmatrix} + \begin{pmatrix}0.0147&0.0098\\-0.0364&0.0091\end{pmatrix}$, giving $\begin{pmatrix}0.8462&0.0009\\-0.1248&0.8024\end{pmatrix}$: dominated by the identity-like diagonal. The script below recomputes the step and checks the Jacobian with automatic differentiation.`,
-      },
+      { t: "p", text: "The first term is the key: **no weight matrix and no activation derivative**, just $1-z_t$. If a unit has $z_t \\approx 0$, its entry is $\\approx 1$, the other two terms are scaled by $z_t$ or $z_t(1-z_t)$ and nearly vanish, and the Jacobian along that unit is close to the identity. Over $k$ steps the direct path gives $\\prod (1-z_\\tau)$ — a decay rate the network *learns* per unit and per step, the GRU's version of the LSTM's $\\prod f_\\tau$. A vanilla RNN's Jacobian $\\operatorname{diag}(1-h_t^2)W_{hh}$ always passes through the weight matrix, so it has no such path." },
+      { t: "p", text: "In the worked example the three terms are $\\begin{pmatrix}0.8038&0\\\\0&0.7369\\end{pmatrix} + \\begin{pmatrix}0.0277&-0.0089\\\\-0.0884&0.0564\\end{pmatrix} + \\begin{pmatrix}0.0147&0.0098\\\\-0.0364&0.0091\\end{pmatrix}$, giving $\\begin{pmatrix}0.8462&0.0009\\\\-0.1248&0.8024\\end{pmatrix}$ — dominated by the identity-like diagonal. The script below recomputes the step and checks the Jacobian with autograd." },
       {
         t: "code",
         lang: "python",
@@ -336,14 +240,8 @@ dh_t/dh_{t-1} =
  [-0.1248  0.8024]]
 diag(1 - z)   = [0.8038 0.7369]`,
       },
-      {
-        t: "h",
-        text: "Measured: how far back does the gradient reach?",
-      },
-      {
-        t: "p",
-        text: String.raw`The same experiment as in the LSTM lesson: one random 60-step sequence, 16 hidden units, untrained layers, and the size of $\partial h_T / \partial x_t$ for inputs $k$ steps back. Recall that in PyTorch $z$ is the fraction *kept*, so a bias of $+2$ on PyTorch's $z$ means $1-z \approx \sigma(-2) \approx 0.12$ is rewritten per step — the "small update" regime of our convention.`,
-      },
+      { t: "h", text: "Measured: how far back does the gradient reach?" },
+      { t: "p", text: "Same experiment as in the LSTM lesson: one random 60-step sequence, 16 hidden units, untrained layers, and the size of $\\partial h_T / \\partial x_t$ for inputs $k$ steps back. In PyTorch $z$ is the fraction *kept*, so a bias of $+2$ on PyTorch's $z$ means only $1-z \\approx \\sigma(-2) \\approx 0.12$ is rewritten per step — the \"small update\" regime in our convention." },
       {
         t: "code",
         lang: "python",
@@ -380,22 +278,13 @@ for k in [0, 5, 10, 20, 40, 59]:
     40      |  2.27e-12   |   7.11e-10    |   1.53e-03
     59      |  8.50e-19   |   1.53e-13    |   1.50e-04`,
       },
-      {
-        t: "p",
-        text: "With default initialisation the GRU's update gates sit near 0.5, so the direct path decays like $0.5^k$ and the untrained GRU is not better than the vanilla RNN at 20 steps. Biasing the gate towards keeping the state changes this completely: 59 steps back the gradient is still $1.5 \\times 10^{-4}$, about 15 orders of magnitude larger than the vanilla RNN's. Training typically learns such biases for units that need long memory; initialising them is the GRU analogue of the LSTM forget-bias trick.",
-      },
-      {
-        t: "h",
-        text: "Parameter count",
-      },
+      { t: "p", text: "With default initialisation the GRU's update gates sit near 0.5, so the direct path decays like $0.5^k$; at 20 steps the untrained GRU is no better than the vanilla RNN. Biasing the gate towards keeping changes everything: 59 steps back the gradient is still $1.5 \\times 10^{-4}$, about 15 orders of magnitude above the vanilla RNN's. Training usually learns such biases for units that need long memory; setting them at the start is the GRU version of the LSTM forget-bias trick." },
+      { t: "h", text: "Parameter count" },
       {
         t: "math",
         tex: String.raw`N_{\text{GRU}} = 3\big(h(h+d) + h\big), \qquad N_{\text{GRU}}^{\text{PyTorch}} = 3\big(h(h+d) + 2h\big), \qquad N_{\text{LSTM}} = 4\big(h(h+d)+h\big)`,
       },
-      {
-        t: "p",
-        text: String.raw`Three blocks (reset, update, candidate), each an $h\times(h+d)$ matrix plus a bias. PyTorch (and Keras with reset_after=True) keep a second bias vector per block, adding $3h$; with reset-after these two biases are *not* redundant, because $b_{hn}$ sits inside the reset product. Example: $d = 128$, $h = 256$ gives $3(256 \cdot 384 + 256) = 295{,}680$ parameters (PyTorch: $296{,}448$), against $394{,}240$ for an LSTM — 25% fewer. A bidirectional layer doubles the count; in a stack, layers above the first have input size $h$ (or $2h$ if bidirectional).`,
-      },
+      { t: "p", text: "Three blocks (reset, update, candidate), each an $h\\times(h+d)$ matrix plus a bias. PyTorch (and Keras with reset_after=True) keep a second bias per block, adding $3h$. With reset-after, the two biases are *not* redundant, because $b_{hn}$ sits inside the reset product. Example: $d = 128$, $h = 256$ gives $3(256 \\cdot 384 + 256) = 295{,}680$ parameters (PyTorch: $296{,}448$), against $394{,}240$ for an LSTM — 25% fewer. A bidirectional layer doubles the count; in a stack, layers above the first have input size $h$ (or $2h$ if bidirectional)." },
     ],
 
     // ------------------------------------------------------------------ visual
@@ -403,25 +292,18 @@ for k in [0, 5, 10, 20, 40, 59]:
       {
         t: "sim",
         id: "gru",
-        caption: "A 3- or 4-unit GRU with seeded weights. Each time step is split into four sub-steps (reset gate, candidate, update gate, new state), with the equation and substituted numbers in the narration. Below: the timeline and a memory probe comparing the GRU with a vanilla RNN on the same input.",
+        caption: "A 3- or 4-unit GRU with seeded weights. Each time step has four sub-steps (reset gate, candidate, update gate, new state), with the equation and real numbers in the narration. Below: the timeline and a memory probe comparing the GRU with a vanilla RNN on the same input.",
       },
-      {
-        t: "list",
-        ordered: true,
-        items: [
-          "Press **Step** four times to walk through $t = 1$. Check the narration at sub-step 4: $h_t$ is exactly *kept* + *written*, and each unit of $h_t$ lies between $h_{t-1}$ and $\\tilde h_t$.",
-          "Switch to hidden size 4 and watch the $z$ rows of the timeline on the default sequence (a pulse at $t = 1$, then zeros). Unit 3 has $z = 0.92$ at $t = 1$, when the strong input arrives, so the pulse is written almost completely; afterwards its $z$ stays near 0.19, so the value is mostly kept and decays slowly (0.824 at $t = 1$, still 0.311 at $t = 10$).",
-          "Look at the **memory probe**. It adds 1 to $x_1$, reruns both models and plots $\\lVert \\Delta h_t \\rVert$. With the default $b_z = -1.5$ and hidden size 3, the GRU still carries about 40% of the perturbation at $t = 10$ (0.109 vs 0.264 at $t = 1$), while the vanilla RNN keeps 7% (0.016 vs 0.228).",
-          "Drag **Update bias** to $-3$: $z_t \\approx 0.05$, the GRU state is copied forward almost unchanged and the probe stays nearly flat (0.120 at $t = 10$ vs 0.158 at $t = 1$). The price: less of the pulse is written in the first place, because $z_1$ is also smaller.",
-          "Drag it to $+2$: $z_t \\approx 0.9$, the state is rewritten every step, and the GRU forgets $x_1$ faster than the vanilla RNN. Gating gives *control* over memory, not memory for free.",
-          "Watch the **reset gate** sub-step for a unit whose $r$ is small: $r \\odot h_{t-1}$ is near zero and the candidate is computed almost from $x_t$ alone.",
-          "Try your own input, e.g. `1, 0, 0, -1, 0, 0` or `2, 2, 2, 0, 0, 0`, and switch hidden size 3 ↔ 4 to get a different set of seeded weights.",
-        ],
-      },
-      {
-        t: "p",
-        text: "For comparison, the LSTM simulator below runs the same kind of experiment with a forget-gate bias slider. The LSTM's forget bias plays the role of the GRU's $-b_z$ in this lesson's convention: high forget bias ↔ low update bias ↔ long memory.",
-      },
+      { t: "list", ordered: true, items: [
+        "Press **Step** four times to walk through $t = 1$. At sub-step 4, check that $h_t$ is exactly *kept* + *written*, and each unit of $h_t$ lies between $h_{t-1}$ and $\\tilde h_t$.",
+        "Switch to hidden size 4 and watch the $z$ rows on the default sequence (a pulse at $t = 1$, then zeros). Unit 3 has $z = 0.92$ at $t = 1$, when the strong input arrives, so the pulse is written almost fully. Afterwards its $z$ stays near 0.19, so the value is mostly kept and fades slowly (0.824 at $t = 1$, still 0.311 at $t = 10$).",
+        "Look at the **memory probe**. It adds 1 to $x_1$, reruns both models and plots $\\lVert \\Delta h_t \\rVert$. With the default $b_z = -1.5$ and hidden size 3, the GRU still carries about 40% of the change at $t = 10$ (0.109 vs 0.264 at $t = 1$); the vanilla RNN keeps 7% (0.016 vs 0.228).",
+        "Drag **Update bias** to $-3$: $z_t \\approx 0.05$, the GRU state is copied forward almost unchanged and the probe stays nearly flat (0.120 at $t = 10$ vs 0.158 at $t = 1$). The price: less of the pulse gets written in the first place, because $z_1$ is smaller too.",
+        "Drag it to $+2$: $z_t \\approx 0.9$, the state is rewritten every step, and the GRU forgets $x_1$ faster than the vanilla RNN. Gating gives *control* over memory, not memory for free.",
+        "Watch the **reset gate** sub-step for a unit with small $r$: $r \\odot h_{t-1}$ is near zero, so the candidate comes almost from $x_t$ alone.",
+        "Try your own input, e.g. `1, 0, 0, -1, 0, 0` or `2, 2, 2, 0, 0, 0`, and switch hidden size 3 ↔ 4 for different seeded weights.",
+      ] },
+      { t: "p", text: "For comparison, the LSTM simulator below runs the same kind of experiment with a forget-bias slider. The LSTM's forget bias plays the role of $-b_z$ in this lesson's convention: high forget bias ↔ low update bias ↔ long memory." },
       {
         t: "sim",
         id: "lstm",
@@ -431,10 +313,7 @@ for k in [0, 5, 10, 20, 40, 59]:
 
     // ------------------------------------------------------------------ scratch
     scratch: [
-      {
-        t: "p",
-        text: "A complete NumPy GRU in PyTorch's exact convention (gate blocks r, z, n; two biases; reset after the recurrent multiply; $z$ = fraction kept), extended to **bidirectional** and **multi-layer** operation with PyTorch's output layout. It is checked against `torch.nn.GRU(num_layers=2, bidirectional=True)`; PyTorch is used only as the reference.",
-      },
+      { t: "p", text: "A full NumPy GRU in PyTorch's exact convention (gate blocks r, z, n; two biases; reset after the recurrent multiply; $z$ = fraction kept), extended to **bidirectional** and **multi-layer** use with PyTorch's output layout. We check it against `torch.nn.GRU(num_layers=2, bidirectional=True)`, used only as the reference." },
       {
         t: "code",
         lang: "python",
@@ -518,15 +397,12 @@ max |h_n diff|   : 1.1102230246251565e-16
 torch count: 552 | formula: 552
 z_torch + z_other == 1: True`,
       },
-      {
-        t: "list",
-        items: [
-          "The differences of $10^{-16}$ are float64 rounding: the NumPy code computes the same function as PyTorch, including the layout of `h_n` (layer 0 forward, layer 0 backward, layer 1 forward, layer 1 backward).",
-          "The backward direction stores each output at its **original** time index (`outs[t] = h`), so position $t$ of the concatenated output pairs $\\overrightarrow{h}_t$ with $\\overleftarrow{h}_t$. Its final state is the state at $t = 0$.",
-          "Parameter count: layer 0 has $2 \\times 3(4\\cdot 7 + 2\\cdot 4) = 2 \\times 108 = 216$ parameters, layer 1 reads $2h = 8$ inputs and has $2 \\times 3(4 \\cdot 12 + 2 \\cdot 4) = 336$; total 552.",
-          "The last line shows the convention change: negating the update-gate pre-activation turns PyTorch's \"fraction kept\" $z$ into this lesson's \"fraction updated\" $1-z$.",
-        ],
-      },
+      { t: "list", items: [
+        "Differences of $10^{-16}$ are float64 rounding: the NumPy code computes the same function as PyTorch, including the `h_n` layout (layer 0 forward, layer 0 backward, layer 1 forward, layer 1 backward).",
+        "The backward direction stores each output at its **original** time index (`outs[t] = h`), so position $t$ of the joined output pairs $\\overrightarrow{h}_t$ with $\\overleftarrow{h}_t$. Its final state is the state at $t = 0$.",
+        "Parameter count: layer 0 has $2 \\times 3(4\\cdot 7 + 2\\cdot 4) = 2 \\times 108 = 216$; layer 1 reads $2h = 8$ inputs and has $2 \\times 3(4 \\cdot 12 + 2 \\cdot 4) = 336$; total 552.",
+        "The last line shows the convention switch: negating the update-gate pre-activation turns PyTorch's \"fraction kept\" $z$ into this lesson's \"fraction updated\" $1-z$.",
+      ] },
     ],
 
     // ------------------------------------------------------------------ framework
@@ -537,14 +413,8 @@ z_torch + z_other == 1: True`,
           {
             label: "PyTorch",
             blocks: [
-              {
-                t: "h",
-                text: "Experiment: a tagging task that needs the future",
-              },
-              {
-                t: "p",
-                text: String.raw`Each sequence is 40 random digits from $\{0,..,4\}$. Position $t$ gets label 1 if $x_{t+2} > x_0$, else 0. The answer needs the **first** token (long-range past) and a token **two steps ahead**. A causal model cannot see $x_{t+2}$; its best possible strategy is to guess from $x_0$ alone, which gives an accuracy of 0.760. A bidirectional model can in principle reach 100%. All six models get the same embedding (size 8), hidden size 24, Adam (lr $10^{-2}$), gradient clipping and the same 9-epoch budget.`,
-              },
+              { t: "h", text: "Experiment: a tagging task that needs the future" },
+              { t: "p", text: "Each sequence is 40 random digits from $\\{0,..,4\\}$. Position $t$ gets label 1 if $x_{t+2} > x_0$, else 0. So the answer needs the **first** token (long-range past) and a token **two steps ahead**. A causal model cannot see $x_{t+2}$; its best strategy is to guess from $x_0$ alone, which gives accuracy 0.760. A bidirectional model can in principle reach 100%. All six models get the same embedding (size 8), hidden size 24, Adam (lr $10^{-2}$), gradient clipping and the same 9-epoch budget." },
               {
                 t: "code",
                 lang: "python",
@@ -619,20 +489,14 @@ BiRNN                1632          0.867
 BiLSTM               6528          0.856
 BiGRU                4896          1.000`,
               },
-              {
-                t: "list",
-                items: [
-                  "**Unidirectional models are capped by the causal ceiling.** RNN and GRU reach 0.758, the best a model without future context can do (0.760 in expectation). No amount of training or memory can beat it, because the information is not in the input yet.",
-                  "**Bidirectionality is what breaks the ceiling**, and the cell type matters once it does: BiGRU solves the task (1.000), BiRNN reaches 0.867 and BiLSTM 0.856 within the same budget.",
-                  "Why the RNN is fine causally but not bidirectionally: the causal optimum only needs **one bit** about $x_0$ (is it 0 or 1?), which a vanilla RNN can hold for 40 steps. The exact comparison $x_{t+2} > x_0$ needs the full value of $x_0$ at every position, i.e. precise long-range memory in the forward direction — where the gated unit wins.",
-                  "The LSTM rows had not converged after 9 epochs (180 updates); in a longer 15-epoch run with the same setup the unidirectional LSTM also reached 0.758. This is one seed and one small task: it shows that the GRU can learn faster on such problems, not that it is better in general — consistent with Chung et al. (2014), who found no consistent winner between GRU and LSTM.",
-                  "Training wall-clock in our single-thread run: every model trained in under 4 s; the BiGRU took about 3.3 s, roughly twice the unidirectional GRU (1.7 s). See the speed benchmark under *Advantages and Limitations* for a controlled comparison.",
-                ],
-              },
-              {
-                t: "h",
-                text: "Shapes: bidirectional, stacked and residual",
-              },
+              { t: "list", items: [
+                "**One-way models are capped by the causal ceiling.** RNN and GRU reach 0.758, the best possible without future context (0.760 on average). No training or memory can beat it, because the information is not in the input yet.",
+                "**Bidirectionality breaks the ceiling**, and then the cell type matters: BiGRU solves the task (1.000), BiRNN reaches 0.867 and BiLSTM 0.856 within the same budget.",
+                "Why the RNN is fine one-way but not bidirectionally: the causal optimum needs only **one bit** about $x_0$ (is it 0 or 1?), which a vanilla RNN can hold for 40 steps. The exact comparison $x_{t+2} > x_0$ needs the full value of $x_0$ at every position — precise long-range memory in the forward direction, where the gated unit wins.",
+                "The LSTM rows had not converged after 9 epochs (180 updates); in a longer 15-epoch run with the same setup the one-way LSTM also reached 0.758. This is one seed on one small task. It shows the GRU can learn faster on such problems, not that it is better in general — consistent with Chung et al. (2014), who found no consistent winner between GRU and LSTM.",
+                "Wall-clock in our single-thread run: every model trained in under 4 s; the BiGRU took about 3.3 s, roughly twice the one-way GRU (1.7 s). See the speed benchmark under *Strengths and Limits* for a controlled comparison.",
+              ] },
+              { t: "h", text: "Shapes: bidirectional, stacked and residual" },
               {
                 t: "code",
                 lang: "python",
@@ -693,19 +557,13 @@ print("residual stack output", tuple(res(x).shape))`,
   weight_ih_l2_reverse   (24, 16)
 residual stack output (4, 7, 8)`,
               },
-              {
-                t: "list",
-                items: [
-                  "`output` is `(B, T, num_directions·H)` and contains only the **last layer**; `h_n` is `(num_layers·num_directions, B, H)` and contains the final state of **every** layer and direction. Use `h_n.view(num_layers, num_directions, B, H)` to index it safely.",
-                  "`out[:, -1, H:]` is *not* the backward final state: at the last position the backward RNN has seen only one token. Its final state is at position 0.",
-                  "Layers above the first in a bidirectional stack have `weight_ih` of shape `(3H, 2H)` because they read the concatenated $2H$ outputs.",
-                  "`dropout=0.2` is applied between layers during training only (`model.eval()` disables it).",
-                ],
-              },
-              {
-                t: "h",
-                text: "Packing variable-length sequences",
-              },
+              { t: "list", items: [
+                "`output` is `(B, T, num_directions·H)` and holds only the **last layer**. `h_n` is `(num_layers·num_directions, B, H)` and holds the final state of **every** layer and direction. Use `h_n.view(num_layers, num_directions, B, H)` to index it safely.",
+                "`out[:, -1, H:]` is *not* the backward final state: at the last position the backward RNN has seen only one token. Its final state is at position 0.",
+                "In a bidirectional stack, layers above the first have `weight_ih` of shape `(3H, 2H)` because they read the joined $2H$ outputs.",
+                "`dropout=0.2` acts between layers during training only (`model.eval()` turns it off).",
+              ] },
+              { t: "h", text: "Packing variable-length sequences" },
               {
                 t: "code",
                 lang: "python",
@@ -751,14 +609,11 @@ unpacked output (3, 5, 8) lengths [5, 2, 3]
 outputs beyond each length are zero: True
 packed data rows: 10 = total real steps 10`,
               },
-              {
-                t: "list",
-                items: [
-                  "Feeding the padded batch directly gives wrong final states for every sequence shorter than the longest one, in **both** directions: the forward RNN keeps updating on padding zeros, and the backward RNN starts on padding.",
-                  "With packing the errors are zero: every sequence's `h_n` equals the result of running it alone.",
-                  "`enforce_sorted=False` lets you pass sequences in any order; PyTorch sorts internally and restores the order in `h_n`. The packed data has exactly 10 rows — one per real time step — so no compute is spent on padding.",
-                ],
-              },
+              { t: "list", items: [
+                "Feeding the padded batch directly gives wrong final states for every sequence shorter than the longest, in **both** directions: the forward RNN keeps updating on padding zeros, and the backward RNN starts on padding.",
+                "With packing the errors are zero: every sequence's `h_n` equals the result of running it alone.",
+                "`enforce_sorted=False` lets you pass sequences in any order; PyTorch sorts internally and restores the order in `h_n`. The packed data has exactly 10 rows — one per real time step — so no compute goes to padding.",
+              ] },
             ],
           },
           {
@@ -801,16 +656,13 @@ model.fit(x_tr, y_tr, sample_weight=w_tr, epochs=9, batch_size=100, verbose=2)
 print(model.evaluate(x_te, y_te, sample_weight=w_te, verbose=0))`,
                 output: "Prints the model summary — the Bidirectional layer has 4,896 parameters (2 × 2,448, the same as the PyTorch BiGRU, because Keras's default reset_after=True also keeps two bias vectors) — then the loss and accuracy for each of 9 epochs and finally the test [loss, accuracy]. The test accuracy should be far above the 0.76 causal ceiling, as in the PyTorch run.",
               },
-              {
-                t: "list",
-                items: [
-                  "`tf.keras.layers.GRU(units, return_sequences=..., return_state=..., reset_after=True)`: `return_sequences=True` returns $h_t$ for every step (needed for tagging); `return_state=True` additionally returns the final state.",
-                  "Keras stores `kernel` `(d, 3h)`, `recurrent_kernel` `(h, 3h)` and `bias` `(2, 3h)` when `reset_after=True`, with gate blocks in the order **z, r, h** — different from PyTorch's r, z, n. Keras, like PyTorch, uses $z$ as the fraction kept: $h_t = z\\odot h_{t-1} + (1-z)\\odot \\tilde h_t$.",
-                  "`reset_after=False` gives the original Cho et al. placement and a single bias `(3h,)`; such a layer cannot use the cuDNN kernel.",
-                  "`Bidirectional(layer, merge_mode=\"concat\")` also accepts `\"sum\"`, `\"mul\"`, `\"ave\"` or `None` (return both directions separately).",
-                  "Stacking: put several recurrent layers in sequence, all but the last with `return_sequences=True`. For variable lengths, use `Embedding(..., mask_zero=True)` (token 0 reserved for padding) and the mask propagates to the GRU, which then skips padded steps — Keras's counterpart of packing.",
-                ],
-              },
+              { t: "list", items: [
+                "`tf.keras.layers.GRU(units, return_sequences=..., return_state=..., reset_after=True)`: `return_sequences=True` returns $h_t$ for every step (needed for tagging); `return_state=True` also returns the final state.",
+                "With `reset_after=True` Keras stores `kernel` `(d, 3h)`, `recurrent_kernel` `(h, 3h)` and `bias` `(2, 3h)`, with gate blocks in the order **z, r, h** — not PyTorch's r, z, n. Like PyTorch, Keras uses $z$ as the fraction kept: $h_t = z\\odot h_{t-1} + (1-z)\\odot \\tilde h_t$.",
+                "`reset_after=False` gives Cho et al.'s original placement and a single bias `(3h,)`; such a layer cannot use the cuDNN kernel.",
+                "`Bidirectional(layer, merge_mode=\"concat\")` also accepts `\"sum\"`, `\"mul\"`, `\"ave\"` or `None` (return both directions separately).",
+                "Stacking: put several recurrent layers in a row, all but the last with `return_sequences=True`. For variable lengths, use `Embedding(..., mask_zero=True)` (token 0 kept for padding); the mask reaches the GRU, which then skips padded steps — Keras's version of packing.",
+              ] },
             ],
           },
         ],
@@ -819,89 +671,57 @@ print(model.evaluate(x_te, y_te, sample_weight=w_te, verbose=0))`,
 
     // ------------------------------------------------------------------ variations
     variations: [
-      {
-        t: "table",
-        head: ["Variant", "Gates / state", "Parameters (per layer, one direction)", "Advantages", "Disadvantages", "Typical use"],
-        rows: [
-          [String.raw`Vanilla RNN`, "none / $h_t$", String.raw`$h(h+d)+h$`, "fastest, simplest", "vanishing/exploding gradients; short memory", "teaching, very short sequences"],
-          [String.raw`GRU (Cho placement)`, "update, reset / $h_t$", String.raw`$3(h(h+d)+h)$`, "25% fewer parameters than LSTM; often equally accurate", "no output gate: whole state is always exposed", "original formulation; Keras reset_after=False"],
-          [String.raw`GRU (reset-after, cuDNN)`, "update, reset / $h_t$", String.raw`$3(h(h+d)+2h)$`, "one fused recurrent matmul; GPU-kernel friendly", "slightly different function; weights not interchangeable", "PyTorch nn.GRU, Keras default"],
-          [String.raw`LSTM`, "forget, input, output / $h_t, c_t$", String.raw`$4(h(h+d)+h)$`, "separate memory and output; robust default", "most parameters and compute", "speech, time series, pre-2018 NLP"],
-          [String.raw`Minimal gated unit (MGU)`, "one gate / $h_t$", String.raw`$2(h(h+d)+h)$`, "fewest parameters of the gated cells", "less studied; less widely available", "resource-constrained models"],
-          [String.raw`Bidirectional (any cell)`, "two independent directions", "2× the cell", "every output sees past and future", "needs the full sequence; 2× cost", "tagging, encoders, offline speech"],
-          [String.raw`Stacked (any cell)`, "$L$ layers", "sum over layers", "hierarchical features", "more sequential passes; harder to train without residuals", "translation encoders/decoders, speech"],
-        ],
-      },
-      {
-        t: "h",
-        text: "Minimal gated unit",
-      },
-      {
-        t: "p",
-        text: String.raw`Zhou, Wu, Zhang and Zhou (2016), *Minimal Gated Unit for Recurrent Neural Networks*, go one step further and use a single gate $f_t$ in both roles: it gates the old state inside the candidate (like $r_t$) and sets the interpolation (like $z_t$):`,
-      },
+      { t: "table", head: ["Variant", "Gates / state", "Parameters (per layer, one direction)", "Pros", "Cons", "Typical use"], rows: [
+        ["Vanilla RNN", "none / $h_t$", "$h(h+d)+h$", "fastest, simplest", "vanishing/exploding gradients; short memory", "teaching, very short sequences"],
+        ["GRU (Cho placement)", "update, reset / $h_t$", "$3(h(h+d)+h)$", "25% fewer parameters than LSTM; often just as accurate", "no output gate: the whole state is always exposed", "original form; Keras reset_after=False"],
+        ["GRU (reset-after, cuDNN)", "update, reset / $h_t$", "$3(h(h+d)+2h)$", "one fused recurrent matmul; GPU-friendly", "slightly different function; weights not interchangeable", "PyTorch nn.GRU, Keras default"],
+        ["LSTM", "forget, input, output / $h_t, c_t$", "$4(h(h+d)+h)$", "separate memory and output; solid default", "most parameters and compute", "speech, time series, NLP before 2018"],
+        ["Minimal gated unit (MGU)", "one gate / $h_t$", "$2(h(h+d)+h)$", "fewest parameters of the gated cells", "less studied; less widely available", "resource-limited models"],
+        ["Bidirectional (any cell)", "two independent directions", "2× the cell", "every output sees past and future", "needs the full sequence; 2× cost", "tagging, encoders, offline speech"],
+        ["Stacked (any cell)", "$L$ layers", "sum over layers", "layered features, from simple to abstract", "more sequential passes; hard to train deep without residuals", "translation encoders/decoders, speech"],
+      ] },
+      { t: "h", text: "Minimal gated unit" },
+      { t: "p", text: "Zhou, Wu, Zhang and Zhou (2016) go one step further and use a single gate $f_t$ for both jobs: it gates the old state inside the candidate (like $r_t$) and sets the blend (like $z_t$):" },
       {
         t: "math",
         tex: String.raw`f_t = \sigma(W_f[h_{t-1};x_t] + b_f),\quad \tilde h_t = \tanh(W_h[f_t\odot h_{t-1};\,x_t] + b_h),\quad h_t = (1-f_t)\odot h_{t-1} + f_t\odot\tilde h_t`,
       },
-      {
-        t: "h",
-        text: "GRU vs LSTM: what the evidence says",
-      },
-      {
-        t: "list",
-        items: [
-          "**Chung et al. (2014)**: on polyphonic music and speech-signal modelling, GRU and LSTM both outperformed the tanh RNN; the comparison between them depended on the dataset.",
-          "**Jozefowicz, Zaremba and Sutskever (2015)**, *An Empirical Exploration of Recurrent Network Architectures*: in a large architecture search, the GRU beat the plain LSTM on several tasks, but initialising the LSTM's forget-gate bias to 1 closed most of the gap.",
-          "**This lesson's experiment**: same accuracy for GRU and vanilla RNN on the causal version of the task (both at the ceiling); with bidirectional models, GRU solved the task within the budget and LSTM had not yet converged.",
-          "Practical rule: try both if the difference matters; GRU when parameters or memory are tight, LSTM when you want a separate memory and output (e.g. precise counting), and check the speed claim on your hardware (see below).",
-        ],
-      },
-      {
-        t: "h",
-        text: "Other variations",
-      },
-      {
-        t: "list",
-        items: [
-          "**Coupled-gate LSTM**: an LSTM with $i_t = 1 - f_t$ — the GRU's coupling applied to the LSTM.",
-          "**Bidirectional merge modes**: concatenation (default), sum, average or product of the two directions; summing halves the output size.",
-          "**Pyramidal / strided stacks**: in speech, upper layers can halve the time resolution by concatenating adjacent outputs, reducing the cost of later layers.",
-          "**Learned or carried initial states**: $h_0$ can be a learned parameter, or carried from the previous chunk for stateful processing of long streams.",
-        ],
-      },
+      { t: "h", text: "GRU vs LSTM: what the evidence says" },
+      { t: "list", items: [
+        "**Chung et al. (2014)**: on music and speech-signal modelling, GRU and LSTM both beat the tanh RNN; which of the two won depended on the dataset.",
+        "**Jozefowicz, Zaremba and Sutskever (2015)**: in a large architecture search, the GRU beat the plain LSTM on several tasks, but starting the LSTM's forget bias at 1 closed most of the gap.",
+        "**This lesson's experiment**: GRU and vanilla RNN tied on the causal version of the task (both at the ceiling); with bidirectional models, the GRU solved it within the budget and the LSTM had not yet converged.",
+        "Rule of thumb: try both if the difference matters. Pick GRU when parameters or memory are tight, LSTM when you want separate memory and output (e.g. precise counting), and check speed on your own hardware (see below).",
+      ] },
+      { t: "h", text: "Other variations" },
+      { t: "list", items: [
+        "**Coupled-gate LSTM**: an LSTM with $i_t = 1 - f_t$ — the GRU's coupling applied to the LSTM.",
+        "**Bidirectional merge modes**: join (default), sum, average or multiply the two directions; summing halves the output size.",
+        "**Pyramidal / strided stacks**: in speech, upper layers can halve the time resolution by joining neighbouring outputs, which makes later layers cheaper.",
+        "**Learned or carried initial states**: $h_0$ can be a learned parameter, or carried from the previous chunk when processing long streams.",
+      ] },
     ],
 
     // ------------------------------------------------------------------ applications
     applications: [
-      {
-        t: "list",
-        items: [
-          "**Neural machine translation**: the GRU itself was introduced in an RNN encoder–decoder for translation (Cho et al., 2014). Bahdanau, Cho and Bengio (2015) used a **bidirectional** RNN encoder with gated units so that each source-word annotation summarised the whole sentence — the representation their attention mechanism looks at ([attention](/learn/m10/attention-intro)). Google's production NMT system (Wu et al., 2016) used a deep **stacked** LSTM with residual connections and a bidirectional bottom layer.",
-          "**Sequence tagging**: part-of-speech tagging and named-entity recognition were dominated for several years by bidirectional LSTMs, often with a CRF output layer (Huang, Xu and Yu, 2015; Lample et al., 2016), because each tag depends on words on both sides ([NLP tasks](/learn/m13/nlp-tasks)).",
-          "**Speech recognition**: Graves and Schmidhuber (2005) showed bidirectional LSTMs outperforming unidirectional ones on framewise phoneme classification; deep bidirectional LSTMs became standard acoustic models for offline recognition. Streaming recognisers use unidirectional layers (or limited look-ahead) because of the latency constraint.",
-          "**Contextual word embeddings**: ELMo (Peters et al., 2018) built word representations from a two-layer bidirectional LSTM language model — a forward and a backward LM trained separately, so neither direction sees its own target.",
-          "**Time series and sensors**: GRUs are a common choice for forecasting, anomaly detection and activity recognition on devices with limited memory; for *online* forecasting they must be unidirectional, while offline classification of a recorded window can use a bidirectional GRU.",
-        ],
-      },
+      { t: "list", items: [
+        "**Neural machine translation**: the GRU was born in an RNN encoder–decoder for translation (Cho et al., 2014). Bahdanau, Cho and Bengio (2015) used a **bidirectional** gated encoder so each source word's annotation summed up the whole sentence — the vectors their attention looks at ([attention](/learn/m10/attention-intro)). Google's production system (Wu et al., 2016) used a deep **stacked** LSTM with residual connections and a bidirectional bottom layer.",
+        "**Sequence tagging**: part-of-speech tagging and named-entity recognition were led for years by bidirectional LSTMs, often with a CRF output layer (Huang, Xu and Yu, 2015; Lample et al., 2016), because each tag depends on words on both sides ([NLP tasks](/learn/m13/nlp-tasks)).",
+        "**Speech recognition**: Graves and Schmidhuber (2005) showed bidirectional LSTMs beating one-way ones on framewise phoneme classification; deep bidirectional LSTMs became the standard for offline recognition. Streaming recognisers use one-way layers (or limited look-ahead) to keep latency low.",
+        "**Contextual word embeddings**: ELMo (Peters et al., 2018) built word representations from a two-layer bidirectional LSTM language model — a forward and a backward LM trained separately, so neither direction sees its own target.",
+        "**Time series and sensors**: GRUs are a common pick for forecasting, anomaly detection and activity recognition on memory-limited devices. *Online* forecasting needs one-way GRUs; offline classification of a recorded window can use a bidirectional one.",
+      ] },
     ],
 
     // ------------------------------------------------------------------ tradeoffs
     tradeoffs: [
-      {
-        t: "table",
-        head: ["Choice", "Strengths", "Limitations"],
-        rows: [
-          ["GRU", "25% fewer parameters than LSTM; one state; often matches LSTM accuracy; learns long dependencies via the $(1-z)$ path.", "No output gate, so memory is always exposed; fewer FLOPs do not guarantee faster training (see benchmark); still sequential over time."],
-          ["Bidirectional", "Every position sees the whole sequence; large accuracy gains when labels depend on future context.", "Unusable for causal/online tasks; doubles parameters and compute; final-state handling is easy to get wrong."],
-          ["Stacked", "More expressive, hierarchical features; standard in strong recurrent systems.", "Each layer is another sequential pass; deeper stacks need dropout and residual connections to train well."],
-          ["Packing", "Correct results for variable-length batches; no compute wasted on padding.", "Extra bookkeeping; must pass correct lengths; a few operations are not available on packed data."],
-        ],
-      },
-      {
-        t: "h",
-        text: "Speed is a measurement, not a parameter count",
-      },
+      { t: "table", head: ["Choice", "Strengths", "Limitations"], rows: [
+        ["GRU", "25% fewer parameters than LSTM; one state; often matches LSTM accuracy; learns long dependencies via the $(1-z)$ path.", "No output gate, so memory is always exposed; fewer FLOPs do not guarantee faster training (see benchmark); still sequential over time."],
+        ["Bidirectional", "Every position sees the whole sequence; big accuracy gains when labels depend on future context.", "Unusable for causal/online tasks; doubles parameters and compute; final states are easy to get wrong."],
+        ["Stacked", "More expressive, layered features; standard in strong recurrent systems.", "Each layer is another sequential pass; deep stacks need dropout and residual connections to train well."],
+        ["Packing", "Correct results for variable-length batches; no compute wasted on padding.", "Extra bookkeeping; lengths must be right; a few operations do not work on packed data."],
+      ] },
+      { t: "h", text: "Speed is a measurement, not a parameter count" },
       {
         t: "code",
         lang: "python",
@@ -940,41 +760,35 @@ LSTM           params   99328     28.1 ms/batch   (2.2x RNN)
 BiGRU          params  148992     65.6 ms/batch   (5.0x RNN)
 GRU x2 layers  params  173568     69.7 ms/batch   (5.3x RNN)`,
       },
-      {
-        t: "p",
-        text: "In three runs on our CPU (PyTorch 2, single thread) the GRU took 29–34 ms per batch and the LSTM 25–28 ms — the GRU was consistently **slower**, despite having 25% fewer parameters. The vanilla RNN was 2.2–3.4× faster than either. A bidirectional layer and a 2-layer stack each cost roughly twice a single GRU layer, as expected. Wall-clock speed depends on how well each cell's kernel is optimised (fused matrix multiplies, the extra element-wise work of reset-after, memory traffic), and on GPU with cuDNN the ranking can differ. If speed matters, benchmark your configuration rather than assuming the smaller cell is faster.",
-      },
+      { t: "p", text: "In three runs on our CPU (PyTorch 2, single thread), the GRU took 29–34 ms per batch and the LSTM 25–28 ms. The GRU was consistently **slower**, despite 25% fewer parameters. The vanilla RNN was 2.2–3.4× faster than either. A bidirectional layer and a 2-layer stack each cost roughly twice a single GRU layer, as expected. Real speed depends on how well each cell's kernel is optimised (fused matrix multiplies, reset-after's extra element-wise work, memory traffic), and on GPU with cuDNN the ranking can change. If speed matters, benchmark your setup instead of assuming the smaller cell is faster." },
     ],
 
     // ------------------------------------------------------------------ mistakes
     mistakes: [
-      {
-        t: "list",
-        items: [
-          "**Mixing the two $z$ conventions.** Saying \"$z \\approx 1$ means remember\" is true in PyTorch/Keras and false in Chung et al.'s notation. Fix: always write out the interpolation equation you mean; to convert, negate $W_z$ and $b_z$.",
-          "**Porting weights between reset placements or libraries.** PyTorch (reset after, blocks r, z, n) and Keras (blocks z, r, h; reset_after configurable) differ in both order and formula. Fix: map blocks by name and test against a reference, as in the NumPy section.",
-          "**Using `output[:, -1]` as the summary of a bidirectional RNN.** Its backward half has seen only the last token. Fix: use `h_n` (or `torch.cat([h_n[-2], h_n[-1]], -1)` for the last layer), or `output[:, -1, :H]` together with `output[:, 0, H:]`.",
-          "**Indexing `h_n` of a deep bidirectional RNN as `h_n[-1]` and calling it \"the last layer\".** It is the last layer's *backward* direction only. Fix: `h_n.view(num_layers, 2, B, H)[-1]` gives both directions of the last layer.",
-          "**Using a bidirectional model for causal prediction.** Training a BiRNN for next-step prediction lets the backward pass read the target, giving excellent training loss and a model that cannot be deployed. Fix: unidirectional layers for anything online or autoregressive.",
-          "**Running padded batches without packing (or masking).** Final states are computed after padding steps; in the packing example the error reached 0.36. Fix: `pack_padded_sequence(..., enforce_sorted=False)`, or gather the last real index for unidirectional models.",
-          "**Expecting `dropout=` to do something in a 1-layer RNN.** PyTorch applies it only between stacked layers. Fix: add `nn.Dropout` on the RNN's inputs/outputs explicitly.",
-          "**Assuming GRU is always faster.** It has fewer parameters, but in our CPU benchmark it was slower than the LSTM. Fix: measure.",
-        ],
-      },
+      { t: "list", items: [
+        "**Mixing the two $z$ conventions.** \"$z \\approx 1$ means remember\" is true in PyTorch/Keras and false in Chung et al.'s notation. Fix: always write out the blend equation you mean; to convert, negate $W_z$ and $b_z$.",
+        "**Copying weights between reset placements or libraries.** PyTorch (reset after, blocks r, z, n) and Keras (blocks z, r, h; reset_after configurable) differ in both order and formula. Fix: map blocks by name and test against a reference, as in the NumPy section.",
+        "**Using `output[:, -1]` as the summary of a bidirectional RNN.** Its backward half has seen only the last token. Fix: use `h_n` (or `torch.cat([h_n[-2], h_n[-1]], -1)` for the last layer), or `output[:, -1, :H]` together with `output[:, 0, H:]`.",
+        "**Calling `h_n[-1]` of a deep bidirectional RNN \"the last layer\".** It is only the last layer's *backward* direction. Fix: `h_n.view(num_layers, 2, B, H)[-1]` gives both directions of the last layer.",
+        "**Using a bidirectional model for causal prediction.** A BiRNN trained for next-step prediction lets the backward pass read the target: great training loss, and a model you cannot deploy. Fix: one-way layers for anything online or autoregressive.",
+        "**Running padded batches without packing (or masking).** Final states are computed after padding steps; in the packing example the error reached 0.36. Fix: `pack_padded_sequence(..., enforce_sorted=False)`, or gather the last real index for one-way models.",
+        "**Expecting `dropout=` to do something in a 1-layer RNN.** PyTorch applies it only between stacked layers. Fix: add `nn.Dropout` on the RNN's inputs/outputs yourself.",
+        "**Assuming GRU is always faster.** It has fewer parameters, but in our CPU benchmark it was slower than the LSTM. Fix: measure.",
+      ] },
     ],
 
     // ------------------------------------------------------------------ interview
     interview: [
-      { t: "qa", level: "beginner", q: "What are the two gates of a GRU and what does each do?", a: "The **update gate** $z_t$ decides, per hidden unit, how much of the state is replaced by the candidate: $h_t = (1-z_t)\\odot h_{t-1} + z_t \\odot \\tilde h_t$ (in Chung et al.'s convention). The **reset gate** $r_t$ decides how much of the previous state is used when computing the candidate $\\tilde h_t = \\tanh(W_h[r_t\\odot h_{t-1}; x_t] + b_h)$. Both are sigmoid layers reading $[h_{t-1}; x_t]$." },
-      { t: "qa", level: "beginner", q: "How does a GRU differ from an LSTM?", a: "The GRU has one state ($h_t$) instead of two ($h_t, c_t$), two gates instead of three, and no output gate, so its whole memory is always exposed. Its update gate couples forgetting and writing (keep $1-z$, write $z$), where the LSTM has independent forget and input gates. It has three weight blocks instead of four, so 25% fewer parameters for the same sizes." },
-      { t: "qa", level: "beginner", q: "What is a bidirectional RNN and when can't you use it?", a: "Two RNNs with separate weights, one reading the sequence forwards and one backwards; their hidden states are concatenated at each position so every output depends on the whole sequence. It cannot be used when the future is not available at prediction time: streaming/online prediction, autoregressive generation and real-time forecasting." },
+      { t: "qa", level: "beginner", q: "What are the two gates of a GRU and what does each do?", a: "The **update gate** $z_t$ decides, per hidden unit, how much of the state is replaced by the candidate: $h_t = (1-z_t)\\odot h_{t-1} + z_t \\odot \\tilde h_t$ (Chung et al.'s convention). The **reset gate** $r_t$ decides how much of the previous state goes into the candidate $\\tilde h_t = \\tanh(W_h[r_t\\odot h_{t-1}; x_t] + b_h)$. Both are sigmoid layers reading $[h_{t-1}; x_t]$." },
+      { t: "qa", level: "beginner", q: "How does a GRU differ from an LSTM?", a: "The GRU has one state ($h_t$) instead of two ($h_t, c_t$), two gates instead of three, and no output gate, so its whole memory is always exposed. Its update gate ties forgetting and writing together (keep $1-z$, write $z$), where the LSTM has separate forget and input gates. It has three weight blocks instead of four: 25% fewer parameters for the same sizes." },
+      { t: "qa", level: "beginner", q: "What is a bidirectional RNN and when can't you use it?", a: "Two RNNs with separate weights, one reading the sequence forwards and one backwards. Their hidden states are joined at each position, so every output depends on the whole sequence. You cannot use it when the future is not available at prediction time: streaming/online prediction, autoregressive generation and real-time forecasting." },
       { t: "qa", level: "intermediate", q: "Why does a GRU suffer less from vanishing gradients than a vanilla RNN?", a: "$\\partial h_t/\\partial h_{t-1} = \\operatorname{diag}(1-z_t) + \\operatorname{diag}(z_t)\\,\\partial\\tilde h_t/\\partial h_{t-1} + \\operatorname{diag}(\\tilde h_t - h_{t-1})\\,\\partial z_t/\\partial h_{t-1}$. The first term has no weight matrix and no activation derivative. When $z_t \\approx 0$ it is close to the identity and the other terms are small, so gradients pass through many steps scaled only by $\\prod(1-z_\\tau)$, a learned per-unit decay. A vanilla RNN's Jacobian always contains $W_{hh}$ and $\\tanh'$." },
       { t: "qa", level: "intermediate", q: "How many parameters does torch.nn.GRU(input_size=64, hidden_size=128) have? And with bidirectional=True, num_layers=2?", a: "One direction, one layer: $3(h(h+d)+2h) = 3(128\\cdot192 + 256) = 74{,}496$. Bidirectional doubles the first layer: $148{,}992$. The second layer reads $2h = 256$ inputs: $3(128\\cdot 384 + 256) = 148{,}224$ per direction, $296{,}448$ for both. Total: $445{,}440$." },
-      { t: "qa", level: "intermediate", q: "Explain the output and h_n shapes of nn.GRU(D, H, num_layers=L, bidirectional=True, batch_first=True).", a: "`output`: `(B, T, 2H)` — last layer only, forward and backward states concatenated at each position. `h_n`: `(2L, B, H)` — final state of each layer and direction, ordered layer 0 fwd, layer 0 bwd, layer 1 fwd, …; reshape with `view(L, 2, B, H)`. The forward final equals `output[:, -1, :H]`, the backward final equals `output[:, 0, H:]` (for unpadded input)." },
-      { t: "qa", level: "intermediate", q: "Why do we need pack_padded_sequence?", a: "Padding makes all sequences the same length, but an RNN would keep updating its state on padding steps, so final states (and, for a backward RNN, every state) are corrupted. Packing tells the RNN the real length of each sequence so it processes only real steps; `h_n` then contains each sequence's true final state and no compute is spent on padding. For a unidirectional model you could instead gather the output at index length−1, but for a bidirectional model packing (or masking) is required." },
-      { t: "qa", level: "advanced", q: "PyTorch computes n = tanh(W_in x + b_in + r ⊙ (W_hn h + b_hn)). How does this differ from Cho et al.'s GRU and why was it adopted?", a: "Cho et al. apply the reset gate to the state before the matrix multiply, $U_h(r\\odot h)$; PyTorch/cuDNN apply it after, $r\\odot(U_h h + b_{hn})$. They are different functions (in this lesson's worked example $h_t$ differs in the second decimal) with different parameter counts ($b_{hn}$ is not redundant). The reset-after form lets all three recurrent products $U_r h, U_z h, U_h h$ be computed in one fused $3h\\times h$ matrix multiply before $r$ is known, which is much more efficient on GPUs; empirically both work similarly well." },
-      { t: "qa", level: "advanced", q: "A colleague trains a bidirectional GRU language model and reports a perplexity far better than any published unidirectional model. What is wrong?", a: "The backward direction at position $t$ has read $x_{t+1}$ — the token being predicted — so the model is copying the answer, not modelling language. Bidirectional encoders cannot be trained with a plain next-token objective. ELMo avoids this by training a forward LM and a backward LM separately (each predicting in its own direction) and only combining their representations afterwards; BERT-style models use masking instead." },
-      { t: "qa", level: "advanced", q: "When would you add residual connections between stacked RNN layers, and what constraint do they impose?", a: "When stacking more than a few layers: without them, deep recurrent stacks are hard to optimise, and GNMT (Wu et al., 2016) reported needing residual connections to train its 8-layer encoder and decoder. A residual $h^{(\\ell)} = h^{(\\ell-1)} + \\mathrm{RNN}(h^{(\\ell-1)})$ requires equal widths across layers, so the input usually needs a linear projection to width $h$ (and bidirectional layers must keep $2h$ consistent). Dropout is typically applied to the layer input before the RNN, not to the residual path." },
+      { t: "qa", level: "intermediate", q: "Explain the output and h_n shapes of nn.GRU(D, H, num_layers=L, bidirectional=True, batch_first=True).", a: "`output`: `(B, T, 2H)` — last layer only, forward and backward states joined at each position. `h_n`: `(2L, B, H)` — the final state of each layer and direction, ordered layer 0 fwd, layer 0 bwd, layer 1 fwd, …; reshape with `view(L, 2, B, H)`. The forward final equals `output[:, -1, :H]`; the backward final equals `output[:, 0, H:]` (for unpadded input)." },
+      { t: "qa", level: "intermediate", q: "Why do we need pack_padded_sequence?", a: "Padding makes all sequences the same length, but an RNN would keep updating its state on padding steps, corrupting the final states (and, for a backward RNN, every state). Packing tells the RNN each sequence's real length, so it processes only real steps; `h_n` then holds each sequence's true final state, and no compute goes to padding. A one-way model could instead gather the output at index length−1, but a bidirectional model needs packing (or masking)." },
+      { t: "qa", level: "advanced", q: "PyTorch computes n = tanh(W_in x + b_in + r ⊙ (W_hn h + b_hn)). How does this differ from Cho et al.'s GRU and why was it adopted?", a: "Cho et al. apply the reset gate to the state before the matrix multiply, $U_h(r\\odot h)$; PyTorch/cuDNN apply it after, $r\\odot(U_h h + b_{hn})$. They are different functions (in this lesson's worked example $h_t$ differs in the second decimal) with different parameter counts ($b_{hn}$ is not redundant). Reset-after lets all three recurrent products $U_r h, U_z h, U_h h$ be computed in one fused $3h\\times h$ multiply before $r$ is known, which is much faster on GPUs; in practice both work about equally well." },
+      { t: "qa", level: "advanced", q: "A colleague trains a bidirectional GRU language model and reports a perplexity far better than any published unidirectional model. What is wrong?", a: "At position $t$ the backward direction has already read $x_{t+1}$ — the token being predicted — so the model copies the answer instead of modelling language. Bidirectional encoders cannot be trained with a plain next-token objective. ELMo avoids this by training a forward LM and a backward LM separately (each predicting in its own direction) and only combining their representations afterwards; BERT-style models use masking instead." },
+      { t: "qa", level: "advanced", q: "When would you add residual connections between stacked RNN layers, and what constraint do they impose?", a: "When stacking more than a few layers: deep recurrent stacks are hard to optimise without them, and GNMT (Wu et al., 2016) reported needing them to train its 8-layer encoder and decoder. A residual $h^{(\\ell)} = h^{(\\ell-1)} + \\mathrm{RNN}(h^{(\\ell-1)})$ needs equal widths across layers, so the input usually gets a linear projection to width $h$ (and bidirectional layers must keep $2h$ consistent). Dropout usually goes on the layer input before the RNN, not on the residual path." },
     ],
 
     // ------------------------------------------------------------------ practice
@@ -1003,7 +817,7 @@ GRU x2 layers  params  173568     69.7 ms/batch   (5.3x RNN)`,
           },
           {
             kind: "numeric",
-            q: "A unit keeps $1 - z = 0.95$ of its value at each step and writes nothing useful. What fraction of its original value is left after 50 steps? (3 decimals)",
+            q: "A unit keeps $1 - z = 0.95$ of its value each step and writes nothing useful. What fraction of its original value is left after 50 steps? (3 decimals)",
             answer: 0.077,
             tolerance: 0.002,
             explain: "$0.95^{50} = 0.0769$.",
@@ -1012,51 +826,48 @@ GRU x2 layers  params  173568     69.7 ms/batch   (5.3x RNN)`,
             q: "For nn.GRU(8, 16, num_layers=3, bidirectional=True, batch_first=True) and input (4, 10, 8), what is the shape of h_n?",
             options: ["(4, 10, 32)", "(3, 4, 32)", "(6, 4, 16)", "(4, 6, 16)"],
             answer: 2,
-            explain: "$h_n$ is (num_layers × num_directions, B, H) = (6, 4, 16), regardless of batch_first.",
+            explain: "$h_n$ is (num_layers × num_directions, B, H) = (6, 4, 16), whatever batch_first is.",
           },
           {
             q: "Which task can a bidirectional GRU legitimately be used for?",
             options: ["Next-word prediction for an autocomplete keyboard", "Named-entity tagging of complete sentences", "Real-time forecasting of tomorrow's demand from today's data", "Streaming speech recognition with no delay"],
             answer: 1,
-            explain: "Only tagging has the whole sequence available at prediction time; the other three are causal.",
+            explain: "Only tagging has the whole sequence at prediction time; the other three are causal.",
           },
           {
             kind: "numeric",
-            q: "In this lesson's tagging task (digits 0–4, label $x_{t+2} > x_0$), what is the best accuracy a causal model can achieve? (3 decimals)",
+            q: "In this lesson's tagging task (digits 0–4, label $x_{t+2} > x_0$), what is the best accuracy a causal model can reach? (3 decimals)",
             answer: 0.76,
             tolerance: 0.001,
-            explain: "For $x_0 = a$, $P(x > a) = (4-a)/5$; the best guess is correct with probability $\\max((4-a)/5, (a+1)/5)$ = 0.8, 0.6, 0.6, 0.8, 1.0 for $a = 0..4$, averaging 0.76.",
+            explain: "For $x_0 = a$, $P(x > a) = (4-a)/5$. The best guess is right with probability $\\max((4-a)/5, (a+1)/5)$ = 0.8, 0.6, 0.6, 0.8, 1.0 for $a = 0..4$, averaging 0.76.",
           },
           {
             q: "In a 2-layer bidirectional GRU with hidden size H, what is the shape of weight_ih_l1?",
             options: ["(3H, D)", "(3H, H)", "(3H, 2H)", "(6H, 2H)"],
             answer: 2,
-            explain: "Layer 1 reads the concatenated forward/backward outputs of layer 0, of size 2H; the three gate blocks give 3H rows.",
+            explain: "Layer 1 reads layer 0's joined forward/backward outputs, of size 2H; the three gate blocks give 3H rows.",
           },
         ],
       },
       {
         t: "exercise",
         title: "Numerical: one step of a scalar GRU",
-        prompt: "A 1-unit GRU (convention $h_t = (1-z)h_{t-1} + z\\tilde h_t$, reset before the multiply) receives $x_t = 2$ with $h_{t-1} = 0.5$. Weights $(w_h, w_x, b)$: reset $(1, -0.5, 0)$, candidate $(2, 0.25, 0)$ acting on $(r h_{t-1}, x_t)$, update $(0.5, -1, 0.5)$. Compute $r_t, \\tilde h_t, z_t, h_t$ to 4 decimals, and the direct-path factor $1 - z_t$.",
+        prompt: "A 1-unit GRU (convention $h_t = (1-z)h_{t-1} + z\\tilde h_t$, reset before the multiply) gets $x_t = 2$ with $h_{t-1} = 0.5$. Weights $(w_h, w_x, b)$: reset $(1, -0.5, 0)$, candidate $(2, 0.25, 0)$ acting on $(r h_{t-1}, x_t)$, update $(0.5, -1, 0.5)$. Compute $r_t, \\tilde h_t, z_t, h_t$ to 4 decimals, and the direct-path factor $1 - z_t$.",
         hint: "Pre-activation = $w_h \\cdot (\\text{state}) + w_x x_t + b$; the candidate uses $r_t h_{t-1}$ as its state.",
         solution: [
-          {
-            t: "list",
-            items: [
-              "Reset: $1(0.5) - 0.5(2) = -0.5$, $r_t = \\sigma(-0.5) = 0.3775$, so $r_t h_{t-1} = 0.1888$.",
-              "Candidate: $2(0.1888) + 0.25(2) = 0.8775$, $\\tilde h_t = \\tanh(0.8775) = 0.7052$.",
-              "Update: $0.5(0.5) - 1(2) + 0.5 = -1.25$, $z_t = \\sigma(-1.25) = 0.2227$.",
-              "New state: $h_t = 0.7773 \\times 0.5 + 0.2227 \\times 0.7052 = 0.3886 + 0.1570 = 0.5457$.",
-              "Direct-path factor $1 - z_t = 0.7773$: if this held for 20 steps, $0.7773^{20} \\approx 0.0065$ of a signal would survive along that path alone.",
-            ],
-          },
+          { t: "list", items: [
+            "Reset: $1(0.5) - 0.5(2) = -0.5$, $r_t = \\sigma(-0.5) = 0.3775$, so $r_t h_{t-1} = 0.1888$.",
+            "Candidate: $2(0.1888) + 0.25(2) = 0.8775$, $\\tilde h_t = \\tanh(0.8775) = 0.7052$.",
+            "Update: $0.5(0.5) - 1(2) + 0.5 = -1.25$, $z_t = \\sigma(-1.25) = 0.2227$.",
+            "New state: $h_t = 0.7773 \\times 0.5 + 0.2227 \\times 0.7052 = 0.3886 + 0.1570 = 0.5457$.",
+            "Direct-path factor $1 - z_t = 0.7773$: held for 20 steps, only $0.7773^{20} \\approx 0.0065$ of a signal would survive along that path alone.",
+          ] },
         ],
       },
       {
         t: "exercise",
         title: "Coding: the last real output of a padded batch",
-        prompt: "For a unidirectional `nn.GRU` with `batch_first=True` and a padded batch of 4 sequences of lengths 6, 3, 1, 4, write code that extracts each sequence's output at its last **real** step from the padded output tensor (without packing). Verify it against `h_n` from a packed run, and show how wrong the common `output[:, -1]` is.",
+        prompt: "For a one-way `nn.GRU` with `batch_first=True` and a padded batch of 4 sequences of lengths 6, 3, 1, 4, write code that pulls each sequence's output at its last **real** step from the padded output tensor (without packing). Check it against `h_n` from a packed run, and show how wrong the common `output[:, -1]` is.",
         hint: "Build an index tensor of shape (B, 1, H) holding length−1 and use `gather` along dimension 1.",
         solution: [
           {
@@ -1088,30 +899,24 @@ print("per-sequence error of out[:, -1]:", [round(v, 4) for v in (wrong - h_n[0]
 out[:, -1] == packed h_n:         False
 per-sequence error of out[:, -1]: [0.0, 0.0627, 0.2416, 0.2387]`,
           },
-          {
-            t: "p",
-            text: "Only the longest sequence (length 6) is correct with `output[:, -1]`; the others have errors of 0.06–0.24 because the GRU kept updating on padding. Gathering at `length − 1` works for unidirectional models; for bidirectional ones the backward direction is still wrong on padded input, so use packing.",
-          },
+          { t: "p", text: "Only the longest sequence (length 6) is right with `output[:, -1]`; the others are off by 0.06–0.24 because the GRU kept updating on padding. Gathering at `length − 1` works for one-way models; for bidirectional ones the backward direction is still wrong on padded input, so use packing." },
         ],
       },
     ],
 
     // ------------------------------------------------------------------ summary
     summary: [
-      {
-        t: "list",
-        items: [
-          "GRU (Cho et al., 2014): one state $h_t$, two gates. Reset $r_t$ controls how much history the candidate sees; update $z_t$ interpolates between old state and candidate.",
-          "Conventions: this lesson and Chung et al. use $h_t = (1-z_t)\\odot h_{t-1} + z_t\\odot\\tilde h_t$; Cho et al., PyTorch and Keras swap the roles ($z$ = fraction kept). Convert by negating $W_z, b_z$.",
-          "PyTorch/cuDNN apply the reset gate after the recurrent multiply: $n_t = \\tanh(W_{in}x + b_{in} + r\\odot(W_{hn}h + b_{hn}))$ — a different function from Cho's $U_h(r\\odot h)$.",
-          "Jacobian: $\\partial h_t/\\partial h_{t-1} = \\operatorname{diag}(1-z_t) + \\dots$ — an identity-like path with learned decay $\\prod(1-z_\\tau)$; bias the gate towards keeping for long memory.",
-          "Parameters: $3(h(h+d)+h)$; PyTorch/Keras-reset-after add $3h$. LSTM: $4(\\cdot)$. Fewer parameters did not mean faster in our CPU benchmark.",
-          "Bidirectional RNNs (Schuster & Paliwal, 1997): concatenate forward and backward states; output $(B, T, 2H)$, $h_n$ $(2L, B, H)$; backward final state is at position 0. Not for causal tasks.",
-          "Stacked RNNs: layer $\\ell$ reads layer $\\ell-1$'s sequence; dropout between layers; residual connections for deep stacks (GNMT).",
-          "Variable lengths: pack with `pack_padded_sequence(..., enforce_sorted=False)`; never take `output[:, -1]` of a padded batch.",
-          "Experiment: on a task needing future context, unidirectional models stopped at the 0.760 causal ceiling; BiGRU reached 1.000, BiRNN 0.867, BiLSTM 0.856 within the same budget.",
-        ],
-      },
+      { t: "list", items: [
+        "GRU (Cho et al., 2014): one state $h_t$, two gates. Reset $r_t$ controls how much history the candidate sees; update $z_t$ blends the old state with the candidate.",
+        "Conventions: this lesson and Chung et al. use $h_t = (1-z_t)\\odot h_{t-1} + z_t\\odot\\tilde h_t$; Cho et al., PyTorch and Keras swap the roles ($z$ = fraction kept). Convert by negating $W_z, b_z$.",
+        "PyTorch/cuDNN apply the reset gate after the recurrent multiply: $n_t = \\tanh(W_{in}x + b_{in} + r\\odot(W_{hn}h + b_{hn}))$ — a different function from Cho's $U_h(r\\odot h)$.",
+        "Jacobian: $\\partial h_t/\\partial h_{t-1} = \\operatorname{diag}(1-z_t) + \\dots$ — an identity-like path with learned decay $\\prod(1-z_\\tau)$; bias the gate towards keeping for long memory.",
+        "Parameters: $3(h(h+d)+h)$; PyTorch/Keras reset-after add $3h$. LSTM: $4(\\cdot)$. Fewer parameters did not mean faster in our CPU benchmark.",
+        "Bidirectional RNNs (Schuster & Paliwal, 1997): join forward and backward states; output $(B, T, 2H)$, $h_n$ $(2L, B, H)$; the backward final state is at position 0. Not for causal tasks.",
+        "Stacked RNNs: layer $\\ell$ reads layer $\\ell-1$'s sequence; dropout between layers; residual connections for deep stacks (GNMT).",
+        "Variable lengths: pack with `pack_padded_sequence(..., enforce_sorted=False)`; never take `output[:, -1]` of a padded batch.",
+        "Experiment: on a task needing future context, one-way models stopped at the 0.760 causal ceiling; BiGRU reached 1.000, BiRNN 0.867, BiLSTM 0.856 within the same budget.",
+      ] },
       {
         t: "math",
         tex: String.raw`h_t = (1-z_t)\odot h_{t-1} + z_t\odot\tanh\!\big(W_h[r_t\odot h_{t-1};x_t]+b_h\big),\qquad y_t^{\text{bi}} = [\overrightarrow{h}_t;\overleftarrow{h}_t]`,
@@ -1121,14 +926,11 @@ per-sequence error of out[:, -1]: [0.0, 0.0627, 0.2416, 0.2387]`,
 
     // ------------------------------------------------------------------ next
     next: [
-      {
-        t: "list",
-        items: [
-          "[From Seq2Seq bottlenecks to attention](/learn/m10/attention-intro) — bidirectional GRU encoders produce one annotation per source word; attention learns which of them to read at each decoding step, removing the fixed-size bottleneck.",
-          "[Classification, NER, QA, summarization, translation](/learn/m13/nlp-tasks) — the tasks where bidirectional and stacked recurrent models were the standard before Transformers, and how they are framed.",
-          "[The Transformer architecture](/learn/m11/transformer-architecture) — replaces recurrence with attention so all positions are processed in parallel; its encoder is \"bidirectional\" by construction, its decoder causal by masking.",
-        ],
-      },
+      { t: "list", items: [
+        "[From Seq2Seq bottlenecks to attention](/learn/m10/attention-intro) — bidirectional GRU encoders give one annotation per source word; attention learns which ones to read at each decoding step, removing the fixed-size bottleneck.",
+        "[Classification, NER, QA, summarization, translation](/learn/m13/nlp-tasks) — the tasks where bidirectional and stacked RNNs were standard before Transformers, and how they are set up.",
+        "[The Transformer architecture](/learn/m11/transformer-architecture) — swaps recurrence for attention so all positions run in parallel; its encoder is \"bidirectional\" by design, its decoder causal by masking.",
+      ] },
     ],
   },
 };

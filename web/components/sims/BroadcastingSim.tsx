@@ -174,20 +174,20 @@ function ruleSentence(p: DimPair): ReactNode {
       return (
         <>
           A has size <b>1</b>
-          {miss("A", p.a)} and B has {b}, so A is <b>stretched</b> along this axis: whatever A holds here is reused {b} times. Result size <b>{p.out}</b>.
+          {miss("A", p.a)} and B has {b}, so A gets <b>stretched</b> along this axis: whatever A holds here is reused {b} times. Result size <b>{p.out}</b>.
         </>
       );
     case "b-is-1":
       return (
         <>
           B has size <b>1</b>
-          {miss("B", p.b)} and A has {a}, so B is <b>stretched</b> along this axis: whatever B holds here is reused {a} times. Result size <b>{p.out}</b>.
+          {miss("B", p.b)} and A has {a}, so B gets <b>stretched</b> along this axis: whatever B holds here is reused {a} times. Result size <b>{p.out}</b>.
         </>
       );
     default:
       return (
         <>
-          Sizes <b>{a}</b> and <b>{b}</b> are different and <b>neither is 1</b>. There is no rule that says how to pair {a} elements with {b} elements, so
+          Sizes <b>{a}</b> and <b>{b}</b> are different, and <b>neither is 1</b>. NumPy has no way to pair {a} elements with {b} elements, so
           broadcasting fails here.
         </>
       );
@@ -263,55 +263,55 @@ export default function BroadcastingSim() {
   let body: ReactNode = null;
   const presetNote = PRESETS.find((p) => p.id === preset)?.note;
   if (phase.kind === "align") {
-    title = "Step 1 — right-align the shapes";
+    title = "Step 1: line up the shapes on the right";
     body = (
       <>
         A has shape <b>{shapeStr(aShape)}</b> and B has shape <b>{shapeStr(bShape)}</b>. Write them so their <b>last</b> axes line up.
         {aShape.length !== bShape.length && (
           <>
             {" "}
-            The shorter shape is missing {Math.abs(aShape.length - bShape.length)} axis(es) on the left; broadcasting treats a missing axis as size 1
+            The shorter shape is missing {Math.abs(aShape.length - bShape.length)} axis(es) on the left. Broadcasting treats a missing axis as size 1
             (shown as ·).
           </>
         )}{" "}
-        Then compare the sizes column by column, starting from the right.
+        Then we compare sizes column by column, starting from the right.
         {presetNote && <span className="mt-1 block">{presetNote}</span>}
       </>
     );
   } else if (phase.kind === "compare") {
     const p = walk[phase.w];
     const axisName = `axis ${p.col - al.rank}`;
-    title = failed ? `Step 2 — ${axisName}: incompatible, stop` : `Step 2 — compare ${axisName} (${phase.w + 1} of ${al.rank})`;
+    title = failed ? `Step 2: ${axisName} does not fit, stop` : `Step 2: compare ${axisName} (${phase.w + 1} of ${al.rank})`;
     body = failed ? (
       <>
         {ruleSentence(p)}
         <span className="mt-2 block font-mono text-[0.78rem] text-clay">{numpyError(aShape, bShape)}</span>
         <span className="mt-1 block">
-          Fix it by making the sizes match or by inserting a size-1 axis where you mean &quot;repeat&quot; — e.g. <code>b[:, None]</code> turns (3,) into
+          To fix it, make the sizes match, or add a size-1 axis where you mean &quot;repeat&quot;. For example, <code>b[:, None]</code> turns (3,) into
           (3, 1).
         </span>
       </>
     ) : (
       <>
-        Rule: two sizes are compatible if they are <b>equal</b> or <b>one of them is 1</b>. {ruleSentence(p)}
+        The rule: two sizes fit if they are <b>equal</b> or <b>one of them is 1</b>. {ruleSentence(p)}
       </>
     );
   } else if (phase.kind === "shape" && outShape) {
-    title = "Step 3 — the result shape";
+    title = "Step 3: the result shape";
     body = (
       <>
-        Every column passed, so the result shape is the larger size in each column: <b>{shapeStr(outShape)}</b>, with {sizeOf(outShape)} elements.
+        Every column passed. The result takes the larger size in each column: <b>{shapeStr(outShape)}</b>, with {sizeOf(outShape)} elements.
         {sizeOf(outShape) > Math.max(sizeOf(aShape), sizeOf(bShape)) && (
           <> Notice it is bigger than both inputs ({sizeOf(aShape)} and {sizeOf(bShape)} elements).</>
         )}
       </>
     );
   } else if (phase.kind === "stretch" && outShape) {
-    title = "Step 4 — stretch the size-1 axes";
+    title = "Step 4: stretch the size-1 axes";
     body = (
       <>
-        Both arrays are drawn at the result shape {shapeStr(outShape)}. Solid cells are the elements actually stored; <b>faded dashed cells are repeats</b>{" "}
-        of a stored element along a size-1 (or missing) axis. <b>No memory is copied</b>: NumPy walks that axis with a stride of 0, so it keeps
+        Both arrays are now drawn at the result shape {shapeStr(outShape)}. Solid cells are the numbers really stored. <b>Faded dashed cells are repeats</b>{" "}
+        of a stored number along a size-1 (or missing) axis. <b>No memory is copied</b>: NumPy steps along that axis by 0 (a stride of 0), so it keeps
         re-reading the same number. A stores {sizeOf(aShape)} numbers and B stores {sizeOf(bShape)}.
       </>
     );
@@ -320,15 +320,15 @@ export default function BroadcastingSim() {
     const ib = sourceIndex(selIdx, bShape);
     const va = getAt(A, ia);
     const vb = getAt(B, ib);
-    title = "Step 5 — element-wise result";
+    title = "Step 5: the element-wise result";
     body = (
       <>
-        Hover or tap any cell of the result. For C{idxStr(selIdx)}:
+        Hover over or tap any cell of the result. For C{idxStr(selIdx)}:
         <span className="mt-1 block font-mono text-[0.82rem] text-text">
           C{idxStr(selIdx)} = A{idxStr(ia)} {opSymbol(op)} B{idxStr(ib)} = {va} {opSymbol(op)} {vb} = <b>{getAt(C, selIdx)}</b>
         </span>
         <span className="mt-1 block">
-          To find each source index, drop the leading axes the array does not have, and use index <b>0</b> on every axis where the array has size 1.
+          To find where each number comes from: drop the leading axes the array does not have, and use index <b>0</b> on every axis where it has size 1.
         </span>
       </>
     );
@@ -355,7 +355,7 @@ export default function BroadcastingSim() {
   return (
     <SimShell
       title="Broadcasting"
-      subtitle="How NumPy combines arrays of different shapes — aligned from the right, size-1 axes stretched without copying."
+      subtitle="How NumPy combines arrays of different shapes: line them up from the right, then stretch size-1 axes without copying."
       controls={
         <Controls
           s={s}
@@ -490,14 +490,14 @@ export default function BroadcastingSim() {
               />
             )}
             <p className="text-xs text-muted">
-              Dashed, faded cells are virtual repeats — no memory is copied. {phase.kind === "result" && "Gold outline: the cell lined up with the selected output; gold fill: the stored element it reads."}
+              Dashed, faded cells are pretend repeats. No memory is copied. {phase.kind === "result" && "Gold outline: the cell that lines up with the chosen output. Gold fill: the stored number it reads."}
             </p>
           </div>
         )
       )}
       {phase.kind === "result" && C && (
         <p className="mt-2 font-mono text-[0.7rem] text-faint">
-          memory: A stores {sizeOf(aShape)}, B stores {sizeOf(bShape)}; only the {sizeOf(C.shape)} results are new.
+          memory: A stores {sizeOf(aShape)}, B stores {sizeOf(bShape)}. Only the {sizeOf(C.shape)} results are new.
         </p>
       )}
     </SimShell>

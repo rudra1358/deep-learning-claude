@@ -152,12 +152,12 @@ export interface Preset {
 }
 
 export const PRESETS: Preset[] = [
-  { id: "bias", label: "Bias add: (4,3) + (3,)", a: [4, 3], b: [3], op: "+", note: "A batch of 4 examples with 3 features plus one bias per feature." },
-  { id: "colnorm", label: "Column normalise: (4,3) − (1,3)", a: [4, 3], b: [1, 3], op: "-", note: "Subtract each column's mean (kept as a (1,3) row via keepdims=True)." },
-  { id: "outer", label: "Outer product: (4,1) × (1,3)", a: [4, 1], b: [1, 3], op: "*", note: "A column times a row gives every pairwise product: a 4×3 table." },
-  { id: "trap", label: "The trap: (4,1) + (4,)", a: [4, 1], b: [4], op: "+", note: "Looks like adding two length-4 vectors, but silently produces a 4×4 matrix." },
-  { id: "bad", label: "Incompatible: (3,4) + (3,)", a: [3, 4], b: [3], op: "+", note: "The trailing sizes 4 and 3 differ and neither is 1." },
-  { id: "3d", label: "3-D: (2,1,3) + (4,1)", a: [2, 1, 3], b: [4, 1], op: "+", note: "Both arrays stretch: A along the middle axis, B along the last and the missing first axis." },
+  { id: "bias", label: "Bias add: (4,3) + (3,)", a: [4, 3], b: [3], op: "+", note: "4 examples with 3 features each, plus one bias per feature." },
+  { id: "colnorm", label: "Column normalise: (4,3) − (1,3)", a: [4, 3], b: [1, 3], op: "-", note: "Subtract each column's average. keepdims=True keeps it a (1,3) row." },
+  { id: "outer", label: "Outer product: (4,1) × (1,3)", a: [4, 1], b: [1, 3], op: "*", note: "A column times a row gives the product of every pair: a 4×3 table." },
+  { id: "trap", label: "The trap: (4,1) + (4,)", a: [4, 1], b: [4], op: "+", note: "Looks like adding two length-4 vectors, but you quietly get a 4×4 matrix." },
+  { id: "bad", label: "Incompatible: (3,4) + (3,)", a: [3, 4], b: [3], op: "+", note: "The last sizes (4 and 3) differ and neither is 1, so it fails." },
+  { id: "3d", label: "3-D: (2,1,3) + (4,1)", a: [2, 1, 3], b: [4, 1], op: "+", note: "Both stretch: A along the middle axis, B along the last axis and the missing first one." },
 ];
 
 /** Value ranges: A in 0..9, B in 1..5 — results stay within two digits. */

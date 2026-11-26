@@ -145,9 +145,9 @@ export function gruStep(g: GruWeights, x: number[], h: number[]) {
 
 export function validateInput(model: Seq2SeqModel, text: string): string | null {
   if (text.length === 0) return "Type at least one letter.";
-  if (text.length > model.cfg.maxLen) return `At most ${model.cfg.maxLen} letters (the model was trained on lengths ${model.cfg.minLen}–${model.cfg.maxLen}).`;
+  if (text.length > model.cfg.maxLen) return `Use at most ${model.cfg.maxLen} letters (the model learned on lengths ${model.cfg.minLen}–${model.cfg.maxLen}).`;
   const bad = [...text].filter((c) => !model.stoi.has(c) || (model.stoi.get(c) ?? 0) < 3);
-  if (bad.length) return `Only lowercase letters a–z are in the vocabulary (found "${[...new Set(bad)].join("")}").`;
+  if (bad.length) return `The model only knows lowercase letters a–z (found "${[...new Set(bad)].join("")}").`;
   return null;
 }
 

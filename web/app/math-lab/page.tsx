@@ -9,7 +9,7 @@ import { MathBlock } from "@/components/content/Inline";
 export const metadata: Metadata = { title: "Mathematics Lab" };
 
 const CORE = [
-  { tex: String.raw`z = Wx + b`, label: "A dense layer is a matrix–vector product plus a bias", href: "/learn/m02/vectors-matrices" },
+  { tex: String.raw`z = Wx + b`, label: "A dense layer is a matrix times a vector, plus a bias", href: "/learn/m02/vectors-matrices" },
   { tex: String.raw`\frac{\partial L}{\partial w} = \frac{\partial L}{\partial a}\,\frac{\partial a}{\partial z}\,\frac{\partial z}{\partial w}`, label: "Backpropagation is the chain rule", href: "/learn/m02/derivatives-chain-rule" },
   { tex: String.raw`\theta_{t+1} = \theta_t - \eta\,\nabla_\theta L(\theta_t)`, label: "Gradient descent", href: "/learn/m06/gradient-descent" },
   { tex: String.raw`H(p, q) = -\sum_k p_k \log q_k`, label: "Cross-entropy: the classification loss", href: "/learn/m05/classification-losses" },
@@ -20,8 +20,8 @@ export default function MathLabPage() {
   const math = getModule("m02")!;
   return (
     <Container>
-      <PageHeader eyebrow="Mathematics lab" title="The mathematics, made tangible">
-        Linear algebra, calculus, probability and optimization — each with an interactive experiment. Five equations carry most of deep learning; each links to the lesson that derives it.
+      <PageHeader eyebrow="Math lab" title="The math, made hands-on">
+        Linear algebra, calculus, probability and optimization — each with an experiment you can play with. Five equations do most of the work in deep learning. Each one links to the lesson that explains it.
       </PageHeader>
       <section className="grid grid-cols-1 gap-4 py-10 md:grid-cols-2">
         {CORE.map((c) => (

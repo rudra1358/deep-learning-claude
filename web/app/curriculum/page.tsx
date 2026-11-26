@@ -9,8 +9,8 @@ export const metadata: Metadata = { title: "Curriculum" };
 export default function CurriculumPage() {
   return (
     <Container>
-      <PageHeader eyebrow="Complete curriculum" title="Twenty-one modules, in learning order">
-        Each module builds only on what came before it. Topics marked <span className="rounded bg-accent-soft px-1.5 text-sm text-accent-strong">full lesson</span> are published with all sixteen sections; the others show their syllabus while they are being written.
+      <PageHeader eyebrow="All lessons" title="21 modules, in the order to learn them">
+        Each module only uses what came before it. Topics marked <span className="rounded bg-accent-soft px-1.5 text-sm text-accent-strong">full lesson</span> are ready, with all 16 sections. The rest show what they will cover while they are being written.
       </PageHeader>
       {PHASES.map((ph) => (
         <section key={ph} className="py-10">

@@ -195,11 +195,11 @@ export default function LossSim() {
     story = (
       <>
         <p>
-          Residual r = ŷ − y = <strong className="text-text">{fmt(rAt, 2)}</strong>.
+          Residual (how far off the prediction is) r = ŷ − y = <strong className="text-text">{fmt(rAt, 2)}</strong>.
         </p>
         <p className="mt-1">
-          MSE&apos;s gradient 2r = {fmt(2 * rAt, 2)} grows with the error, so one outlier can dominate a batch. MAE&apos;s gradient is always ±1. Huber is quadratic for |r| ≤ δ and linear beyond:
-          {Math.abs(rAt) <= delta ? ` here |r| ≤ δ, so its gradient is r = ${fmt(hv.grad, 2)}.` : ` here |r| > δ, so its gradient is capped at ±δ = ${fmt(hv.grad, 2)}.`} Log-cosh&apos;s gradient tanh(r) = {fmt(Math.tanh(rAt), 3)} is a smooth version of that cap.
+          MSE&apos;s gradient 2r = {fmt(2 * rAt, 2)} grows with the error, so one outlier (a far-off point) can drown out the rest of a batch. MAE&apos;s gradient is always ±1. Huber acts like MSE for |r| ≤ δ and like MAE beyond that:
+          {Math.abs(rAt) <= delta ? ` here |r| ≤ δ, so its gradient is r = ${fmt(hv.grad, 2)}.` : ` here |r| > δ, so its gradient stops growing at ±δ = ${fmt(hv.grad, 2)}.`} Log-cosh&apos;s gradient tanh(r) = {fmt(Math.tanh(rAt), 3)} is a smooth version of that limit.
         </p>
       </>
     );
@@ -210,14 +210,14 @@ export default function LossSim() {
     story = (
       <>
         <p>
-          Logit z = {fmt(zAt, 2)} → p = σ(z) = {fmt(pAt, 3)}. True label y = {y}, so the probability given to the true class is p_t = <strong className="text-text">{fmt(pt, 3)}</strong>
+          Logit z = {fmt(zAt, 2)} → p = σ(z) = {fmt(pAt, 3)}. The true label is y = {y}, so the probability given to the right answer is p_t = <strong className="text-text">{fmt(pt, 3)}</strong>
           {pt < 0.5 ? " (wrong side)." : " (correct side)."}
         </p>
         <p className="mt-1">
-          BCE gradient p − y = {fmt(b.grad, 3)}. MSE-on-probability gradient = {fmt(m.grad, 3)}: the extra factor p(1 − p) = {fmt(pAt * (1 - pAt), 3)} makes it
-          {pt < 0.1 ? " almost vanish when the model is confidently wrong." : " small wherever the sigmoid saturates."} Focal loss scales BCE by (1 − p_t)^γ = {fmt((1 - pt) ** gamma, 3)}
-          {pt < 0.5 ? ": a hard example keeps most of its loss." : ": an easy example is down-weighted."}
-          {hinge(zAt, y).loss === 0 ? " Hinge is exactly zero: the margin exceeds 1." : ""}
+          BCE gradient p − y = {fmt(b.grad, 3)}. MSE-on-probability gradient = {fmt(m.grad, 3)}. Its extra factor p(1 − p) = {fmt(pAt * (1 - pAt), 3)} makes it
+          {pt < 0.1 ? " almost vanish when the model is confidently wrong." : " small wherever the sigmoid curve goes flat."} Focal loss multiplies BCE by (1 − p_t)^γ = {fmt((1 - pt) ** gamma, 3)}
+          {pt < 0.5 ? ": a hard example keeps most of its loss." : ": an easy example counts for less."}
+          {hinge(zAt, y).loss === 0 ? " Hinge is exactly zero: the margin (how far past the boundary) is over 1." : ""}
         </p>
       </>
     );
@@ -226,7 +226,7 @@ export default function LossSim() {
   return (
     <SimShell
       title="Loss Function Explorer"
-      subtitle="Each loss and its gradient as a function of the prediction. Play sweeps the prediction marker."
+      subtitle="See how each loss and its gradient change as the prediction moves. Play slides the prediction marker."
       controls={
         <div className="space-y-2.5">
           <Controls s={s} canPrev={false} />
@@ -239,7 +239,7 @@ export default function LossSim() {
             </button>
             <label className="ml-2 flex items-center gap-1.5 text-xs">
               <input type="checkbox" checked={showGrad} onChange={(e) => setShowGrad(e.target.checked)} aria-label="Show derivative" />
-              show derivative
+              show slope
             </label>
             {!isReg && (
               <>
@@ -282,7 +282,7 @@ export default function LossSim() {
         <div className="space-y-3">
           <Narration title={isReg ? "Regression losses" : "Classification losses"}>{story}</Narration>
           <Readout series={series} enabled={enabled} at={at} gradLabel={isReg ? "dL/dr" : "dL/dz"} />
-          {!isReg && <p className="text-xs text-faint">Gradients are with respect to the logit z — the quantity backpropagation passes into the network. Focal loss is shown with α = 1.</p>}
+          {!isReg && <p className="text-xs text-faint">Gradients are taken with respect to the logit z (the raw score), because that is what backpropagation sends into the network. Focal loss uses α = 1 here.</p>}
         </div>
       }
     >

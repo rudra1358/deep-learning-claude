@@ -364,7 +364,7 @@ const lesson: Lesson = {
   id: "m02/jacobians-hessians",
   title: "Jacobians, Hessians and Computational Graphs",
   summary:
-    "Derivatives of vector-valued functions (the Jacobian), the multivariable chain rule as a product of Jacobians, why autodiff computes vector-Jacobian products instead of Jacobians, a reverse-mode autodiff engine built from scratch, and second derivatives (the Hessian): curvature, critical points, Hessian-vector products and Newton's method.",
+    "Derivatives of functions that output vectors (the Jacobian), the chain rule as a product of Jacobians, why autodiff computes vector-Jacobian products instead of whole Jacobians, a reverse-mode autodiff engine built from scratch, and second derivatives (the Hessian): curvature, critical points, Hessian-vector products and Newton's method.",
   minutes: 80,
   level: "intermediate",
   prerequisites: ["m02/derivatives-chain-rule", "m02/vectors-matrices", "m02/eigen-svd"],
@@ -375,21 +375,21 @@ const lesson: Lesson = {
     intro: [
       {
         t: "p",
-        text: String.raw`The [derivatives lesson](/learn/m02/derivatives-chain-rule) dealt with functions that output one number: the gradient $\nabla L$ of a scalar loss. But almost every piece of a neural network maps a **vector to a vector**: a linear layer maps $\mathbb{R}^{n}$ to $\mathbb{R}^{m}$, an activation maps $\mathbb{R}^{m}$ to $\mathbb{R}^{m}$, softmax maps logits to probabilities. The derivative of such a function is a matrix, the **Jacobian**, which records how every output responds to every input.`,
+        text: String.raw`The [derivatives lesson](/learn/m02/derivatives-chain-rule) handled functions that output one number, like a scalar loss with gradient $\nabla L$. But almost every piece of a network maps a **vector to a vector**: a linear layer maps $\mathbb{R}^{n}$ (lists of $n$ numbers) to $\mathbb{R}^{m}$, an activation maps $\mathbb{R}^{m}$ to $\mathbb{R}^{m}$, softmax maps scores to probabilities. The derivative of such a function is a matrix, the **Jacobian**: a table of how every output reacts to every input.`,
       },
       {
         t: "p",
-        text: String.raw`With Jacobians, the chain rule becomes a clean statement: the derivative of a composition is the **product of the Jacobians** of its pieces. Backpropagation is that product, evaluated from the loss end. The practical twist is that nobody ever forms those Jacobian matrices — they would be enormous. Frameworks instead compute **vector-Jacobian products** (reverse mode) or **Jacobian-vector products** (forward mode), organised on a **computational graph** that is traversed in topological order. In this lesson you will build such an engine yourself in about 80 lines of Python and check it against PyTorch.`,
+        text: String.raw`With Jacobians the chain rule becomes neat: the derivative of a chain of functions is the **product of their Jacobians**, and backpropagation evaluates that product from the loss end. The twist: nobody builds those matrices — they would be enormous. Frameworks compute **vector-Jacobian products** (reverse mode) or **Jacobian-vector products** (forward mode) on a **computational graph**, visited in topological order. You will build such an engine in about 80 lines of Python and check it against PyTorch.`,
       },
       {
         t: "p",
-        text: String.raw`The second half moves to **second derivatives**. The **Hessian** of a scalar function describes its curvature: whether a critical point is a minimum, a maximum or a saddle, how large a learning rate can be, and how Newton's method could take a perfectly-scaled step. Full Hessians are as impractical as full Jacobians, but **Hessian-vector products** can be computed for the price of about two gradients — the basis of curvature analysis, sharpness measures and Hessian-free optimisation.`,
+        text: String.raw`The second half covers **second derivatives**. The **Hessian** describes curvature: whether a flat point is a minimum, maximum or saddle, how large a learning rate can be, and how Newton's method takes a perfectly scaled step. Full Hessians are as impractical as full Jacobians, but **Hessian-vector products** cost about two gradients — the basis of curvature analysis, sharpness measures and Hessian-free optimisation.`,
       },
       {
         t: "callout",
         kind: "key",
         title: "The two ideas to keep",
-        text: String.raw`(1) $J_{g\circ f}(x) = J_g(f(x))\,J_f(x)$, and reverse-mode autodiff evaluates $\bar{y}^\top J_K J_{K-1}\cdots J_1$ from the left, one vector-matrix product at a time, so a scalar loss gets its whole gradient in one backward pass. (2) The Hessian $H = \nabla^2 f$ is the Jacobian of the gradient; its eigenvalues are the curvatures along its eigenvectors, and $Hv$ costs about as much as a gradient.`,
+        text: String.raw`(1) $J_{g\circ f}(x) = J_g(f(x))\,J_f(x)$ ($g\circ f$ means "do $f$, then $g$"). Reverse-mode autodiff evaluates $\bar{y}^\top J_K J_{K-1}\cdots J_1$ from the left, one vector-matrix product at a time, so a scalar loss gets its whole gradient in one backward pass. (2) The Hessian $H = \nabla^2 f$ is the Jacobian of the gradient; its eigenvalues are the curvatures along its eigenvectors, and $Hv$ costs about as much as a gradient.`,
       },
     ],
 
@@ -398,10 +398,10 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`[Derivatives, Partial Derivatives and the Chain Rule](/learn/m02/derivatives-chain-rule) — partial derivatives, the gradient vector, the scalar and multivariable chain rule ("contributions along different paths add"), and the scalar computational graph. This lesson generalises all of these to vectors.`,
-          String.raw`[Scalars, Vectors, Matrices and Tensors](/learn/m02/vectors-matrices) — matrix-vector and matrix-matrix products, the transpose, outer products $uv^\top$, and the cost of multiplying an $m\times k$ by a $k\times n$ matrix ($mkn$ multiply-adds).`,
-          String.raw`[Eigenvalues, Eigenvectors and SVD](/learn/m02/eigen-svd) — a symmetric matrix has real eigenvalues and orthonormal eigenvectors ($H = Q\Lambda Q^\top$); we use this to read curvature from a Hessian.`,
-          String.raw`It helps to have seen [Backpropagation](/learn/m04/backpropagation): its rule $\delta^{[l-1]} = (W^{[l]\top}\delta^{[l]})\odot f'(z^{[l-1]})$ is exactly a vector-Jacobian product, as we will show.`,
+          String.raw`[Derivatives, Partial Derivatives and the Chain Rule](/learn/m02/derivatives-chain-rule) — partial derivatives, the gradient, the chain rule ("contributions along different paths add") and the scalar computational graph. This lesson extends them to vectors.`,
+          String.raw`[Scalars, Vectors, Matrices and Tensors](/learn/m02/vectors-matrices) — matrix products, the transpose, outer products $uv^\top$, and the cost of multiplying $m\times k$ by $k\times n$ ($mkn$ multiply-adds).`,
+          String.raw`[Eigenvalues, Eigenvectors and SVD](/learn/m02/eigen-svd) — a symmetric matrix has real eigenvalues and perpendicular unit eigenvectors ($H = Q\Lambda Q^\top$); we use this to read curvature from a Hessian.`,
+          String.raw`Helpful: [Backpropagation](/learn/m04/backpropagation). Its rule $\delta^{[l-1]} = (W^{[l]\top}\delta^{[l]})\odot f'(z^{[l-1]})$ is exactly a vector-Jacobian product, as we will show.`,
         ],
       },
     ],
@@ -412,23 +412,23 @@ const lesson: Lesson = {
         t: "callout",
         kind: "analogy",
         title: "A mixing desk",
-        text: "Picture a sound engineer's mixing desk with $n$ input faders and $m$ output speakers. Nudge one fader slightly and every speaker's volume changes a little, each by its own amount. Write those sensitivities in a table — one row per speaker, one column per fader — and you have the Jacobian. Asking \"if I nudge the faders in this particular pattern, how do the speakers change?\" is a Jacobian-vector product: you only need one test, not the whole table. Asking \"the audience wants this speaker louder and that one quieter — which faders should I move?\" is a vector-Jacobian product, the question backpropagation answers.",
+        text: "Picture a mixing desk with $n$ input faders and $m$ speakers. Nudge one fader and every speaker's volume changes a little, each by its own amount. Write those sensitivities in a table — one row per speaker, one column per fader — and you have the Jacobian. \"If I move the faders in this pattern, how do the speakers change?\" is a Jacobian-vector product: one test, not the whole table. \"The audience wants this speaker louder and that one quieter — which faders should I move?\" is a vector-Jacobian product, the question backpropagation answers.",
       },
       {
         t: "p",
-        text: String.raw`**Jacobian = best linear approximation.** Zoom far enough into any smooth function and it looks linear. For a scalar function that linear piece is a slope; for $f:\mathbb{R}^n\to\mathbb{R}^m$ it is a matrix $J$, so that $f(x+\Delta) \approx f(x) + J\Delta$ for small $\Delta$. Column $j$ of $J$ says where the outputs move when you push input $j$; row $i$ is the gradient of output $i$.`,
+        text: String.raw`**Jacobian = best linear approximation.** Zoom far enough into a smooth function and it looks linear. For one output that linear piece is a slope; for $f:\mathbb{R}^n\to\mathbb{R}^m$ it is a matrix $J$ with $f(x+\Delta) \approx f(x) + J\Delta$ for a small change $\Delta$. Column $j$ says how the outputs move when you push input $j$; row $i$ is the gradient of output $i$.`,
       },
       {
         t: "p",
-        text: String.raw`**Chain rule = composing linear maps.** If $f$ is locally the matrix $J_f$ and $g$ is locally $J_g$, then running $f$ then $g$ is locally $J_g J_f$. A deep network is a long chain of such local linear maps, and its sensitivity is their product.`,
+        text: String.raw`**Chain rule = chaining linear maps.** If $f$ is locally $J_f$ and $g$ is locally $J_g$, then "$f$ then $g$" is locally $J_g J_f$. A deep network is a long chain of these, and its sensitivity is their product.`,
       },
       {
         t: "p",
-        text: String.raw`**Why products, not matrices.** The loss at the end of the chain is a single number. Its sensitivity to anything is a single row vector. Multiplying a row vector by one Jacobian after another (right to left through the network) only ever needs vector-matrix products — cheap — while multiplying the Jacobians together first would create huge matrix-matrix products that are then thrown away.`,
+        text: String.raw`**Why vector products, not matrices.** The loss is one number, so its sensitivity to anything is one row vector. Multiplying that row by one Jacobian after another needs only cheap vector-matrix products. Multiplying the Jacobians together first would need huge matrix-matrix products, only to throw them away.`,
       },
       {
         t: "p",
-        text: String.raw`**Hessian = how the slope itself changes.** On a hiking map, the gradient tells you which way is downhill; the Hessian tells you whether you are in a bowl (curves up in every direction), on a dome (curves down in every direction) or on a mountain pass (up along the ridge, down across it — a **saddle**). Its eigenvectors are the principal directions of curvature and its eigenvalues are how sharply the surface bends along them.`,
+        text: String.raw`**Hessian = how the slope itself changes.** The gradient says which way is downhill; the Hessian says whether you are in a bowl (curves up every way), on a dome (curves down every way) or on a mountain pass (up along the ridge, down across it — a **saddle**). Its eigenvectors are the main directions of bending, and its eigenvalues say how sharply it bends along them.`,
       },
     ],
 
@@ -440,34 +440,34 @@ const lesson: Lesson = {
         items: [
           {
             title: "Record the graph during the forward pass",
-            text: "Every primitive operation ($+$, $\\times$, `tanh`, `exp`, power, matrix product, …) creates an output node that stores its value, references to its input nodes, and a small function that knows the operation's local derivative. This is the **computational graph**: a directed acyclic graph (DAG) whose edges point from inputs to outputs. PyTorch builds it on the fly as your Python code runs (*define-by-run*); `torch.compile`, JAX's `jit` and TensorFlow's `tf.function` trace it once into a static graph.",
+            text: "Every basic operation ($+$, $\\times$, `tanh`, `exp`, power, matrix product, …) creates an output node storing its value, links to its input nodes, and a small function that knows its local derivative. This is the **computational graph**: a directed acyclic graph (DAG — arrows, no loops) pointing from inputs to outputs. PyTorch builds it as your Python runs (*define-by-run*); `torch.compile`, JAX's `jit` and TensorFlow's `tf.function` trace it once into a static graph.",
           },
           {
             title: "Order the nodes topologically",
-            text: "A **topological order** lists every node after all of the nodes it depends on. A depth-first search that appends a node only after visiting all of its inputs (post-order) produces one. Reversed, it lists every node *before* the nodes it depends on — exactly the order the backward sweep needs.",
+            text: "A **topological order** lists every node after all the nodes it depends on. A depth-first search that adds a node only after visiting all its inputs (post-order) produces one. Reversed, every node comes *before* the nodes it depends on — the order the backward sweep needs.",
           },
           {
             title: "Seed the output",
-            text: String.raw`Set $\bar{L} = \partial L/\partial L = 1$ and every other node's gradient to $0$. The notation $\bar{v} = \partial L/\partial v$ (the **adjoint** of $v$) is standard in the autodiff literature.`,
+            text: String.raw`Set $\bar{L} = \partial L/\partial L = 1$ and every other gradient to $0$. The bar notation $\bar{v} = \partial L/\partial v$ (the **adjoint** of $v$) is standard in autodiff.`,
           },
           {
             title: "Sweep backwards, pushing gradients to inputs",
-            text: String.raw`Visit nodes in reverse topological order. For a node $y = \phi(x_1,\dots,x_k)$, add $\bar{y}\,\partial\phi/\partial x_i$ to each $\bar{x}_i$. For vector nodes this is a vector-Jacobian product: $\bar{x} \mathrel{+}= J_\phi^\top \bar{y}$. Because the reverse topological order visits a node only after **all** of its consumers, $\bar{y}$ is complete by the time it is used.`,
+            text: String.raw`Visit nodes in reverse topological order. For a node $y = \phi(x_1,\dots,x_k)$, add $\bar{y}\,\partial\phi/\partial x_i$ to each $\bar{x}_i$. For vector nodes this is a vector-Jacobian product: $\bar{x} \mathrel{+}= J_\phi^\top \bar{y}$. The reverse order reaches a node only after **all** its consumers, so $\bar{y}$ is complete when used.`,
           },
           {
             title: "Accumulate, never overwrite",
-            text: "A value used in several places (a weight shared across time steps, a residual connection, $x$ in $x\\cdot x$) receives one contribution per use. They must be **added** — this is the multivariable chain rule (\"sum over paths\") in code form, and the reason PyTorch's `.grad` accumulates.",
+            text: "A value used in several places (a weight shared across time steps, a residual connection, $x$ in $x\\cdot x$) gets one contribution per use, and they must be **added**. This is the \"sum over paths\" chain rule in code, and why PyTorch's `.grad` accumulates.",
           },
           {
             title: "Read off leaf gradients",
-            text: String.raw`After the sweep, every leaf (parameter or input) holds $\partial L/\partial(\text{leaf})$. The whole sweep costs a small constant multiple of the forward pass, independent of the number of leaves.`,
+            text: String.raw`Afterwards every leaf (parameter or input) holds $\partial L/\partial(\text{leaf})$. The sweep costs a small constant multiple of the forward pass, however many leaves there are.`,
           },
         ],
       },
       { t: "h", text: "Tracing one example by hand" },
       {
         t: "p",
-        text: String.raw`Take $a = 2$, $b = -3$ and $e = \exp\!\big(\tanh(ab + a^2)\,b\big) + ab/a$. The variable $a$ enters through three paths (inside $ab$, inside $a^2$, and as the divisor), $b$ through two, and $c = ab$ is itself used twice. The forward pass, one primitive per node:`,
+        text: String.raw`Take $a = 2$, $b = -3$ and $e = \exp\!\big(\tanh(ab + a^2)\,b\big) + ab/a$. $a$ enters through three paths (in $ab$, in $a^2$, as the divisor), $b$ through two, and $c = ab$ is used twice. Forward pass, one operation per node:`,
       },
       {
         t: "table",
@@ -486,7 +486,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Backward, in reverse topological order (each line uses only adjoints that are already complete):`,
+        text: String.raw`Backward, in reverse topological order (each line uses only finished adjoints):`,
       },
       {
         t: "steps",
@@ -502,7 +502,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: "Notice that $\\bar c$ had to wait for **both** of its consumers ($r$ and $s$) before it could be propagated into $a$ and $b$ — that is precisely what the reverse topological order guarantees. The engine in the Code section reproduces $\\partial e/\\partial a = -3.821678$ and $\\partial e/\\partial b = -24.025567$, and so does PyTorch.",
+        text: "$\\bar c$ had to wait for **both** its consumers ($r$ and $s$) before flowing into $a$ and $b$ — exactly what reverse topological order guarantees. The engine in the Code section, and PyTorch, reproduce $\\partial e/\\partial a = -3.821678$ and $\\partial e/\\partial b = -24.025567$.",
       },
       { t: "h", text: "What frameworks store for each primitive" },
       {
@@ -521,7 +521,7 @@ const lesson: Lesson = {
       {
         t: "callout",
         kind: "note",
-        text: "Every rule in the right-hand column is computed **without** building $J$. The softmax rule, for instance, is $O(n)$ work, whereas the explicit $n\\times n$ Jacobian would cost $O(n^2)$ memory and time.",
+        text: "Every rule on the right is computed **without** building $J$. The softmax rule is $O(n)$ work (grows like $n$), while the explicit $n\\times n$ Jacobian would cost $O(n^2)$ memory and time.",
       },
     ],
 
@@ -530,7 +530,7 @@ const lesson: Lesson = {
       { t: "h", text: "1. Functions from ℝⁿ to ℝᵐ and the Jacobian" },
       {
         t: "p",
-        text: String.raw`A vector-valued function $f:\mathbb{R}^n\to\mathbb{R}^m$ is a stack of $m$ scalar functions $f(x) = (f_1(x),\dots,f_m(x))$, each depending on all $n$ inputs $x = (x_1,\dots,x_n)$. Its **Jacobian** at $x$ is the $m\times n$ matrix of all first partial derivatives:`,
+        text: String.raw`A function $f:\mathbb{R}^n\to\mathbb{R}^m$ is a stack of $m$ ordinary functions $f(x) = (f_1(x),\dots,f_m(x))$, each depending on all $n$ inputs $x = (x_1,\dots,x_n)$. Its **Jacobian** at $x$ is the $m\times n$ matrix of all first partial derivatives:`,
       },
       {
         t: "math",
@@ -539,7 +539,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Row $i$ is $\nabla f_i(x)^\top$, the transposed gradient of output $i$. For a scalar function ($m = 1$) the Jacobian is the $1\times n$ row $\nabla f^\top$, so the gradient is the transpose of the Jacobian. The defining property is the first-order approximation`,
+        text: String.raw`Row $i$ is $\nabla f_i(x)^\top$, output $i$'s gradient laid flat. For one output ($m = 1$) the Jacobian is the $1\times n$ row $\nabla f^\top$, so the gradient is the Jacobian transposed. Its defining property is the linear approximation`,
       },
       {
         t: "math",
@@ -563,15 +563,15 @@ const lesson: Lesson = {
       { t: "h", text: "2. Jacobians of the layers you meet every day" },
       {
         t: "p",
-        text: String.raw`**Linear (affine) layer** $y = Wx + b$ with $W\in\mathbb{R}^{m\times n}$: $y_i = \sum_k W_{ik}x_k + b_i$, so $\partial y_i/\partial x_j = W_{ij}$. The Jacobian with respect to the input is the weight matrix itself: $J = W$.`,
+        text: String.raw`**Linear layer** $y = Wx + b$ with $W\in\mathbb{R}^{m\times n}$: $y_i = \sum_k W_{ik}x_k + b_i$, so $\partial y_i/\partial x_j = W_{ij}$. The Jacobian is the weight matrix itself: $J = W$.`,
       },
       {
         t: "p",
-        text: String.raw`**Element-wise activation** $y = \phi(z)$ with $y_i = \phi(z_i)$: output $i$ depends only on input $i$, so all off-diagonal entries vanish and $J = \operatorname{diag}(\phi'(z_1),\dots,\phi'(z_m))$. Multiplying by a diagonal matrix is the same as an element-wise product, which is why backprop writes $\odot\,\phi'(z)$.`,
+        text: String.raw`**Element-wise activation** $y_i = \phi(z_i)$: output $i$ depends only on input $i$, so everything off the diagonal is zero and $J = \operatorname{diag}(\phi'(z_1),\dots,\phi'(z_m))$. Multiplying by a diagonal matrix equals an element-wise product ($\odot$), which is why backprop writes $\odot\,\phi'(z)$.`,
       },
       {
         t: "p",
-        text: String.raw`**Softmax** $p_i = e^{z_i}/\sum_k e^{z_k}$. Differentiate the quotient. For $i = j$: $\partial p_i/\partial z_i = p_i - p_i^2$. For $i \ne j$: $\partial p_i/\partial z_j = -e^{z_i}e^{z_j}/(\sum_k e^{z_k})^2 = -p_ip_j$. Together, with $\delta_{ij}$ the Kronecker delta ($1$ if $i=j$, else $0$):`,
+        text: String.raw`**Softmax** $p_i = e^{z_i}/\sum_k e^{z_k}$. Differentiate the fraction. For $i = j$: $\partial p_i/\partial z_i = p_i - p_i^2$. For $i \ne j$: $\partial p_i/\partial z_j = -e^{z_i}e^{z_j}/(\sum_k e^{z_k})^2 = -p_ip_j$. Together, with $\delta_{ij}$ the Kronecker delta ($1$ if $i=j$, else $0$):`,
       },
       {
         t: "math",
@@ -587,12 +587,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Three properties are worth remembering. It is **symmetric**. Its rows sum to zero, because $\sum_i p_i = 1$ cannot change when $z$ changes, so $J\mathbf{1} = 0$ — adding the same constant to every logit leaves the probabilities unchanged (eigenvalue $0$ along $\mathbf{1}$). And it is positive semidefinite, which is the curvature fact behind the convexity of cross-entropy in the logits. Combined with cross-entropy $L = -\log p_y$, whose gradient is $\bar p = -e_y/p_y$, the vector-Jacobian product collapses to the famous $\bar z = p - e_y$ (with $e_y$ the one-hot target).`,
+        text: String.raw`Three properties to remember. It is **symmetric**. Its rows sum to zero: $\sum_i p_i = 1$ cannot change, so $J\mathbf{1} = 0$ — adding the same constant to every logit (raw score) leaves the probabilities unchanged (eigenvalue $0$ along $\mathbf{1}$). And it is positive semidefinite, the curvature fact behind cross-entropy being convex in the logits. With cross-entropy $L = -\log p_y$, whose gradient is $\bar p = -e_y/p_y$, the vector-Jacobian product collapses to the famous $\bar z = p - e_y$ ($e_y$ is the one-hot target).`,
       },
       { t: "h", text: "3. The multivariable chain rule as a product of Jacobians" },
       {
         t: "p",
-        text: String.raw`Let $f:\mathbb{R}^n\to\mathbb{R}^k$ and $g:\mathbb{R}^k\to\mathbb{R}^m$, and $h = g\circ f$. Composing the two linear approximations, $g(f(x+\Delta)) \approx g(f(x) + J_f\Delta) \approx g(f(x)) + J_g J_f\Delta$, so`,
+        text: String.raw`Let $f:\mathbb{R}^n\to\mathbb{R}^k$, $g:\mathbb{R}^k\to\mathbb{R}^m$ and $h = g\circ f$. Chaining the two linear approximations, $g(f(x+\Delta)) \approx g(f(x) + J_f\Delta) \approx g(f(x)) + J_g J_f\Delta$, so`,
       },
       {
         t: "math",
@@ -600,7 +600,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Written out entry by entry, $\partial h_i/\partial x_j = \sum_{r=1}^{k} (\partial g_i/\partial y_r)(\partial y_r/\partial x_j)$ — the "sum over paths" rule from the [derivatives lesson](/learn/m02/derivatives-chain-rule), now packaged as a matrix product. For a network $L = \ell(f_K(\cdots f_1(x)))$ with intermediate values $h_0 = x, h_1, \dots, h_K$:`,
+        text: String.raw`Entry by entry, $\partial h_i/\partial x_j = \sum_{r=1}^{k} (\partial g_i/\partial y_r)(\partial y_r/\partial x_j)$ — the "sum over paths" rule from the [derivatives lesson](/learn/m02/derivatives-chain-rule), packaged as a matrix product. For a network $L = \ell(f_K(\cdots f_1(x)))$ with intermediate values $h_0 = x, h_1, \dots, h_K$:`,
       },
       {
         t: "math",
@@ -622,12 +622,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The last line is backprop's $\delta = (h - y)\odot\tanh'(z)$ followed by $W^\top\delta$: [backpropagation](/learn/m04/backpropagation) is a sequence of vector-Jacobian products. The weight gradient is $\partial L/\partial W = \delta\,x^\top = \begin{pmatrix}0.098678 & 0.049339\\ -0.003087 & -0.001543\end{pmatrix}$.`,
+        text: String.raw`The last line is backprop's $\delta = (h - y)\odot\tanh'(z)$ then $W^\top\delta$: [backpropagation](/learn/m04/backpropagation) is a chain of vector-Jacobian products. The weight gradient is $\partial L/\partial W = \delta\,x^\top = \begin{pmatrix}0.098678 & 0.049339\\ -0.003087 & -0.001543\end{pmatrix}$.`,
       },
       { t: "h", text: "4. VJPs, JVPs and why full Jacobians are never materialised" },
       {
         t: "p",
-        text: String.raw`Two products can be computed without ever forming $J\in\mathbb{R}^{m\times n}$:`,
+        text: String.raw`Two products can be computed without ever building $J\in\mathbb{R}^{m\times n}$:`,
       },
       {
         t: "math",
@@ -636,7 +636,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**Forward mode** carries a tangent alongside every value: when $y = \phi(x)$ is computed, also compute $\dot y = J_\phi\dot x$ using the same local rules. One forward-mode pass gives one JVP, i.e. one **column** of $J$ (with $\dot x = e_j$), at a small constant multiple of the cost of evaluating $f$, and extra memory proportional only to the current values. **Reverse mode** runs $f$ forward, stores the intermediates, then pushes a cotangent backwards: one pass gives one VJP, i.e. one **row** of $J$ (with $\bar y = e_i$), also at a small constant multiple of the cost of $f$, but with memory proportional to all the stored intermediates.`,
+        text: String.raw`**Forward mode** carries a tangent alongside every value: when it computes $y = \phi(x)$, it also computes $\dot y = J_\phi\dot x$. One pass gives one JVP — one **column** of $J$ (with $\dot x = e_j$, the $j$-th basis vector) — at a small multiple of $f$'s cost, with little extra memory. **Reverse mode** runs $f$ forward, stores the intermediates, then pushes a cotangent backwards. One pass gives one VJP — one **row** of $J$ (with $\bar y = e_i$) — also cheap in time, but its memory grows with all the stored intermediates.`,
       },
       {
         t: "table",
@@ -650,16 +650,16 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**Matrix-chain view.** Consider $K$ layers of width $d$ and a scalar loss. Evaluating $\bar y^\top J_K\cdots J_1$ from the left costs $K$ vector-matrix products: about $Kd^2$ multiply-adds. Building the Jacobian product from the right, $J_K(\cdots(J_2J_1))$, costs $K$ matrix-matrix products: about $Kd^3$. For $d = 1000$ and $K = 10$ that is $10^7$ versus $10^{10}$ — a factor of $d$. The order of evaluation is the whole difference between forward and reverse mode.`,
+        text: String.raw`**Matrix-chain view.** Take $K$ layers of width $d$ and a scalar loss. Evaluating $\bar y^\top J_K\cdots J_1$ from the left costs $K$ vector-matrix products: about $Kd^2$ multiply-adds. Building the Jacobian product from the right, $J_K(\cdots(J_2J_1))$, costs $K$ matrix-matrix products: about $Kd^3$. For $d = 1000$ and $K = 10$: $10^7$ versus $10^{10}$, a factor of $d$. The order of evaluation is the whole difference between the two modes.`,
       },
       {
         t: "p",
-        text: String.raw`**Memory.** A linear layer applied to a batch of $B = 64$ vectors with $n = m = 4096$ maps $\mathbb{R}^{B\times n}\to\mathbb{R}^{B\times m}$. Its full Jacobian has $(Bm)(Bn) = 68{,}719{,}476{,}736$ entries — about $275$ GB in float32 — and almost all of them are zero (example $i$'s output does not depend on example $j$'s input). The VJP needs one tensor of the input's shape: $Bn = 262{,}144$ numbers. Likewise an element-wise activation has a diagonal Jacobian: storing $n^2$ numbers to represent $n$ useful ones would be absurd. This is why every framework implements, for each primitive, a VJP rule (and, increasingly, a JVP rule) rather than a Jacobian.`,
+        text: String.raw`**Memory.** A linear layer on a batch of $B = 64$ vectors with $n = m = 4096$ maps $\mathbb{R}^{B\times n}\to\mathbb{R}^{B\times m}$. Its full Jacobian has $(Bm)(Bn) = 68{,}719{,}476{,}736$ entries — about $275$ GB in float32 — almost all zero (example $i$'s output ignores example $j$'s input). The VJP needs one tensor of the input's shape: $Bn = 262{,}144$ numbers. An element-wise activation's Jacobian is diagonal: storing $n^2$ numbers for $n$ useful ones would be absurd. So frameworks give each operation a VJP rule (and, increasingly, a JVP rule), never a Jacobian.`,
       },
       { t: "h", text: "5. Computational graphs and topological order" },
       {
         t: "p",
-        text: String.raw`A **computational graph** is a DAG $G = (V, E)$ whose nodes are intermediate values and whose edge $u\to v$ means "$v$ was computed from $u$". The forward pass evaluates nodes in a topological order $v_1,\dots,v_N$ (every edge goes from an earlier to a later node). Reverse mode computes the adjoints $\bar v = \partial L/\partial v$ by`,
+        text: String.raw`A **computational graph** is a DAG $G = (V, E)$: nodes $V$ are intermediate values, and an edge $u\to v$ means "$v$ was computed from $u$". The forward pass evaluates nodes in a topological order $v_1,\dots,v_N$ (every edge goes from earlier to later). Reverse mode computes the adjoints $\bar v = \partial L/\partial v$ by`,
       },
       {
         t: "math",
@@ -668,12 +668,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**Why the order matters.** If node $c$ were processed before one of its consumers had added its contribution, $\bar c$ would be incomplete and every gradient upstream of $c$ would be wrong. A topological order exists exactly because the graph has no cycles; recurrent networks are handled by unrolling them in time into a (longer) DAG. **Total cost**: every edge is visited once forward and once backward, and each backward rule costs about as much as its forward operation (a matrix product's VJP is two matrix products of the same size), so a backward pass costs roughly 1–2 forward passes. This is the "cheap gradient principle" of reverse-mode automatic differentiation.`,
+        text: String.raw`**Why the order matters.** If node $c$ were processed before one of its consumers added its share, $\bar c$ would be incomplete and every gradient upstream of $c$ wrong. A topological order exists because the graph has no cycles; recurrent networks are unrolled in time into a longer DAG. **Total cost**: each edge is visited once forward and once backward, and each backward rule costs about as much as its forward operation (a matrix product's VJP is two matrix products of the same size). So a backward pass costs roughly 1–2 forward passes — the "cheap gradient principle" of reverse-mode autodiff.`,
       },
       { t: "h", text: "6. The Hessian" },
       {
         t: "p",
-        text: String.raw`For a twice-differentiable scalar function $f:\mathbb{R}^n\to\mathbb{R}$, the **Hessian** is the $n\times n$ matrix of second partial derivatives, equivalently the Jacobian of the gradient:`,
+        text: String.raw`For a twice-differentiable $f:\mathbb{R}^n\to\mathbb{R}$, the **Hessian** is the $n\times n$ matrix of second partial derivatives — the Jacobian of the gradient:`,
       },
       {
         t: "math",
@@ -681,11 +681,11 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**Symmetry.** If the second partial derivatives are continuous, the order of differentiation does not matter (Schwarz's / Clairaut's theorem), so $H_{ij} = H_{ji}$ and $H = H^\top$. A real symmetric matrix has real eigenvalues $\lambda_1\le\dots\le\lambda_n$ and an orthonormal eigenbasis $q_1,\dots,q_n$: $H = Q\Lambda Q^\top$. The number $q^\top H q$ for a unit vector $q$ is the **curvature** of $f$ along direction $q$ (the second derivative of $t\mapsto f(x + tq)$ at $t = 0$), so $\lambda_{\min}$ and $\lambda_{\max}$ are the smallest and largest curvatures in any direction.`,
+        text: String.raw`**Symmetry.** If the second partials are continuous, the order of differentiation does not matter (Schwarz's / Clairaut's theorem), so $H_{ij} = H_{ji}$. A real symmetric matrix has real eigenvalues $\lambda_1\le\dots\le\lambda_n$ and perpendicular unit eigenvectors $q_1,\dots,q_n$: $H = Q\Lambda Q^\top$. For a unit vector $q$, $q^\top H q$ is the **curvature** of $f$ along $q$ (the second derivative of $t\mapsto f(x + tq)$ at $t = 0$). So $\lambda_{\min}$ and $\lambda_{\max}$ are the smallest and largest curvatures in any direction.`,
       },
       {
         t: "p",
-        text: String.raw`**Worked example.** $f(x, y) = x^3 + y^3 - 3xy$. Gradient: $\nabla f = (3x^2 - 3y,\ 3y^2 - 3x)$. Hessian: $H = \begin{pmatrix}6x & -3\\ -3 & 6y\end{pmatrix}$ — symmetric, as promised. Setting the gradient to zero gives $y = x^2$ and $x = y^2$, so $x^4 = x$: the critical points are $(0,0)$ and $(1,1)$.`,
+        text: String.raw`**Worked example.** $f(x, y) = x^3 + y^3 - 3xy$. Gradient: $\nabla f = (3x^2 - 3y,\ 3y^2 - 3x)$. Hessian: $H = \begin{pmatrix}6x & -3\\ -3 & 6y\end{pmatrix}$, symmetric. A zero gradient needs $y = x^2$ and $x = y^2$, so $x^4 = x$: the critical (flat) points are $(0,0)$ and $(1,1)$.`,
       },
       {
         t: "table",
@@ -702,7 +702,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Continuing the example at $x_0 = (1.2,\ 0.9)$ with step $\Delta = (0.1,\ -0.2)$: $f(x_0) = -0.783$, $\nabla f(x_0) = (1.62,\ -1.17)$, $H(x_0) = \begin{pmatrix}7.2 & -3\\ -3 & 5.4\end{pmatrix}$, so $\nabla f^\top\Delta = 0.396$ and $\Delta^\top H\Delta = 0.408$.`,
+        text: String.raw`In words: value + slope term + half the curvature term. On the example at $x_0 = (1.2,\ 0.9)$ with step $\Delta = (0.1,\ -0.2)$: $f(x_0) = -0.783$, $\nabla f(x_0) = (1.62,\ -1.17)$, $H(x_0) = \begin{pmatrix}7.2 & -3\\ -3 & 5.4\end{pmatrix}$, so $\nabla f^\top\Delta = 0.396$ and $\Delta^\top H\Delta = 0.408$.`,
       },
       {
         t: "table",
@@ -715,12 +715,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The second-order model is 28 times more accurate here. Its remaining error is exactly the third-order term $\Delta_1^3 + \Delta_2^3 = 0.001 - 0.008 = -0.007$, since $f$ is a cubic. The quadratic term is what the first-order picture behind gradient descent ignores; the [gradient descent lesson](/learn/m06/gradient-descent) uses it to derive the stability condition $\eta < 2/\lambda_{\max}$.`,
+        text: String.raw`The second-order model is 28 times more accurate. Its remaining error is exactly the third-order term $\Delta_1^3 + \Delta_2^3 = 0.001 - 0.008 = -0.007$, since $f$ is a cubic. Gradient descent's first-order picture ignores the quadratic term; the [gradient descent lesson](/learn/m06/gradient-descent) uses it to derive the stability condition $\eta < 2/\lambda_{\max}$.`,
       },
       { t: "h", text: "8. Eigenvalues of the Hessian classify critical points" },
       {
         t: "p",
-        text: String.raw`At a critical point ($\nabla f(x^\star) = 0$) the expansion becomes $f(x^\star + \Delta) \approx f(x^\star) + \tfrac12\Delta^\top H\Delta$. Writing $\Delta = \sum_i c_iq_i$ in the eigenbasis gives $\tfrac12\Delta^\top H\Delta = \tfrac12\sum_i\lambda_ic_i^2$. Hence:`,
+        text: String.raw`At a critical point ($\nabla f(x^\star) = 0$) the slope term vanishes: $f(x^\star + \Delta) \approx f(x^\star) + \tfrac12\Delta^\top H\Delta$. Writing $\Delta = \sum_i c_iq_i$ in the eigenbasis gives $\tfrac12\sum_i\lambda_ic_i^2$. Hence:`,
       },
       {
         t: "list",
@@ -733,12 +733,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`For a $2\times2$ Hessian, $\det H = \lambda_1\lambda_2$ and $\operatorname{tr}H = \lambda_1 + \lambda_2$: $\det H < 0$ means a saddle; $\det H > 0$ with $\operatorname{tr}H > 0$ means a minimum. Why saddles, not bad local minima, dominate in high dimensions is discussed in [Optimization: Objectives, Convexity and Minima](/learn/m02/optimization-math).`,
+        text: String.raw`For a $2\times2$ Hessian, $\det H = \lambda_1\lambda_2$ and $\operatorname{tr}H = \lambda_1 + \lambda_2$: $\det H < 0$ means a saddle; $\det H > 0$ with $\operatorname{tr}H > 0$ a minimum. Why saddles, not bad local minima, dominate in high dimensions: see [Optimization: Objectives, Convexity and Minima](/learn/m02/optimization-math).`,
       },
       { t: "h", text: "9. Hessian-vector products via double backprop" },
       {
         t: "p",
-        text: String.raw`A network with $d$ parameters has a $d\times d$ Hessian. For $d = 10^8$ that is $10^{16}$ entries — $4\times10^{16}$ bytes (40 petabytes) in float32 — and inverting it would take on the order of $d^3 = 10^{24}$ operations. But the product $Hv$ with any vector $v$ is cheap, because`,
+        text: String.raw`A network with $d$ parameters has a $d\times d$ Hessian. For $d = 10^8$ that is $10^{16}$ entries — $4\times10^{16}$ bytes (40 petabytes) in float32 — and inverting it takes on the order of $d^3 = 10^{24}$ operations. But the product $Hv$ with any vector $v$ is cheap, because`,
       },
       {
         t: "math",
@@ -747,7 +747,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`So: (1) compute the gradient with reverse mode **while recording a graph of that computation** (`+"`create_graph=True`"+String.raw` in PyTorch); (2) form the scalar $g^\top v$; (3) backpropagate again. This **double backprop** (reverse-over-reverse) costs a small constant multiple of one gradient — roughly two to four. Equivalently, $Hv$ is the JVP of the gradient function in direction $v$ (**forward-over-reverse**), usually the most efficient option. Pearlmutter (1994, "Fast exact multiplication by the Hessian") introduced this exact, cheap $Hv$ for neural networks. With $Hv$ you can run power iteration or the Lanczos method to estimate the top eigenvalues of the Hessian (sharpness), solve $Hd = -g$ with conjugate gradients (Hessian-free optimisation), or estimate $\operatorname{tr}H$ with random probes (Hutchinson's estimator: $\mathbb{E}[v^\top Hv] = \operatorname{tr}H$ when $\mathbb{E}[vv^\top] = I$).`,
+        text: String.raw`So: (1) compute the gradient with reverse mode **while recording a graph of that computation** (`+"`create_graph=True`"+String.raw` in PyTorch); (2) form the scalar $g^\top v$; (3) backpropagate again. This **double backprop** (reverse-over-reverse) costs about two to four gradients. Equivalently, $Hv$ is the JVP of the gradient function in direction $v$ (**forward-over-reverse**), usually the fastest option. Pearlmutter (1994, "Fast exact multiplication by the Hessian") introduced this exact, cheap $Hv$ for neural networks. With $Hv$ you can estimate the Hessian's top eigenvalues (sharpness) by power iteration or Lanczos, solve $Hd = -g$ with conjugate gradients (Hessian-free optimisation), or estimate $\operatorname{tr}H$ with random probes (Hutchinson's estimator: $\mathbb{E}[v^\top Hv] = \operatorname{tr}H$ when $\mathbb{E}[vv^\top] = I$; $\mathbb{E}$ means average).`,
       },
       {
         t: "p",
@@ -764,16 +764,29 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`In the eigenbasis the step divides each gradient component by its curvature, $c_i \mapsto c_i - g_i/\lambda_i$: steep directions take small steps, flat directions large ones, and there is no learning rate to tune. Near a minimum with positive definite $H$, Newton's method converges **quadratically** (the number of correct digits roughly doubles per step). On $x^3 + y^3 - 3xy$ from $(1.5,\ 0.8)$ the gradient norm goes $0.516 \to 0.0410 \to 3.7\times10^{-4} \to 3.3\times10^{-8} \to 0$ in five steps.`,
+        text: String.raw`In the eigenbasis the step divides each gradient component by its curvature, $c_i \mapsto c_i - g_i/\lambda_i$: sharply curved directions get small steps, flat ones large steps, and there is no learning rate to tune. Near a minimum with positive definite $H$, Newton converges **quadratically** (correct digits roughly double each step). On $x^3 + y^3 - 3xy$ from $(1.5,\ 0.8)$ the gradient norm goes $0.516 \to 0.0410 \to 3.7\times10^{-4} \to 3.3\times10^{-8} \to 0$ in five steps.`,
       },
       {
         t: "p",
-        text: String.raw`**Why it is impractical for large networks.** (i) Memory and time: $O(d^2)$ storage and $O(d^3)$ solve, impossible for $d$ in the millions or billions. (ii) It finds **critical points, not minima**: where $H$ has negative eigenvalues the step $-H^{-1}g$ moves *uphill* along those directions. From $(0.2,\ 0.1)$, Newton converges to the saddle $(0,0)$ in a few steps, while plain gradient descent from the same start (η = 0.05, 200 steps) reaches the minimum $(1,1)$. Deep-learning loss surfaces are full of saddles. (iii) Stochasticity: a mini-batch Hessian is a noisy estimate, and dividing by noisy small eigenvalues amplifies noise. (iv) Non-smooth activations such as ReLU have zero second derivative almost everywhere, so most curvature comes from the interaction between layers and the loss.`,
+        text: String.raw`**Why it is impractical for large networks:**`,
+      },
+      {
+        t: "list",
+        items: [
+          String.raw`**Cost:** $O(d^2)$ storage and an $O(d^3)$ solve — impossible for $d$ in the millions or billions.`,
+          String.raw`**It finds critical points, not minima:** where $H$ has negative eigenvalues, $-H^{-1}g$ moves *uphill* along them. From $(0.2,\ 0.1)$ Newton converges to the saddle $(0,0)$ in a few steps, while plain gradient descent from the same start (η = 0.05, 200 steps) reaches the minimum $(1,1)$. Deep-learning loss surfaces are full of saddles.`,
+          String.raw`**Noise:** a mini-batch Hessian is a noisy estimate, and dividing by noisy small eigenvalues amplifies the noise.`,
+          String.raw`**Non-smooth activations:** ReLU has zero second derivative almost everywhere, so most curvature comes from how layers interact with each other and the loss.`,
+        ],
+      },
+      {
+        t: "p",
+        text: String.raw`Gauss–Newton methods, next, fix the saddle problem.`,
       },
       { t: "h", text: "11. Gauss–Newton and Fisher, briefly" },
       {
         t: "p",
-        text: String.raw`For a least-squares objective $L(\theta) = \tfrac12\lVert r(\theta)\rVert^2$ with residuals $r:\mathbb{R}^d\to\mathbb{R}^N$ and residual Jacobian $J_r$, the chain rule gives`,
+        text: String.raw`For a least-squares objective $L(\theta) = \tfrac12\lVert r(\theta)\rVert^2$ with residuals (errors) $r:\mathbb{R}^d\to\mathbb{R}^N$ and their Jacobian $J_r$, the chain rule gives`,
       },
       {
         t: "math",
@@ -781,7 +794,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The **Gauss–Newton** matrix $G$ drops the second term, which is small when residuals are small or the model is nearly linear. $G$ is always positive semidefinite ($v^\top G v = \lVert J_rv\rVert^2\ge0$), so Gauss–Newton steps never head for saddles or maxima. Example: $r(\theta) = (\theta_1\theta_2 - 1,\ \theta_1 - 0.5)$ at $\theta = (1, 2)$ gives $G = \begin{pmatrix}5 & 2\\ 2 & 1\end{pmatrix}$ with eigenvalues $0.171573,\ 5.828427$, while the true Hessian $\begin{pmatrix}5 & 3\\ 3 & 1\end{pmatrix}$ has eigenvalues $-0.605551,\ 6.605551$ (indefinite). The **generalised Gauss–Newton** extends this to any convex loss on the network output, $G = J^\top H_\ell J$. The **Fisher information matrix** $F = \mathbb{E}\big[\nabla_\theta\log p(y\mid x,\theta)\,\nabla_\theta\log p(y\mid x,\theta)^\top\big]$, with $y$ sampled from the model, coincides with the generalised Gauss–Newton matrix for the common output/loss pairs (softmax + cross-entropy, Gaussian + squared error). Preconditioning by $F$ is **natural gradient descent**; K-FAC (Martens & Grosse, 2015) approximates $F$ by Kronecker-factored blocks per layer. Note that the "empirical Fisher", which uses the observed labels instead of sampled ones, is a different matrix and a poorer curvature estimate.`,
+        text: String.raw`The **Gauss–Newton** matrix $G$ drops the second term, which is small when residuals are small or the model is nearly linear. $G$ is always positive semidefinite ($v^\top G v = \lVert J_rv\rVert^2\ge0$), so its steps never head for saddles or maxima. Example: $r(\theta) = (\theta_1\theta_2 - 1,\ \theta_1 - 0.5)$ at $\theta = (1, 2)$ gives $G = \begin{pmatrix}5 & 2\\ 2 & 1\end{pmatrix}$ with eigenvalues $0.171573,\ 5.828427$, while the true Hessian $\begin{pmatrix}5 & 3\\ 3 & 1\end{pmatrix}$ has eigenvalues $-0.605551,\ 6.605551$ (indefinite). The **generalised Gauss–Newton** extends this to any convex loss on the network output, $G = J^\top H_\ell J$. The **Fisher information matrix** $F = \mathbb{E}\big[\nabla_\theta\log p(y\mid x,\theta)\,\nabla_\theta\log p(y\mid x,\theta)^\top\big]$, with $y$ sampled from the model, equals the generalised Gauss–Newton matrix for the common output/loss pairs (softmax + cross-entropy, Gaussian + squared error). Preconditioning by $F$ is **natural gradient descent**; K-FAC (Martens & Grosse, 2015) approximates $F$ with Kronecker-factored blocks per layer. The "empirical Fisher", which uses the observed labels instead of sampled ones, is a different matrix and a poorer curvature estimate.`,
       },
     ],
 
@@ -790,42 +803,42 @@ const lesson: Lesson = {
       { t: "h", text: "1. A computational graph, forward and backward" },
       {
         t: "p",
-        text: String.raw`The graph below computes $L = (\sigma(wx + b) - y)^2$ one primitive per node. Every edge's local derivative is a $1\times1$ Jacobian, and every backward step multiplies the incoming adjoint by it — a VJP in the scalar case.`,
+        text: String.raw`The graph computes $L = (\sigma(wx + b) - y)^2$, one operation per node. Each edge's local derivative is a $1\times1$ Jacobian, and each backward step multiplies the incoming adjoint by it — a scalar VJP.`,
       },
       { t: "sim", id: "chain-rule", caption: "Values flow forward (accent), adjoints flow backward (clay), in reverse topological order." },
       {
         t: "list",
         items: [
-          "Step through the forward pass and note that each node is evaluated only after its inputs: that is a topological order.",
-          "Step through the backward pass and check that each node's gradient equals (gradient of the node it feeds) × (local derivative on the edge between them).",
-          String.raw`Set $x = 0$. The local derivative on the $w$ edge is $x = 0$, so $\partial L/\partial w = 0$ while $\partial L/\partial b$ is not: a zero entry in a Jacobian blocks the gradient along that path.`,
-          String.raw`Drive $z = wx + b$ far from 0 (e.g. $w = 3$, $x = 3$). The sigmoid's local derivative $\sigma'(z)$ becomes tiny, and every adjoint to its left shrinks with it — the diagonal activation Jacobian is nearly zero.`,
+          "Step through the forward pass: each node runs only after its inputs — a topological order.",
+          "Step through the backward pass: each node's gradient = (gradient of the node it feeds) × (local derivative on the edge between).",
+          String.raw`Set $x = 0$. The $w$ edge's local derivative is $x = 0$, so $\partial L/\partial w = 0$ but $\partial L/\partial b$ is not: a zero Jacobian entry blocks that path.`,
+          String.raw`Push $z = wx + b$ far from 0 (e.g. $w = 3$, $x = 3$). $\sigma'(z)$ becomes tiny and every adjoint to its left shrinks — the activation's diagonal Jacobian is nearly zero.`,
         ],
       },
       { t: "h", text: "2. Layers as Jacobians" },
       {
         t: "p",
-        text: String.raw`In a full network each backward step multiplies the $\delta$ vector by $W^\top$ (the transpose of the linear layer's Jacobian) and then by the diagonal Jacobian of the activation.`,
+        text: String.raw`In a full network each backward step multiplies the $\delta$ vector by $W^\top$ (the linear layer's Jacobian, transposed), then by the activation's diagonal Jacobian.`,
       },
       { t: "sim", id: "network", caption: "Backpropagation through a small network; click a connection to compare the backprop gradient with a finite-difference estimate." },
       {
         t: "list",
         items: [
-          String.raw`Pause at a hidden layer during the backward phase and verify by hand one entry of $W^\top\delta$: it is a weighted sum of the $\delta$ values of the neurons that the hidden neuron feeds.`,
-          String.raw`Switch a hidden layer to ReLU and find a neuron with negative pre-activation: its diagonal Jacobian entry is 0, so its $\delta$ and all its incoming weight gradients are exactly 0.`,
+          String.raw`Pause at a hidden layer in the backward phase and check one entry of $W^\top\delta$ by hand: a weighted sum of the $\delta$ values of the neurons it feeds.`,
+          String.raw`Switch a hidden layer to ReLU and find a neuron with negative pre-activation: its diagonal Jacobian entry is 0, so its $\delta$ and incoming weight gradients are exactly 0.`,
         ],
       },
       { t: "h", text: "3. Hessian eigenvalues on a 2-D surface" },
       {
         t: "p",
-        text: String.raw`Choose the **Saddle** surface $f = x^2 + y^4/4 - y^2/2$. Its Hessian at the origin is $\operatorname{diag}(2, -1)$: positive curvature along $x$, negative along $y$. The minima at $(0, \pm1)$ have Hessian $\operatorname{diag}(2, 2)$.`,
+        text: String.raw`Choose the **Saddle** surface $f = x^2 + y^4/4 - y^2/2$. Its Hessian at the origin is $\operatorname{diag}(2, -1)$: curving up along $x$, down along $y$. The minima at $(0, \pm1)$ have Hessian $\operatorname{diag}(2, 2)$.`,
       },
       { t: "sim", id: "optimizers", caption: "Optimizer trajectories on 2-D surfaces; pick the Saddle or the Elongated valley surface." },
       {
         t: "list",
         items: [
-          String.raw`With the default start $(-1.8,\ 0.01)$, watch SGD run quickly along $x$ to the ridge $x = 0$ and then linger near the saddle before sliding off along $y$. Its slow escape is governed by the negative eigenvalue: the $y$-coordinate is multiplied by $1 + \eta\cdot1$ per step.`,
-          String.raw`Switch to the **Elongated valley** $0.1x^2 + 2y^2$: the Hessian is $\operatorname{diag}(0.2, 4)$, condition number 20. The steep eigen-direction limits the learning rate, the flat one limits the speed — the problem Newton's method (dividing by curvature) and adaptive optimizers address.`,
+          String.raw`From the default start $(-1.8,\ 0.01)$, SGD runs quickly along $x$ to the ridge $x = 0$, lingers near the saddle, then slides off along $y$. The negative eigenvalue sets the slow escape: $y$ is multiplied by $1 + \eta\cdot1$ per step.`,
+          String.raw`**Elongated valley** $0.1x^2 + 2y^2$: Hessian $\operatorname{diag}(0.2, 4)$, condition number 20. The steep direction limits the learning rate, the flat one limits the speed — the problem Newton's method (dividing by curvature) and adaptive optimizers tackle.`,
         ],
       },
     ],
@@ -835,28 +848,28 @@ const lesson: Lesson = {
       { t: "h", text: "A reverse-mode autodiff engine from scratch" },
       {
         t: "p",
-        text: "The `Value` class wraps a Python float. Each operation returns a new `Value` that remembers its parents and a closure `_backward` implementing that operation's VJP. `backward()` sorts the graph topologically with a depth-first post-order traversal and calls the closures in reverse. Subtraction and division are built from the primitives, so they need no backward rule of their own. The engine is then checked against PyTorch on the hand-traced expression and on a tiny 3–2–1 tanh network.",
+        text: "The `Value` class wraps a Python float. Each operation returns a new `Value` that remembers its parents and a closure `_backward` holding that operation's VJP. `backward()` sorts the graph topologically (depth-first post-order) and calls the closures in reverse. Subtraction and division are built from the primitives, so need no rule of their own. The engine is checked against PyTorch on the hand-traced expression and a tiny 3–2–1 tanh network.",
       },
       { t: "code", lang: "python", title: "tiny_autodiff.py", code: AD_CODE, output: AD_OUT },
       {
         t: "list",
         items: [
-          "`self.grad += ...` (not `=`) in every closure is the sum-over-paths rule: `a` and `c` each receive contributions from several consumers.",
-          "`build` appends a node only after all of its parents: a post-order DFS, which is a topological order. Reversed, every node runs after all nodes that consume it.",
-          "`tanh` and `exp` reuse their forward outputs `t` and `e` in the backward rule — the same \"save for backward\" trick real frameworks use.",
-          "The graph for `e` has 11 nodes, matching the 9 intermediate nodes in the hand trace plus the two leaves.",
-          "The engine is scalar-valued and therefore slow; real frameworks apply the same algorithm to tensor-valued nodes, where each VJP is a vectorised kernel.",
+          "`self.grad += ...` (not `=`) in every closure is the sum-over-paths rule: `a` and `c` get contributions from several consumers.",
+          "`build` adds a node only after all its parents (post-order DFS = topological order). Reversed, every node runs after all nodes that consume it.",
+          "`tanh` and `exp` reuse their forward outputs `t` and `e` in the backward rule — the \"save for backward\" trick real frameworks use.",
+          "The graph for `e` has 11 nodes: the 9 intermediate nodes of the hand trace plus two leaves.",
+          "The engine is scalar and slow; real frameworks run the same algorithm on tensor nodes, where each VJP is a vectorised kernel.",
         ],
       },
       { t: "h", text: "Jacobians, VJPs, Hessians and Newton in NumPy" },
       {
         t: "p",
-        text: "The second program verifies the formulas of the Math section numerically: a finite-difference Jacobian (one column per input), the Jacobians of a linear layer, tanh and softmax, VJP and JVP computed without the Jacobian, the Hessian as the Jacobian of the gradient with eigenvalue classification, a Hessian-vector product from two gradient evaluations, and Newton's method converging to a minimum from one start and to a saddle from another.",
+        text: "The second program checks the Math section numerically: a finite-difference Jacobian (one column per input), Jacobians of a linear layer, tanh and softmax, VJP and JVP without the Jacobian, the Hessian as the Jacobian of the gradient with eigenvalue classification, a Hessian-vector product from two gradients, and Newton's method reaching a minimum from one start and a saddle from another.",
       },
       { t: "code", lang: "python", title: "jacobians_hessians_numpy.py", code: NP_CODE, output: NP_OUT },
       {
         t: "p",
-        text: String.raw`The step $h = 10^{-6}$ for the central difference keeps truncation error ($O(h^2)$) and floating-point round-off ($O(\epsilon/h)$, with $\epsilon\approx2.2\times10^{-16}$) both small, which is why the worst error is around $10^{-10}$. The finite-difference Hessian-vector product, $(\nabla f(x + \epsilon v) - \nabla f(x - \epsilon v))/2\epsilon$, is the numerical twin of double backprop: two gradient evaluations instead of $n$.`,
+        text: String.raw`The central-difference step $h = 10^{-6}$ keeps both truncation error ($O(h^2)$) and round-off ($O(\epsilon/h)$, $\epsilon\approx2.2\times10^{-16}$) small, so the worst error is around $10^{-10}$. The finite-difference Hessian-vector product, $(\nabla f(x + \epsilon v) - \nabla f(x - \epsilon v))/2\epsilon$, is double backprop's numerical twin: two gradient evaluations instead of $n$.`,
       },
     ],
 
@@ -870,7 +883,7 @@ const lesson: Lesson = {
             blocks: [
               {
                 t: "p",
-                text: "PyTorch offers two APIs. `torch.autograd.functional` (`jacobian`, `hessian`, `vjp`, `jvp`, `hvp`) wraps ordinary autograd. `torch.func` (formerly functorch) provides composable transforms in the style of JAX: `grad`, `jacrev` (Jacobian by reverse mode, one VJP per output, vectorised with `vmap`), `jacfwd` (one JVP per input), `vjp`, `jvp`, and `hessian`. Composing them gives forward-over-reverse Hessian-vector products. The last part computes an exact $Hv$ for an MLP's loss by double backprop with `create_graph=True`.",
+                text: "PyTorch has two APIs. `torch.autograd.functional` (`jacobian`, `hessian`, `vjp`, `jvp`, `hvp`) wraps ordinary autograd. `torch.func` (formerly functorch) gives JAX-style composable transforms: `grad`, `jacrev` (one VJP per output, vectorised with `vmap`), `jacfwd` (one JVP per input), `vjp`, `jvp` and `hessian`; composing them gives forward-over-reverse Hessian-vector products. The last part computes an exact $Hv$ for an MLP's loss by double backprop with `create_graph=True`.",
               },
               { t: "code", lang: "python", title: "jacobians_pytorch.py", code: TORCH_CODE, output: TORCH_OUT },
               {
@@ -883,7 +896,7 @@ const lesson: Lesson = {
                 t: "callout",
                 kind: "warning",
                 title: "create_graph=True",
-                text: "Plain `loss.backward()` frees the graph and records nothing about the gradient computation itself, so the gradient cannot be differentiated again. Second derivatives require `torch.autograd.grad(..., create_graph=True)`, which keeps (and grows) the graph — remember that it costs extra memory.",
+                text: "Plain `loss.backward()` frees the graph and records nothing about the gradient computation, so the gradient cannot be differentiated again. Second derivatives need `torch.autograd.grad(..., create_graph=True)`, which keeps (and grows) the graph — at extra memory cost.",
               },
             ],
           },
@@ -947,13 +960,13 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "**Training every network.** `loss.backward()` in PyTorch and `jax.grad` are reverse-mode VJP engines over a computational graph; the from-scratch engine in this lesson has the same structure as Karpathy's educational *micrograd*.",
-          "**Normalising flows.** Change-of-variables likelihoods need $\\log|\\det J_f|$; flows such as RealNVP use triangular Jacobians so the determinant is a product of diagonal entries.",
-          "**Sharpness and training-dynamics research.** The top Hessian eigenvalue, computed by power iteration on HVPs, is tracked to study learning-rate stability; Cohen et al. (2021, \"Gradient Descent on Neural Networks Typically Occurs at the Edge of Stability\") observed it hovering near $2/\\eta$ during full-batch training.",
-          "**Second-order optimisation and preconditioning.** K-FAC and Shampoo-style optimisers approximate curvature per layer; L-BFGS is used for full-batch problems such as style transfer and physics-informed networks.",
-          "**Influence functions and model pruning.** Classical pruning methods (Optimal Brain Damage, LeCun et al. 1990; Optimal Brain Surgeon, Hassibi & Stork 1993) use Hessian information to decide which weights can be removed with least increase in loss; influence functions use inverse-Hessian-vector products to estimate the effect of a training point.",
-          "**Physics-informed and scientific ML.** Loss terms containing derivatives of the network output with respect to its inputs (gradients, Laplacians = traces of Hessians) are computed with nested autodiff.",
-          "**Jacobian regularisation and robustness.** Penalising $\\lVert J_f(x)\\rVert_F$ of the input-output Jacobian (estimated with random JVPs/VJPs) smooths a model; contractive autoencoders use this penalty on the encoder.",
+          "**Training every network.** `loss.backward()` and `jax.grad` are reverse-mode VJP engines over a computational graph; this lesson's engine has the same structure as Karpathy's educational *micrograd*.",
+          "**Normalising flows.** Change-of-variables likelihoods need $\\log|\\det J_f|$; flows like RealNVP use triangular Jacobians so the determinant is a product of diagonal entries.",
+          "**Sharpness research.** The top Hessian eigenvalue, found by power iteration on HVPs, is tracked to study learning-rate stability; Cohen et al. (2021, \"Gradient Descent on Neural Networks Typically Occurs at the Edge of Stability\") saw it hover near $2/\\eta$ in full-batch training.",
+          "**Second-order optimisation.** K-FAC and Shampoo-style optimisers approximate curvature per layer; L-BFGS is used for full-batch problems like style transfer and physics-informed networks.",
+          "**Pruning and influence functions.** Optimal Brain Damage (LeCun et al. 1990) and Optimal Brain Surgeon (Hassibi & Stork 1993) use the Hessian to pick weights whose removal raises the loss least; influence functions use inverse-Hessian-vector products to estimate a training point's effect.",
+          "**Physics-informed ML.** Loss terms with derivatives of the output with respect to inputs (gradients, Laplacians = Hessian traces) use nested autodiff.",
+          "**Jacobian regularisation.** Penalising $\\lVert J_f(x)\\rVert_F$ of the input-output Jacobian (estimated with random JVPs/VJPs) smooths a model; contractive autoencoders apply it to the encoder.",
         ],
       },
     ],
@@ -963,13 +976,13 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "**Reverse mode is ideal for training**: one backward pass gives the gradient of a scalar loss with respect to all parameters, at a small constant multiple of a forward pass.",
-          "**Reverse mode costs memory**: every intermediate that a backward rule needs must be stored until the backward pass reaches it. Gradient checkpointing trades recomputation for memory.",
-          "**Forward mode is memory-light** but needs one pass per input direction, so it is used for JVPs, few-input functions and as the outer layer of forward-over-reverse HVPs.",
-          "**Full Jacobians and Hessians do not scale**: $O(mn)$ and $O(n^2)$ storage. Work with products ($J\\dot x$, $\\bar y^\\top J$, $Hv$) and structure (diagonal, block-diagonal, Kronecker, low rank).",
-          "**Curvature is informative but local**: the Hessian describes a quadratic model valid only nearby; for ReLU networks it is piecewise and can change abruptly.",
-          "**Second-order methods** converge in far fewer iterations on smooth, well-specified problems, but their per-step cost, sensitivity to noise and attraction to saddles keep first-order methods dominant in deep learning.",
-          "**Double backprop needs differentiable backward rules**: some custom operations implement backward functions that are not themselves differentiable, which breaks HVPs.",
+          "**Reverse mode is ideal for training**: one backward pass gives a scalar loss's gradient for all parameters, at a small multiple of a forward pass.",
+          "**Reverse mode costs memory**: intermediates needed by backward rules are stored until used. Gradient checkpointing trades recomputation for memory.",
+          "**Forward mode is memory-light** but needs one pass per input direction: used for JVPs, few-input functions and the outer layer of forward-over-reverse HVPs.",
+          "**Full Jacobians and Hessians do not scale** ($O(mn)$ and $O(n^2)$ storage). Use products ($J\\dot x$, $\\bar y^\\top J$, $Hv$) and structure (diagonal, block-diagonal, Kronecker, low rank).",
+          "**Curvature is informative but local**: the Hessian's quadratic model holds only nearby; for ReLU networks it is piecewise and can change abruptly.",
+          "**Second-order methods** need far fewer iterations on smooth problems, but per-step cost, noise sensitivity and attraction to saddles keep first-order methods dominant.",
+          "**Double backprop needs differentiable backward rules**: custom operations whose backward is not itself differentiable break HVPs.",
         ],
       },
     ],
@@ -979,15 +992,15 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`**Mixing Jacobian layouts.** Some texts use the "denominator layout" ($n\times m$, the transpose). Mixing the two silently transposes results. Fix: decide that $J\in\mathbb{R}^{m\times n}$ (outputs × inputs), check shapes at every step, and remember gradients are $J^\top$ of a $1\times n$ Jacobian.`,
-          String.raw`**Writing softmax's Jacobian as diag(p(1 − p)).** That keeps only the diagonal; softmax outputs are coupled through the shared denominator, so the off-diagonal $-p_ip_j$ terms are essential. Fix: use $\operatorname{diag}(p) - pp^\top$, or better, fuse softmax with cross-entropy so that $\bar z = p - e_y$.`,
-          "**Overwriting instead of accumulating gradients** in a hand-written engine (`grad = ...` instead of `grad += ...`). Any value used twice then gets only its last contribution. A gradient check on $f(x) = x\\cdot x$ catches it: the correct answer is $2x$, the buggy one $x$.",
-          "**Running the backward sweep in the wrong order** (e.g. creation order without a topological sort, or a breadth-first order). A node can then be propagated before all its consumers contribute. Fix: reverse of a DFS post-order.",
-          "**Materialising Jacobians for batched inputs.** Calling `jacobian` on a batched function returns a $(B, m, B, n)$ tensor that is mostly zeros. Fix: use `vmap(jacrev(f))` for per-example Jacobians or, better, compute only the VJP/JVP you need.",
-          "**Forgetting `create_graph=True`** when differentiating a gradient. The first `grad` call then returns a tensor with no history and the second call fails or returns zeros.",
-          String.raw`**Concluding "minimum" from a zero gradient.** $\nabla f = 0$ also holds at maxima and saddles. Check the Hessian's eigenvalues (or at least that the loss cannot decrease along any direction you test).`,
-          "**Trusting Newton's method on non-convex losses.** With indefinite $H$ the Newton step can point uphill and converges to saddles. Fix: damp the Hessian ($H + \\mu I$), use Gauss–Newton/Fisher (PSD), or use first-order methods.",
-          "**Assuming the Hessian is symmetric for any function.** Symmetry requires continuous second partial derivatives; numerically, finite-difference Hessians are only approximately symmetric. Symmetrise with $(H + H^\\top)/2$ before calling a symmetric eigen-solver.",
+          String.raw`**Mixing Jacobian layouts.** Some texts use the "denominator layout" ($n\times m$, the transpose); mixing them silently transposes results. Fix: fix $J\in\mathbb{R}^{m\times n}$ (outputs × inputs), check shapes at every step, and remember a gradient is the transpose of a $1\times n$ Jacobian.`,
+          String.raw`**Writing softmax's Jacobian as diag(p(1 − p)).** That keeps only the diagonal; the shared denominator couples the outputs, so the off-diagonal $-p_ip_j$ terms matter. Fix: use $\operatorname{diag}(p) - pp^\top$, or fuse softmax with cross-entropy so $\bar z = p - e_y$.`,
+          "**Overwriting instead of accumulating gradients** in a hand-written engine (`grad = ...` instead of `grad += ...`): a value used twice keeps only its last contribution. A check on $f(x) = x\\cdot x$ catches it: correct $2x$, buggy $x$.",
+          "**Backward sweep in the wrong order** (creation order without a topological sort, or breadth-first). A node may propagate before all consumers contribute. Fix: reverse a DFS post-order.",
+          "**Materialising Jacobians for batched inputs.** `jacobian` on a batched function returns a mostly-zero $(B, m, B, n)$ tensor. Fix: `vmap(jacrev(f))` for per-example Jacobians or, better, only the VJP/JVP you need.",
+          "**Forgetting `create_graph=True`** when differentiating a gradient: the first `grad` returns a tensor with no history, so the second call fails or returns zeros.",
+          String.raw`**Concluding "minimum" from a zero gradient.** $\nabla f = 0$ also holds at maxima and saddles. Check the Hessian's eigenvalues (or that the loss cannot decrease along any direction you test).`,
+          "**Trusting Newton's method on non-convex losses.** With indefinite $H$ the step can point uphill and converge to saddles. Fix: damp the Hessian ($H + \\mu I$), use Gauss–Newton/Fisher (PSD), or first-order methods.",
+          "**Assuming every Hessian is symmetric.** Symmetry needs continuous second partials, and finite-difference Hessians are only nearly symmetric. Symmetrise with $(H + H^\\top)/2$ before a symmetric eigen-solver.",
         ],
       },
     ],
@@ -1000,11 +1013,11 @@ const lesson: Lesson = {
       { t: "qa", level: "beginner", q: "How do the Hessian's eigenvalues tell you what kind of critical point you are at?", a: "At a point with zero gradient: all eigenvalues positive → local minimum; all negative → local maximum; mixed signs → saddle point; some zero → inconclusive, higher-order terms decide." },
       { t: "qa", level: "intermediate", q: "State the chain rule for vector functions and connect it to backpropagation.", a: "$J_{g\\circ f}(x) = J_g(f(x))J_f(x)$. For a network ending in a scalar loss, $\\nabla_x L^\\top = \\nabla_{h_K}\\ell^\\top J_K\\cdots J_1$. Backprop evaluates this product from the left, one vector-Jacobian product per layer: through a linear layer the VJP is $W^\\top\\bar y$, through an activation it is $\\bar y\\odot\\phi'(z)$ — exactly the $\\delta$ recursion." },
       { t: "qa", level: "intermediate", q: "Derive the softmax Jacobian and simplify the gradient of cross-entropy with respect to the logits.", a: "$\\partial p_i/\\partial z_j = p_i(\\delta_{ij} - p_j)$, i.e. $J = \\operatorname{diag}(p) - pp^\\top$. With $L = -\\log p_y$, $\\bar p = -e_y/p_y$; then $\\bar z = J^\\top\\bar p = \\operatorname{diag}(p)\\bar p - p(p^\\top\\bar p) = -e_y + p$, so $\\partial L/\\partial z = p - e_y$." },
-      { t: "qa", level: "intermediate", q: "Why do frameworks never materialise full Jacobians?", a: "They are huge and mostly structured: a batched linear layer's Jacobian is block-diagonal over examples, an activation's is diagonal, and a 4096-wide layer over a batch of 64 would need about 275 GB. Training only needs the VJP $\\bar y^\\top J$, which each primitive can compute directly in time and memory comparable to its forward pass." },
-      { t: "qa", level: "intermediate", q: "Why is a topological order required for the backward pass?", a: "A node's adjoint is the sum of contributions from all of its consumers. Processing nodes in reverse topological order guarantees every consumer has already added its contribution before the node propagates its adjoint further. In any other order some adjoints would be used before they are complete." },
-      { t: "qa", level: "advanced", q: "Compare forward and reverse mode autodiff. When would you choose forward mode?", a: "Forward mode computes a JVP per pass (one Jacobian column) with memory proportional to live values; reverse mode computes a VJP per pass (one row) but must store intermediates. For $f:\\mathbb{R}^n\\to\\mathbb{R}^m$, a full Jacobian costs $n$ forward or $m$ reverse passes. Choose forward mode when $n \\ll m$ (few inputs, many outputs), for directional derivatives, or as the outer transform in forward-over-reverse Hessian-vector products." },
-      { t: "qa", level: "advanced", q: "How do you compute a Hessian-vector product for a network with $10^8$ parameters, and what does it cost?", a: "Use $Hv = \\nabla_\\theta(\\nabla_\\theta L^\\top v)$: compute the gradient with `create_graph=True`, take the dot product with $v$, and backpropagate again (or take a JVP of the gradient function — forward-over-reverse). Cost is a small constant multiple (about 2–4) of one gradient and $O(d)$ memory beyond the graph, versus $O(d^2) = 10^{16}$ numbers for the explicit Hessian." },
-      { t: "qa", level: "advanced", q: "Why is Newton's method rarely used to train deep networks, and what do Gauss–Newton and natural gradient change?", a: "The Hessian is too large to form or invert ($O(d^2)$ memory, $O(d^3)$ time), mini-batch estimates are noisy, and on non-convex losses the Newton step converges to any critical point, including saddles, because negative-curvature directions are followed uphill. Gauss–Newton replaces $H$ with $J^\\top H_\\ell J$, which is positive semidefinite; natural gradient uses the Fisher matrix, which coincides with the generalised Gauss–Newton for standard output/loss pairs. Practical methods such as K-FAC approximate these with per-layer Kronecker factors and add damping." },
+      { t: "qa", level: "intermediate", q: "Why do frameworks never materialise full Jacobians?", a: "They are huge and mostly structured: a batched linear layer's Jacobian is block-diagonal over examples, an activation's is diagonal, and a 4096-wide layer over a batch of 64 would need about 275 GB. Training needs only the VJP $\\bar y^\\top J$, which each primitive computes directly at about its forward cost." },
+      { t: "qa", level: "intermediate", q: "Why is a topological order required for the backward pass?", a: "A node's adjoint is the sum of contributions from all its consumers. Reverse topological order guarantees every consumer has added its share before the node passes its adjoint on; in any other order some adjoints would be used before they are complete." },
+      { t: "qa", level: "advanced", q: "Compare forward and reverse mode autodiff. When would you choose forward mode?", a: "Forward mode computes a JVP per pass (one Jacobian column) with memory for live values only; reverse mode computes a VJP per pass (one row) but stores intermediates. For $f:\\mathbb{R}^n\\to\\mathbb{R}^m$, a full Jacobian costs $n$ forward or $m$ reverse passes. Choose forward mode when $n \\ll m$ (few inputs, many outputs), for directional derivatives, or as the outer transform in forward-over-reverse Hessian-vector products." },
+      { t: "qa", level: "advanced", q: "How do you compute a Hessian-vector product for a network with $10^8$ parameters, and what does it cost?", a: "Use $Hv = \\nabla_\\theta(\\nabla_\\theta L^\\top v)$: compute the gradient with `create_graph=True`, dot it with $v$, and backpropagate again (or take a JVP of the gradient function — forward-over-reverse). It costs about 2–4 gradients and $O(d)$ memory beyond the graph, versus $O(d^2) = 10^{16}$ numbers for the explicit Hessian." },
+      { t: "qa", level: "advanced", q: "Why is Newton's method rarely used to train deep networks, and what do Gauss–Newton and natural gradient change?", a: "The Hessian is too large to form or invert ($O(d^2)$ memory, $O(d^3)$ time), mini-batch estimates are noisy, and on non-convex losses the Newton step converges to any critical point, saddles included, because it follows negative-curvature directions uphill. Gauss–Newton replaces $H$ with the positive semidefinite $J^\\top H_\\ell J$; natural gradient uses the Fisher matrix, which equals the generalised Gauss–Newton for standard output/loss pairs. Practical methods like K-FAC approximate these with per-layer Kronecker factors plus damping." },
     ],
 
     /* ------------------------------------------------------------------ */
@@ -1040,7 +1053,7 @@ const lesson: Lesson = {
           },
           {
             t: "p",
-            text: "The Hessian is positive definite, so $f$ is locally convex around $(1,2)$; but $(1,2)$ is not a minimum, because the gradient is not zero. Curvature and stationarity are separate questions.",
+            text: "The Hessian is positive definite, so $f$ is locally convex (bowl-shaped) around $(1,2)$ — but $(1,2)$ is not a minimum, because the gradient is not zero. Curvature and flatness are separate questions.",
           },
         ],
       },
@@ -1081,11 +1094,11 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "[Optimization: Objectives, Convexity and Minima](/learn/m02/optimization-math) — uses the Hessian to define convexity, analyse saddle points and smoothness, and derive safe learning rates.",
-          "[Backpropagation](/learn/m04/backpropagation) — the VJP chain of this lesson applied layer by layer to a full network, with a complete worked example.",
-          "[Numerical Gradient Checking](/learn/m04/gradient-checking) — the finite-difference Jacobians used above, turned into a systematic debugging tool for autodiff code.",
-          "[Momentum, Adam and adaptive optimizers](/learn/m06/momentum-adaptive) — how practical optimisers approximate curvature information cheaply instead of using the Hessian.",
-          "[Vanishing and Exploding Gradients](/learn/m04/gradient-problems) — what happens to a long product of Jacobians when their singular values are consistently below or above 1.",
+          "[Optimization: Objectives, Convexity and Minima](/learn/m02/optimization-math) — the Hessian used for convexity, saddle points, smoothness and safe learning rates.",
+          "[Backpropagation](/learn/m04/backpropagation) — this lesson's VJP chain applied layer by layer to a full network, fully worked.",
+          "[Numerical Gradient Checking](/learn/m04/gradient-checking) — finite-difference Jacobians as a systematic debugging tool for autodiff code.",
+          "[Momentum, Adam and adaptive optimizers](/learn/m06/momentum-adaptive) — how practical optimisers approximate curvature cheaply instead of using the Hessian.",
+          "[Vanishing and Exploding Gradients](/learn/m04/gradient-problems) — what happens to a long product of Jacobians whose singular values stay below or above 1.",
         ],
       },
     ],

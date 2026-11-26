@@ -396,10 +396,10 @@ const lesson: Lesson = {
   sections: {
     // ------------------------------------------------------------------
     intro: [
-      { t: "p", text: "**Data visualization** means turning numbers into pictures so that a human can see patterns, mistakes and surprises at a glance. **Matplotlib** is the standard Python library for this: almost every other Python plotting tool is built on it, and nearly every deep learning tutorial, paper figure and debugging session uses it." },
-      { t: "p", text: "Why does a deep learning course need a plotting lesson? Because a neural network is trained by looking at numbers you cannot read one by one: thousands of images, millions of losses. A few well-chosen plots answer the questions that matter: *Is my data what I think it is? Is training working? Is the model overfitting? Which classes does it confuse?* A single line of printed accuracy hides all of that." },
-      { t: "p", text: "The classic demonstration is **Anscombe's quartet**, published by the statistician Francis Anscombe in 1973: four tiny datasets that have the same average, the same spread, the same correlation and the same best-fit line, yet look completely different when plotted. One is a straight-ish cloud, one is a curve, one is a perfect line with one outlier, and one is a vertical stack with one far-away point. Statistics alone would call them identical. You will compute those statistics yourself below." },
-      { t: "callout", kind: "key", title: "What you will be able to do", text: "Create a Figure with several Axes; draw line plots of functions and **training curves** (train vs validation, with a log-scale axis); scatter plots coloured by class; histograms with chosen bins or as a density; images and matrices with `imshow` (colormaps, `vmin`/`vmax`, colour bars) — including an 8×8 digit and a confusion matrix; and a model's **decision boundary** using `meshgrid` + `contourf`. Then save any of it to a file with `savefig`." },
+      { t: "p", text: "**Data visualization** means turning numbers into pictures, so you can spot patterns, mistakes and surprises at a glance. **Matplotlib** is the standard Python library for this; most other plotting tools are built on it." },
+      { t: "p", text: "Why plotting in a deep learning course? Training produces more numbers than you could ever read. A few good plots answer the questions that matter: *Is my data what I think it is? Is training working? Is the model overfitting? Which classes does it confuse?* One printed accuracy number hides all of that." },
+      { t: "p", text: "The classic example is **Anscombe's quartet** (statistician Francis Anscombe, 1973): four tiny datasets with the same average, spread, correlation and best-fit line that look completely different when plotted — a straight-ish cloud, a curve, a perfect line with one outlier, and a vertical stack with one far-away point. Statistics alone would call them identical. You will compute those statistics yourself below." },
+      { t: "callout", kind: "key", title: "What you will be able to do", text: "Create a Figure with several Axes; draw line plots of functions and **training curves** (train vs validation, on a log-scale axis); scatter plots coloured by class; histograms with chosen bins or as a density; images and matrices with `imshow` (colormaps, `vmin`/`vmax`, colour bars), including an 8×8 digit and a confusion matrix; and a model's **decision boundary** with `meshgrid` + `contourf`. Then save any of it to a file with `savefig`." },
     ],
 
     // ------------------------------------------------------------------
@@ -408,44 +408,51 @@ const lesson: Lesson = {
         "[NumPy Arrays, Shapes and Indexing](/learn/m00/numpy-arrays) — every plotting function takes NumPy arrays. You need `shape`, slicing like `X[:, 3]` (all rows, column 3), and boolean masks like `X[y == 0]`.",
         "[Vectorization and Broadcasting](/learn/m00/vectorization) — we compute whole curves at once, e.g. `np.tanh(z)` on 200 points, and turn a grid into a list of points with `ravel` and back with `reshape`.",
         "Basic Python: lists, dictionaries, `for` loops and f-strings such as `f\"{x:.3f}\"` (print `x` with 3 decimals).",
-        "No machine learning knowledge is required. When a plot shows a model (logistic regression, a small network) we only use it as a source of numbers to draw; the models themselves are taught in [Linear and Logistic Regression](/learn/m03/linear-logistic-regression).",
+        "No machine learning knowledge needed. When a plot shows a model (logistic regression, a small network), we only use it as a source of numbers to draw. The models themselves are taught in [Linear and Logistic Regression](/learn/m03/linear-logistic-regression).",
       ] },
     ],
 
     // ------------------------------------------------------------------
     intuition: [
-      { t: "callout", kind: "analogy", title: "A doctor reading a chart, not a spreadsheet", text: "A doctor monitoring a patient does not read a column of 2,000 heart-rate numbers; she looks at the line on the monitor and instantly sees a spike, a flat line or a slow drift. Plots do the same for your data and your training run. The numbers are all there in the table, but the eye only finds the problem in the picture." },
-      { t: "p", text: "Think of Matplotlib as a **picture frame with drawing panels**. The frame is the **Figure** — the whole image that will be shown or saved. Inside the frame you place one or more **Axes** — a single panel with its own x-axis, y-axis, title and data. (The name is confusing: *Axes* means one whole plotting panel, not the plural of axis.) You draw on an Axes by calling its methods: `ax.plot` for lines, `ax.scatter` for dots, `ax.hist` for histograms, `ax.imshow` for images." },
-      { t: "p", text: "Each kind of plot answers a different question. A **line plot** shows how one quantity changes with another (loss over training steps). A **scatter plot** shows how two measurements relate and whether classes separate. A **histogram** shows how one measurement is distributed — where most values are and whether there are outliers. An **image plot** shows a grid of numbers as colours, which works both for photos and for tables like a confusion matrix. A **decision boundary plot** shows which answer a model would give at every point of the input space." },
+      { t: "callout", kind: "analogy", title: "A doctor reading a chart, not a spreadsheet", text: "A doctor doesn't read a column of 2,000 heart-rate numbers. She looks at the line on the monitor and instantly sees a spike, a flat line or a slow drift. Plots do the same for your data and training runs: the eye finds the problem in the picture, not the table." },
+      { t: "p", text: "Think of Matplotlib as a **picture frame with drawing panels**. The frame is the **Figure** — the whole image that will be shown or saved. Inside it you place one or more **Axes**: a single panel with its own x-axis, y-axis, title and data. (Confusingly, *Axes* means one whole panel, not the plural of axis.) You draw on an Axes by calling its methods: `ax.plot` for lines, `ax.scatter` for dots, `ax.hist` for histograms, `ax.imshow` for images." },
+      { t: "p", text: "Each kind of plot answers a different question:" },
+      { t: "list", items: [
+        "A **line plot**: how does one quantity change with another? (Loss over training steps.)",
+        "A **scatter plot**: how do two measurements relate, and do the classes separate?",
+        "A **histogram**: how is one measurement spread out — where are most values, and are there outliers?",
+        "An **image plot**: a grid of numbers shown as colours. It works for photos and for tables like a confusion matrix.",
+        "A **decision boundary plot**: which answer would the model give at every point of the input space?",
+      ] },
     ],
 
     // ------------------------------------------------------------------
     mechanism: [
       { t: "h", text: "The object model: Figure → Axes → artists" },
       { t: "steps", items: [
-        { title: "Choose a backend", text: "A **backend** is the part of Matplotlib that actually produces pixels. `matplotlib.use(\"Agg\")` selects a backend that draws into memory and files only — no window — which is what you want in scripts, servers and automated checks. It must be called before `pyplot` draws anything." },
-        { title: "Create the Figure and its Axes", text: "`fig, axes = plt.subplots(nrows, ncols, figsize=(width, height))` creates a Figure of the given size in **inches** and a grid of Axes. With one row and two columns you can unpack directly: `fig, (ax1, ax2) = plt.subplots(1, 2)`. With a 2×2 grid, `axes` is a 2×2 NumPy array of Axes and `axes.flat` iterates over all four." },
-        { title: "Draw on an Axes", text: "Each call such as `ax.plot(x, y)` creates an **artist** — an object that knows how to draw itself (a line, a set of dots, a text label) — and adds it to that Axes. Calling `ax.plot` three times puts three lines on the same panel." },
-        { title: "Label it", text: "`ax.set_xlabel`, `ax.set_ylabel` and `ax.set_title` describe the panel; passing `label=\"...\"` to each drawing call and then calling `ax.legend()` adds a key explaining each line or colour. `fig.suptitle` puts one title over the whole Figure." },
-        { title: "Adjust scales and layout", text: "`ax.set_yscale(\"log\")` makes the y-axis logarithmic; `ax.set_ylim(a, b)` fixes its range; `fig.tight_layout()` moves panels so labels do not overlap." },
-        { title: "Show or save", text: "`fig.savefig(\"name.png\", dpi=150)` writes the image file. In a Jupyter notebook the figure appears below the cell; in this website's in-browser **Run** button (which runs Python in your browser with Pyodide) every figure still open at the end of the program is captured and displayed inline under the output." },
+        { title: "Choose a backend", text: "A **backend** is the part of Matplotlib that makes the pixels. `matplotlib.use(\"Agg\")` picks one that draws only into memory and files — no window — ideal for scripts, servers and automated checks. Call it before `pyplot` draws anything." },
+        { title: "Create the Figure and its Axes", text: "`fig, axes = plt.subplots(nrows, ncols, figsize=(width, height))` creates a Figure of the given size in **inches** and a grid of Axes. With one row and two columns you can unpack directly: `fig, (ax1, ax2) = plt.subplots(1, 2)`. With a 2×2 grid, `axes` is a 2×2 NumPy array of Axes, and `axes.flat` loops over all four." },
+        { title: "Draw on an Axes", text: "Each call such as `ax.plot(x, y)` creates an **artist** — an object that knows how to draw itself (a line, a set of dots, a text label) — and adds it to that Axes. Call `ax.plot` three times and you get three lines on one panel." },
+        { title: "Label it", text: "`ax.set_xlabel`, `ax.set_ylabel` and `ax.set_title` describe the panel. Pass `label=\"...\"` to each drawing call, then call `ax.legend()` to add a key explaining each line or colour. `fig.suptitle` puts one title over the whole Figure." },
+        { title: "Adjust scales and layout", text: "`ax.set_yscale(\"log\")` makes the y-axis logarithmic; `ax.set_ylim(a, b)` fixes its range; `fig.tight_layout()` moves panels so labels don't overlap." },
+        { title: "Show or save", text: "`fig.savefig(\"name.png\", dpi=150)` writes the image file. In a Jupyter notebook the figure appears below the cell. This website's **Run** button runs Python in your browser (with Pyodide), and every figure still open at the end is shown under the output." },
       ] },
-      { t: "callout", kind: "note", title: "Two styles: pyplot vs object-oriented", text: "You will see both `plt.plot(x, y)` and `ax.plot(x, y)`. The `plt.` style draws on whichever Axes is \"current\", which is convenient for one quick plot but confusing with several panels. This lesson uses the object-oriented style (`fig, ax = plt.subplots()` then `ax.something`) everywhere, because you always know which panel you are drawing on." },
+      { t: "callout", kind: "note", title: "Two styles: pyplot vs object-oriented", text: "You will see both `plt.plot(x, y)` and `ax.plot(x, y)`. The `plt.` style draws on whichever Axes is \"current\" — handy for one quick plot, confusing with several panels. This lesson always uses the object-oriented style (`fig, ax = plt.subplots()` then `ax.something`), so you always know which panel you are drawing on." },
       { t: "h", text: "How each plot type turns arrays into pictures" },
       { t: "table", head: ["Call", "Input arrays", "What is drawn"], rows: [
-        ["`ax.plot(x, y)`", "two 1-D arrays of equal length $n$", "$n$ points joined by straight segments — with 200 points a smooth-looking curve"],
+        ["`ax.plot(x, y)`", "two 1-D arrays of equal length $n$", "$n$ points joined by straight segments — with 200 points it looks like a smooth curve"],
         ["`ax.scatter(x, y, c=...)`", "two 1-D arrays; optional colour per point", "one marker per point, no connecting lines"],
         ["`ax.hist(v, bins=k)`", "one 1-D array", "the range of $v$ is cut into $k$ equal-width bins; each bar's height is how many values fall in it"],
         ["`ax.imshow(M, cmap=..., vmin=..., vmax=...)`", "a 2-D array (or $H\\times W\\times 3$ for colour)", "one coloured square per entry; row 0 at the top"],
-        ["`ax.contourf(xx, yy, Z)`", "three 2-D arrays of the same shape", "regions filled with colour according to the value of $Z$ on the grid"],
+        ["`ax.contourf(xx, yy, Z)`", "three 2-D arrays of the same shape", "regions filled with colour by the value of $Z$ on the grid"],
       ] },
       { t: "h", text: "How a decision-boundary plot is built" },
       { t: "steps", items: [
-        { title: "Make a grid", text: "`np.meshgrid(xs, ys)` takes 200 x-positions and 150 y-positions and returns two 150×200 arrays `xx`, `yy`: together they list the coordinates of all 30,000 grid points." },
-        { title: "Flatten to a list of points", text: "`np.column_stack([xx.ravel(), yy.ravel()])` turns them into a 30000×2 array — the same shape a model expects as input (one row per example, one column per feature)." },
+        { title: "Make a grid", text: "`np.meshgrid(xs, ys)` takes 200 x-positions and 150 y-positions and returns two 150×200 arrays `xx`, `yy`. Together they list the coordinates of all 30,000 grid points." },
+        { title: "Flatten to a list of points", text: "`np.column_stack([xx.ravel(), yy.ravel()])` turns them into a 30000×2 array — the shape a model expects (one row per example, one column per feature)." },
         { title: "Ask the model", text: "`model.predict_proba(grid)[:, 1]` returns 30,000 probabilities of class 1." },
-        { title: "Reshape and colour", text: "`.reshape(xx.shape)` puts the 30,000 numbers back into the 150×200 grid; `ax.contourf(xx, yy, prob)` colours each region, and `ax.contour(..., levels=[0.5])` draws the line where the probability crosses 0.5 — the **decision boundary**." },
-        { title: "Overlay the data", text: "Finally `ax.scatter` draws the real training points on top, so you can see which ones fall on the wrong side." },
+        { title: "Reshape and colour", text: "`.reshape(xx.shape)` puts the 30,000 numbers back into the 150×200 grid. `ax.contourf(xx, yy, prob)` colours each region, and `ax.contour(..., levels=[0.5])` draws the line where the probability crosses 0.5 — the **decision boundary**." },
+        { title: "Overlay the data", text: "Finally `ax.scatter` draws the real training points on top, so you can see which ones land on the wrong side." },
       ] },
     ],
 
@@ -453,85 +460,85 @@ const lesson: Lesson = {
     math: [
       { t: "h", text: "The summary statistics that Anscombe's quartet fools" },
       { t: "p", text: "For $n$ points $(x_i, y_i)$, with $\\bar x$ and $\\bar y$ the averages:" },
-      { t: "math", tex: String.raw`\bar x = \frac{1}{n}\sum_{i=1}^{n} x_i, \qquad s_x^2 = \frac{1}{n-1}\sum_{i=1}^{n}(x_i-\bar x)^2, \qquad r = \frac{\sum_i (x_i-\bar x)(y_i-\bar y)}{\sqrt{\sum_i (x_i-\bar x)^2\,\sum_i (y_i-\bar y)^2}}`, caption: "Mean, sample variance (the average squared distance from the mean, with $n-1$ in the denominator; `ddof=1` in NumPy) and the Pearson correlation $r$, which runs from −1 (perfect falling line) to +1 (perfect rising line)." },
+      { t: "math", tex: String.raw`\bar x = \frac{1}{n}\sum_{i=1}^{n} x_i, \qquad s_x^2 = \frac{1}{n-1}\sum_{i=1}^{n}(x_i-\bar x)^2, \qquad r = \frac{\sum_i (x_i-\bar x)(y_i-\bar y)}{\sqrt{\sum_i (x_i-\bar x)^2\,\sum_i (y_i-\bar y)^2}}`, caption: "Mean; sample variance (the average squared distance from the mean, dividing by $n-1$; `ddof=1` in NumPy); and the Pearson correlation $r$, which runs from −1 (perfect falling line) to +1 (perfect rising line)." },
       { t: "math", tex: String.raw`\text{slope} = \frac{\sum_i (x_i-\bar x)(y_i-\bar y)}{\sum_i (x_i-\bar x)^2}, \qquad \text{intercept} = \bar y - \text{slope}\cdot\bar x`, caption: "The least-squares straight line $y \\approx \\text{slope}\\cdot x + \\text{intercept}$ — what `np.polyfit(x, y, deg=1)` returns." },
       { t: "h", text: "Worked example: dataset I of the quartet" },
       { t: "steps", items: [
-        { title: "Means", text: "The 11 x-values are 4…14 so they sum to 99; the y-values sum to 82.51.", tex: String.raw`\bar x = 99/11 = 9.00, \qquad \bar y = 82.51/11 = 7.501` },
+        { title: "Means", text: "The 11 x-values are 4…14, so they sum to 99; the y-values sum to 82.51.", tex: String.raw`\bar x = 99/11 = 9.00, \qquad \bar y = 82.51/11 = 7.501` },
         { title: "Sums of squares and cross-products", text: "Computed in Python from the data above.", tex: String.raw`\sum (x_i-\bar x)^2 = 110.0, \quad \sum (y_i-\bar y)^2 = 41.2727, \quad \sum (x_i-\bar x)(y_i-\bar y) = 55.01` },
         { title: "Variances", tex: String.raw`s_x^2 = 110.0/10 = 11.00, \qquad s_y^2 = 41.2727/10 = 4.127` },
         { title: "Correlation", tex: String.raw`r = \frac{55.01}{\sqrt{110.0 \times 41.2727}} = \frac{55.01}{67.38} = 0.816` },
         { title: "Best-fit line", tex: String.raw`\text{slope} = 55.01/110.0 = 0.5001, \qquad \text{intercept} = 7.501 - 0.5001 \times 9 = 3.000` },
       ] },
-      { t: "p", text: "Datasets II, III and IV give the same numbers to two or three decimals (see the program output in the next sections), yet only dataset I is a sensible linear relationship. The lesson: **a few summary numbers can be identical for very different data; always plot.**" },
+      { t: "p", text: "Datasets II, III and IV give the same numbers to two or three decimals (see the program output below), yet only dataset I is a sensible straight-line relationship. The lesson: **very different data can share the same few summary numbers — always plot.**" },
       { t: "h", text: "Histograms: counts and density" },
-      { t: "p", text: "With $N$ values cut into bins of width $w$, a count histogram's bar height is $c_k$ (number of values in bin $k$). A **density** histogram divides by $N w$ so that the total area of the bars is 1 — this lets you compare datasets of different sizes on the same axes, and compare a histogram with a probability density curve." },
+      { t: "p", text: "With $N$ values cut into bins of width $w$, a count histogram's bar height is $c_k$ (how many values are in bin $k$). A **density** histogram divides by $N w$, so the bars' total area is 1. That lets you compare datasets of different sizes on the same axes, or compare a histogram with a probability density curve." },
       { t: "math", tex: String.raw`h_k = \frac{c_k}{N\,w}, \qquad \sum_k h_k\, w = \sum_k \frac{c_k}{N} = 1` },
-      { t: "p", text: "Worked example: the 7 values $(1, 2, 2, 3, 3, 3, 4)$ with 3 bins over $[1, 4]$ have edges $1, 2, 3, 4$ and width $w = 1$. NumPy counts $c = (1, 2, 4)$ — the last bin includes its right edge, so it holds 3, 3, 3 and 4. Densities: $h = (1/7, 2/7, 4/7) = (0.142857, 0.285714, 0.571429)$, and $0.142857 + 0.285714 + 0.571429 = 1$." },
+      { t: "p", text: "Worked example: the 7 values $(1, 2, 2, 3, 3, 3, 4)$ in 3 bins over $[1, 4]$ have edges $1, 2, 3, 4$ and width $w = 1$. NumPy counts $c = (1, 2, 4)$ — the last bin includes its right edge, so it holds 3, 3, 3 and 4. Densities: $h = (1/7, 2/7, 4/7) = (0.142857, 0.285714, 0.571429)$, and $0.142857 + 0.285714 + 0.571429 = 1$." },
       { t: "h", text: "Figure size in pixels" },
-      { t: "math", tex: String.raw`\text{pixels} = \text{inches} \times \text{dpi}`, caption: "dpi = dots (pixels) per inch. An 8 × 6-inch figure saved at dpi 100 is 800 × 600 pixels; a 10 × 4-inch figure is 720 × 288 at dpi 72 and 1500 × 600 at dpi 150." },
+      { t: "math", tex: String.raw`\text{pixels} = \text{inches} \times \text{dpi}`, caption: "dpi = dots (pixels) per inch. An 8 × 6-inch figure at dpi 100 is 800 × 600 pixels; a 10 × 4-inch figure is 720 × 288 at dpi 72 and 1500 × 600 at dpi 150." },
       { t: "h", text: "Why training curves use a log scale" },
-      { t: "p", text: "On a logarithmic axis equal distances mean equal **ratios**: 1 → 0.1 → 0.01 are evenly spaced. A loss that falls from 0.69 to 0.05 is a factor of 14; on a normal axis everything after the first few steps looks like a flat line at the bottom, while on a log axis you can still see whether it is improving and whether train and validation are separating. In our run the loss starts at $0.6931 = \\ln 2$, exactly what cross-entropy gives when the untrained model (all weights zero) predicts probability 0.5 for every example: $-\\ln 0.5 = \\ln 2$." },
+      { t: "p", text: "On a logarithmic axis, equal distances mean equal **ratios**: 1 → 0.1 → 0.01 are evenly spaced. A loss falling from 0.69 to 0.05 shrinks 14-fold; on a normal axis everything after the first few steps is a flat line at the bottom, but on a log axis you can still see progress and whether train and validation drift apart. In our run the loss starts at $0.6931 = \\ln 2$. That is exactly the cross-entropy when the untrained model (all weights zero) predicts probability 0.5 for every example: $-\\ln 0.5 = \\ln 2$." },
       { t: "h", text: "Grid size for a decision boundary" },
-      { t: "p", text: "A grid of $n_x$ by $n_y$ points requires $n_x n_y$ model predictions. With $200\\times150$ that is 30,000 — trivial for a small model, but halving the step size quadruples the cost, so keep grids around a few hundred points per side." },
+      { t: "p", text: "A grid of $n_x$ by $n_y$ points needs $n_x n_y$ model predictions. $200\\times150$ is 30,000 — cheap for a small model. But halving the step size makes it 4 times as costly, so keep grids around a few hundred points per side." },
     ],
 
     // ------------------------------------------------------------------
     visual: [
-      { t: "p", text: "The two simulators below are themselves plots of exactly the kinds taught here, driven by live computations. Use them to practise **reading** plots before you write them." },
+      { t: "p", text: "The two simulators below are themselves the kinds of plots taught here, driven by live computations. Use them to practise **reading** plots before you write them." },
       { t: "sim", id: "fitting", caption: "Left: a scatter plot of training (filled) and validation (hollow) points with a fitted curve. Right: a line plot of training and validation error against polynomial degree on a log-scale axis." },
       { t: "list", items: [
-        "Set the degree to 1, then slowly increase it. On the right-hand plot, find the degree where the **validation** line is lowest — the training line keeps falling, the validation line turns back up. This is the same picture you will draw from a real training history.",
-        "Notice the y-axis is logarithmic: the errors span several powers of ten, which a linear axis could not show.",
-        "Increase the noise σ and watch the scatter plot become more spread out. Re-draw a new random sample: the curves change, which is why one plot from one run should not be over-interpreted.",
+        "Set the degree to 1, then slowly increase it. On the right-hand plot, find the degree where the **validation** line is lowest: the training line keeps falling, but the validation line turns back up. You will draw this same picture from a real training history.",
+        "The y-axis is logarithmic: the errors span several powers of ten, which a linear axis could not show.",
+        "Increase the noise σ and watch the scatter spread out. Draw a new sample: the curves change, so don't over-read one plot from one run.",
       ] },
       { t: "sim", id: "logistic-regression", caption: "A decision-boundary plot: background colour is the predicted probability on a grid, the line is where it equals 0.5, plus a line plot of loss and accuracy history." },
       { t: "list", items: [
-        "Press Play and watch the background colour (a `contourf`-style probability map) sharpen as training proceeds, while the loss curve underneath falls.",
-        "Click to add a few points of one class deep inside the other class's region and watch both the boundary and the loss curve react.",
-        "Compare with the program in the next section, which draws the same kind of plot with `meshgrid` + `contourf`, and also draws an MLP whose boundary can bend.",
+        "Press Play and watch the background colour (a `contourf`-style probability map) sharpen as training goes on, while the loss curve below falls.",
+        "Click to add points of one class deep inside the other class's region, and watch the boundary and loss react.",
+        "Compare with the program in the next section, which draws the same kind of plot with `meshgrid` + `contourf`, plus an MLP whose boundary can bend.",
       ] },
     ],
 
     // ------------------------------------------------------------------
     scratch: [
-      { t: "callout", kind: "tip", title: "How to run these programs", text: "Each program uses `matplotlib.use(\"Agg\")`, so it never opens a window and works anywhere, and it saves figures into a fresh temporary folder (`tempfile.mkdtemp()`). Because this page cannot compare pictures automatically, every program also **prints numbers** about what it drew (shapes, statistics, pixel sizes) — compare them with the output shown. Press **Run** to execute in your browser: the figures appear inline below the printed output." },
+      { t: "callout", kind: "tip", title: "How to run these programs", text: "Each program uses `matplotlib.use(\"Agg\")` (no window, works anywhere) and saves figures into a fresh temporary folder (`tempfile.mkdtemp()`). Since this page can't compare pictures, every program also **prints numbers** about what it drew — compare them with the output shown. Press **Run** to execute in your browser; the figures appear below the output." },
       { t: "h", text: "1. Anscombe's quartet: identical statistics, different data" },
       { t: "code", lang: "python", title: "anscombe.py", code: ANSCOMBE, output: ANSCOMBE_OUT },
-      { t: "p", text: "`np.polyfit(x, y, deg=1)` fits a straight line by least squares; `np.corrcoef` returns a 2×2 matrix whose off-diagonal entry is $r$. `sharex=True, sharey=True` gives all four panels identical axis ranges so they can be compared fairly — without it each panel would zoom to its own data. `plt.imread` reads the saved PNG back: its shape (600, 800, 4) is height × width × 4 colour channels (red, green, blue, alpha/transparency)." },
+      { t: "p", text: "`np.polyfit(x, y, deg=1)` fits a straight line by least squares; `np.corrcoef` returns a 2×2 matrix whose off-diagonal entry is $r$. `sharex=True, sharey=True` gives all four panels the same axis ranges, so the comparison is fair — otherwise each panel zooms to its own data. `plt.imread` reads the saved PNG back: its shape (600, 800, 4) is height × width × 4 colour channels (red, green, blue, alpha/transparency)." },
       { t: "h", text: "2. Line plots: functions and a real training history" },
       { t: "code", lang: "python", title: "line_plots.py", code: LINES, output: LINES_OUT },
       { t: "list", items: [
         "`np.linspace(-6, 6, 200)` gives 200 evenly spaced inputs; 200 straight segments look like a smooth curve.",
-        "The training loop is real: logistic regression by gradient descent on the breast-cancer dataset (bundled with scikit-learn), with 400 training rows and 169 validation rows. Each step appends one train and one validation loss to the `history` lists — exactly how you would record any network's training.",
-        "Reading the curve: both losses fall fast for ~10 steps, then train keeps improving (0.0628 → 0.0494) while validation nearly stops (0.0835 → 0.0803). The widening gap between the two lines is the early warning sign of overfitting explained in [Training Basics](/learn/m03/training-basics).",
+        "The training loop is real: logistic regression by gradient descent on the breast-cancer dataset (bundled with scikit-learn), 400 training and 169 validation rows. Each step appends a train and a validation loss to the `history` lists — how you would record any network's training.",
+        "Reading the curve: both losses fall fast for ~10 steps. Then train keeps improving (0.0628 → 0.0494) while validation nearly stops (0.0835 → 0.0803). That widening gap is the early warning sign of overfitting, explained in [Training Basics](/learn/m03/training-basics).",
       ] },
       { t: "h", text: "3. Scatter plots and histograms" },
       { t: "code", lang: "python", title: "scatter_hist.py", code: SCATTER, output: SCATTER_OUT },
-      { t: "p", text: "To colour by class, loop over the classes and draw each subset with its own colour and `label` — the legend then explains the colours. `alpha=0.6` makes points 60% opaque so overlapping points remain visible. The scatter shows malignant tumours tend to be larger (median area 932 vs 458). `ax.hist` returns the counts and bin edges it used, so you can check it: 20 bins of width 117.88 whose counts add up to all 569 rows. With `density=True` the bar areas sum to exactly 1." },
+      { t: "p", text: "To colour by class, loop over the classes and draw each subset with its own colour and `label`; the legend then explains the colours. `alpha=0.6` makes points 60% opaque, so overlapping points stay visible. Malignant tumours tend to be larger (median area 932 vs 458). `ax.hist` returns its counts and bin edges, so you can check: 20 bins of width 117.88 whose counts add up to all 569 rows. With `density=True` the bar areas sum to 1." },
       { t: "h", text: "4. imshow: an image and a confusion matrix" },
       { t: "code", lang: "python", title: "imshow_digit_confusion.py", code: IMSHOW, output: IMSHOW_OUT },
       { t: "list", items: [
         "A **colormap** (`cmap`) maps numbers to colours. `gray_r` is reversed grey: 0 = white, high = black, like ink on paper. `Blues` goes from white to dark blue.",
-        "`vmin=0, vmax=16` fixes which numbers map to the ends of the colormap. Without them Matplotlib stretches each image to its own min and max (here 0 and 15), so two images with different brightness would look the same. Fixing them makes images comparable.",
+        "`vmin=0, vmax=16` fixes which numbers map to the two ends of the colormap. Without them, each image is stretched to its own min and max (here 0 and 15), so images of different brightness look the same.",
         "A **colour bar** (`fig.colorbar`) is the legend of an image plot: it shows which number each colour means.",
-        "A **confusion matrix** counts, for each true class (row), how often the model predicted each class (column). Correct predictions are on the diagonal. Here 97.8% are correct and the most frequent confusion is a 9 read as a 5 (twice).",
+        "A **confusion matrix** counts, for each true class (row), how often the model predicted each class (column). Correct predictions sit on the diagonal. Here 97.8% are correct, and the most common mix-up is a 9 read as a 5 (twice).",
       ] },
       { t: "h", text: "5. Subplot grid, decision boundaries and saving" },
       { t: "code", lang: "python", title: "decision_boundary.py", code: BOUNDARY, output: BOUNDARY_OUT },
-      { t: "p", text: "The straight boundary of logistic regression cannot follow the two moons (83.3% training accuracy); the small neural network bends its boundary around them (96.3%). One `fig.colorbar(cs, ax=axes)` serves both panels. Saving the same Figure at dpi 72 and 150 gives 720 × 288 and 1500 × 600 pixels — the drawing is identical, only the resolution changes. A **PDF** (or SVG) is a *vector* file that stores shapes rather than pixels, so it stays sharp at any zoom — the usual choice for papers." },
+      { t: "p", text: "Logistic regression's straight boundary can't follow the two moons (83.3% training accuracy); the small neural network bends its boundary around them (96.3%). One `fig.colorbar(cs, ax=axes)` serves both panels. Saving the same Figure at dpi 72 and 150 gives 720 × 288 and 1500 × 600 pixels — same drawing, different resolution. A **PDF** (or SVG) is a *vector* file: it stores shapes, not pixels, so it stays sharp at any zoom — the usual choice for papers." },
     ],
 
     // ------------------------------------------------------------------
     framework: [
       { t: "tabs", tabs: [
         { label: "PyTorch", blocks: [
-          { t: "p", text: "Matplotlib draws NumPy arrays, so with PyTorch the only extra step is converting: `.item()` turns a one-number tensor into a Python float for the history lists, and `.numpy()` turns a tensor into an array (call it inside `torch.no_grad()` or after `.detach()`, since tensors that track gradients cannot be converted). PyTorch does not run in the browser, so run this one locally." },
+          { t: "p", text: "Matplotlib draws NumPy arrays, so with PyTorch the only extra step is converting. `.item()` turns a one-number tensor into a Python float for the history lists. `.numpy()` turns a tensor into an array — call it inside `torch.no_grad()` or after `.detach()`, because tensors that track gradients can't be converted. PyTorch doesn't run in the browser, so run this one on your own machine." },
           { t: "code", lang: "python", title: "plot_torch_training.py", code: TORCH_PLOT, output: TORCH_PLOT_OUT },
           { t: "p", text: "The three panels are the standard training dashboard: loss curves on a log axis, a metric curve, and (for 2-D toy data) the decision regions. Validation accuracy rises from 0.500 (guessing) to 0.960." },
         ] },
         { label: "TensorFlow / Keras", blocks: [
-          { t: "p", text: "Keras records the history for you: `model.fit` returns a `History` object whose `.history` attribute is a dictionary of per-epoch lists, with `val_`-prefixed keys when you pass validation data." },
+          { t: "p", text: "Keras records the history for you. `model.fit` returns a `History` object whose `.history` attribute is a dictionary of per-epoch lists, with `val_`-prefixed keys when you pass validation data." },
           { t: "code", lang: "python", title: "plot_keras_history.py (not executed in CI)", code: KERAS_PLOT, output: "Prints the history keys ['accuracy', 'loss', 'val_accuracy', 'val_loss'] and writes keras_curves.png with the train and validation loss curves on a log scale." },
         ] },
       ] },
@@ -540,67 +547,67 @@ const lesson: Lesson = {
     // ------------------------------------------------------------------
     variations: [
       { t: "table", head: ["Plot", "Best for", "Advantages", "Pitfalls"], rows: [
-        ["Line (`plot`)", "a quantity over time or a smooth function: losses, learning-rate schedules, activations", "trends and comparisons of several series are obvious", "misleading if the x-values are unordered categories; noisy curves may need smoothing"],
-        ["Scatter (`scatter`)", "relationship between two measurements; class separation; predicted vs true values", "shows every point, outliers and clusters", "overplotting with thousands of points — use small markers, `alpha`, or a 2-D histogram"],
-        ["Histogram (`hist`)", "distribution of one variable: feature values, weights, activations, gradients", "shows skew, multiple peaks and outliers", "the picture depends on the number of bins; try several"],
-        ["Image (`imshow`)", "images, weight matrices, attention maps, confusion matrices", "a whole 2-D array at once", "autoscaled colours hide differences between images — set `vmin`/`vmax`"],
-        ["Filled contour (`contourf`)", "a function over a 2-D input: decision regions, loss landscapes", "shows the model's behaviour everywhere, not just at data points", "only possible for 2 input features (or a 2-D slice of more)"],
-        ["Bar (`bar`)", "comparing a few numbers: accuracy per class, model comparison", "easy to read exact values", "do not start the y-axis above zero for bars — it exaggerates differences"],
+        ["Line (`plot`)", "a quantity over time or a smooth function: losses, learning-rate schedules, activations", "trends and comparisons of several series stand out", "misleading if the x-values are unordered categories; noisy curves may need smoothing"],
+        ["Scatter (`scatter`)", "how two measurements relate; class separation; predicted vs true values", "shows every point, outliers and clusters", "thousands of points pile up — use small markers, `alpha`, or a 2-D histogram"],
+        ["Histogram (`hist`)", "spread of one variable: feature values, weights, activations, gradients", "shows skew, multiple peaks and outliers", "the picture depends on the number of bins; try several"],
+        ["Image (`imshow`)", "images, weight matrices, attention maps, confusion matrices", "a whole 2-D array at once", "auto-scaled colours hide differences between images — set `vmin`/`vmax`"],
+        ["Filled contour (`contourf`)", "a function over a 2-D input: decision regions, loss landscapes", "shows the model's behaviour everywhere, not just at data points", "only works for 2 input features (or a 2-D slice of more)"],
+        ["Bar (`bar`)", "comparing a few numbers: accuracy per class, model comparison", "exact values are easy to read", "don't start a bar chart's y-axis above zero — it exaggerates differences"],
         ["Box / violin (`boxplot`, `violinplot`)", "comparing distributions across groups", "compact; shows medians and spread", "hides how many points there are"],
       ] },
-      { t: "p", text: "Related tools: **seaborn** adds statistical plots on top of Matplotlib, **pandas** has `df.plot()` built on it, and **TensorBoard** or experiment trackers draw live training curves in the browser during long runs. They all use the same plot types — knowing Matplotlib's Figure/Axes model lets you customize any of them." },
+      { t: "p", text: "Related tools: **seaborn** adds statistical plots on top of Matplotlib, **pandas** has `df.plot()` built on it, and **TensorBoard** or experiment trackers draw live training curves. They use the same plot types, so Matplotlib's Figure/Axes model helps you customize any of them." },
     ],
 
     // ------------------------------------------------------------------
     applications: [
       { t: "list", items: [
-        "**Exploring a new dataset**: histograms of every feature (find impossible values, skew, units), scatter plots of feature pairs coloured by label, and a grid of example images with their labels — mislabelled images are often spotted this way.",
+        "**Exploring a new dataset**: histograms of every feature (impossible values, skew, wrong units), scatter plots of feature pairs by label, and a grid of labelled example images — a common way to spot mislabels.",
         "**Monitoring training**: train vs validation loss and accuracy per epoch, usually on a log scale; the learning rate over time ([Learning-Rate Schedules](/learn/m06/lr-schedules)).",
-        "**Diagnosing a classifier**: confusion matrices show which classes are confused; per-class bar charts of accuracy show which classes need more data.",
+        "**Diagnosing a classifier**: confusion matrices show which classes get mixed up; per-class accuracy bar charts show which classes need more data.",
         "**Debugging networks**: histograms of weights, activations and gradients reveal dead ReLUs or vanishing/exploding gradients ([Gradient Problems](/learn/m04/gradient-problems)).",
-        "**Understanding models**: decision boundaries on toy data, filters of the first convolutional layer shown with `imshow`, attention maps overlaid on text or images.",
-        "**Communicating results**: every figure in a paper, report or slide deck — saved as PDF/SVG for print or PNG at a chosen dpi for screens.",
+        "**Understanding models**: decision boundaries on toy data, first-layer convolution filters shown with `imshow`, attention maps laid over text or images.",
+        "**Sharing results**: every figure in a paper, report or slide deck — saved as PDF/SVG for print or PNG at a chosen dpi for screens.",
       ] },
     ],
 
     // ------------------------------------------------------------------
     tradeoffs: [
       { t: "list", items: [
-        "**Strength — universal**: works with any NumPy array, runs everywhere (scripts, notebooks, servers, the browser via Pyodide), and produces publication-quality files.",
+        "**Strength — universal**: works with any NumPy array, runs everywhere (scripts, notebooks, servers, the browser via Pyodide), and makes publication-quality files.",
         "**Strength — full control**: every element (tick, label, colour, margin) can be changed through the object-oriented API.",
-        "**Limitation — verbose**: a nicely labelled multi-panel figure takes many lines; higher-level libraries do common plots in one call.",
-        "**Limitation — static**: images do not support hovering or zooming; for interactive exploration of very large data, interactive libraries or dashboards are more convenient.",
-        "**Limitation — slow for huge data**: drawing millions of individual points is slow and unreadable; plot a random sample or a 2-D histogram instead.",
-        "**Trade-off — plots can mislead**: axis ranges, log vs linear scale, bin counts and colour limits all change the story. A plot is evidence only if those choices are honest and labelled.",
+        "**Limitation — wordy**: a nicely labelled multi-panel figure takes many lines; higher-level libraries do common plots in one call.",
+        "**Limitation — static**: no hovering or zooming; interactive libraries or dashboards suit exploring very large data.",
+        "**Limitation — slow for huge data**: drawing millions of single points is slow and unreadable. Plot a random sample or a 2-D histogram instead.",
+        "**Trade-off — plots can mislead**: axis ranges, log vs linear scale, bin counts and colour limits all change the story. A plot is only evidence if those choices are honest and labelled.",
       ] },
     ],
 
     // ------------------------------------------------------------------
     mistakes: [
       { t: "list", items: [
-        "**Trusting summary statistics without plotting.** Anscombe's quartet shows identical means, variances, correlation and best-fit line for four completely different datasets. Fix: plot before modelling.",
-        "**Mixing `plt.` and `ax.` calls with several panels.** `plt.title` sets the title of whichever Axes was used last, often the wrong one. Fix: use `fig, axes = plt.subplots(...)` and call methods on the specific Axes.",
-        "**Unlabelled axes and missing legends.** A curve without axis names and units cannot be interpreted by anyone else (or by you next month). Fix: always `set_xlabel`, `set_ylabel`, give each series a `label` and call `legend()`.",
+        "**Trusting summary statistics without plotting.** Anscombe's quartet has identical means, variances, correlation and best-fit line for four completely different datasets. Fix: plot before modelling.",
+        "**Mixing `plt.` and `ax.` calls with several panels.** `plt.title` sets the title of whichever Axes was used last — often the wrong one. Fix: use `fig, axes = plt.subplots(...)` and call methods on the specific Axes.",
+        "**Unlabelled axes and missing legends.** A curve without axis names and units means nothing to anyone else (or to you next month). Fix: always `set_xlabel`, `set_ylabel`, give each series a `label` and call `legend()`.",
         "**Linear axis for a loss curve.** Everything after the first epochs is squashed into a flat line. Fix: `ax.set_yscale(\"log\")`.",
-        "**Plotting only the training loss.** It almost always goes down, so it cannot reveal overfitting. Fix: always plot validation alongside it.",
-        "**Autoscaled colours with `imshow`.** Each image is stretched to its own range, so a faint image looks as dark as a bold one. Fix: pass the same `vmin`/`vmax` to every image you compare, and add a colour bar.",
-        "**Displaying a normalized image as-is.** After normalization pixel values may be negative or above 1; `imshow` of an RGB array clips them and the image looks wrong. Fix: undo the normalization (multiply by std, add mean) before plotting.",
+        "**Plotting only the training loss.** It almost always goes down, so it can't reveal overfitting. Fix: always plot validation next to it.",
+        "**Auto-scaled colours with `imshow`.** Each image is stretched to its own range, so a faint image looks as dark as a bold one. Fix: pass the same `vmin`/`vmax` to every image you compare, and add a colour bar.",
+        "**Showing a normalized image as-is.** After normalization, pixel values may be negative or above 1; `imshow` of an RGB array clips them and the image looks wrong. Fix: undo the normalization (multiply by std, add mean) before plotting.",
         "**Wrong shape for images.** PyTorch stores images as channels × height × width, but `imshow` expects height × width × channels. Fix: `img.permute(1, 2, 0).numpy()`.",
         "**Calling `savefig` after `plt.show()`.** In some environments `show` closes the figure, so the saved file is blank. Fix: save first, then show.",
-        "**Creating hundreds of figures in a loop without closing them.** Memory grows and Matplotlib warns. Fix: `plt.close(fig)` after saving each one (but note that the in-browser runner only displays figures still open at the end).",
+        "**Creating hundreds of figures in a loop without closing them.** Memory grows. Fix: `plt.close(fig)` after saving each (the in-browser runner only shows figures still open at the end).",
       ] },
     ],
 
     // ------------------------------------------------------------------
     interview: [
-      { t: "qa", level: "beginner", q: "What is the difference between a Figure and an Axes in Matplotlib?", a: "The Figure is the whole image (the canvas, with a size in inches); an Axes is one plotting panel inside it, with its own x- and y-axis, title and data. One Figure can hold many Axes, e.g. a 2×2 grid created by `plt.subplots(2, 2)`." },
-      { t: "qa", level: "beginner", q: "Why should you plot data before training a model on it?", a: "Summary statistics can hide very different structures — Anscombe's quartet has identical means, variances, correlation and regression line for four different datasets. Plots reveal outliers, non-linear relationships, wrong units, corrupted or mislabelled examples and class imbalance before they silently damage a model." },
-      { t: "qa", level: "beginner", q: "What is a histogram and what does `density=True` change?", a: "A histogram splits the range of one variable into bins and shows how many values fall in each. With `density=True` each bar's height is divided by (number of values × bin width) so the total bar area is 1, which makes datasets of different sizes comparable." },
-      { t: "qa", level: "intermediate", q: "Your training loss goes down steadily. Is training going well?", a: "Not necessarily. Training loss almost always decreases. You need the validation loss on the same plot: if it stops improving or starts rising while training loss keeps falling, the model is overfitting. A log-scale y-axis helps see small late changes. Also check the metric you care about (e.g. accuracy), not just loss." },
-      { t: "qa", level: "intermediate", q: "How do you plot a classifier's decision boundary for 2-D inputs?", a: "Create a grid with `np.meshgrid` covering the data range, flatten it to an (n_points, 2) array, get the model's predicted probability for every grid point, reshape back to the grid shape, draw it with `contourf` and draw the 0.5 level with `contour`, then overlay the data points with `scatter`." },
-      { t: "qa", level: "intermediate", q: "What do `vmin` and `vmax` do in `imshow`, and when must you set them?", a: "They set which data values map to the two ends of the colormap; values outside are clipped. By default each image is scaled to its own min and max. Set them whenever you compare several images or matrices, so the same colour means the same number in each panel." },
-      { t: "qa", level: "advanced", q: "How would you visualize a 30-feature tabular dataset or a network's 512-dimensional embeddings?", a: "Start with per-feature histograms and a correlation matrix shown with `imshow`. For a 2-D picture of high-dimensional points, project them: PCA (a linear projection keeping the directions of largest variance) or non-linear methods such as t-SNE or UMAP, and scatter the 2-D result coloured by label. Remember that non-linear projections distort distances and cluster sizes, so they show neighbourhoods, not geometry." },
-      { t: "qa", level: "advanced", q: "Validation loss is noisy from epoch to epoch, making the curve hard to read. What can you do without hiding real problems?", a: "Plot the raw curve faintly and a smoothed version (e.g. an exponential moving average) on top; evaluate on a larger validation set to reduce noise; plot several runs with different seeds as a band (mean ± standard deviation). Never only show the smoothed curve — smoothing delays and flattens real changes such as a sudden divergence." },
+      { t: "qa", level: "beginner", q: "What is the difference between a Figure and an Axes in Matplotlib?", a: "The Figure is the whole image (the canvas, with a size in inches). An Axes is one plotting panel inside it, with its own x- and y-axis, title and data. One Figure can hold many Axes, e.g. a 2×2 grid from `plt.subplots(2, 2)`." },
+      { t: "qa", level: "beginner", q: "Why should you plot data before training a model on it?", a: "Summary statistics can hide very different structures, as Anscombe's quartet shows. Plots reveal outliers, curved relationships, wrong units, corrupted or mislabelled examples and class imbalance before they quietly damage a model." },
+      { t: "qa", level: "beginner", q: "What is a histogram and what does `density=True` change?", a: "A histogram splits one variable's range into bins and shows how many values fall in each. With `density=True`, each bar's height is divided by (number of values × bin width), so the total bar area is 1. That makes datasets of different sizes comparable." },
+      { t: "qa", level: "intermediate", q: "Your training loss goes down steadily. Is training going well?", a: "Not necessarily — training loss almost always falls. You need the validation loss on the same plot: if it stops improving or rises while training loss keeps falling, the model is overfitting. A log-scale y-axis helps you see small late changes. Also check the metric you care about (e.g. accuracy), not just loss." },
+      { t: "qa", level: "intermediate", q: "How do you plot a classifier's decision boundary for 2-D inputs?", a: "Make a grid with `np.meshgrid` covering the data range and flatten it to an (n_points, 2) array. Get the model's predicted probability for every grid point and reshape back to the grid. Draw it with `contourf`, draw the 0.5 level with `contour`, then overlay the data points with `scatter`." },
+      { t: "qa", level: "intermediate", q: "What do `vmin` and `vmax` do in `imshow`, and when must you set them?", a: "They set which data values map to the two ends of the colormap; values outside are clipped. By default each image is scaled to its own min and max. Set them whenever you compare several images or matrices, so the same colour means the same number in every panel." },
+      { t: "qa", level: "advanced", q: "How would you visualize a 30-feature tabular dataset or a network's 512-dimensional embeddings?", a: "Start with per-feature histograms and a correlation matrix in `imshow`. To see high-dimensional points in 2-D, project them: PCA (a linear projection that keeps the directions of largest variance) or non-linear methods such as t-SNE or UMAP. Then scatter the 2-D result coloured by label. Non-linear projections distort distances and cluster sizes, so they show neighbourhoods, not true geometry." },
+      { t: "qa", level: "advanced", q: "Validation loss is noisy from epoch to epoch, making the curve hard to read. What can you do without hiding real problems?", a: "Plot the raw curve faintly with a smoothed version (e.g. an exponential moving average) on top; use a larger validation set; plot several seeds as a band (mean ± standard deviation). Never show only the smoothed curve — smoothing delays and flattens real changes, such as a sudden divergence." },
     ],
 
     // ------------------------------------------------------------------
@@ -610,11 +617,11 @@ const lesson: Lesson = {
         { kind: "numeric", q: "A figure of 6 × 4 inches is saved at dpi 200. How many pixels wide is the file?", answer: 1200, tolerance: 0, explain: "pixels = inches × dpi = 6 × 200 = 1200 (and 4 × 200 = 800 tall)." },
         { kind: "numeric", q: "A density histogram has bins of width 0.5. One bar has height 0.4. What fraction of all values falls in that bin?", answer: 0.2, tolerance: 0.001, explain: "Fraction = height × width = 0.4 × 0.5 = 0.2." },
         { q: "In Anscombe's quartet, which of these is the SAME for all four datasets (to 2–3 decimals)?", options: ["the shape of the scatter plot", "the correlation between x and y", "the number of outliers", "whether the relationship is linear"], answer: 1, explain: "All four have r ≈ 0.816 (and the same means, variances and regression line), while their shapes are completely different." },
-        { q: "Why is the loss axis of a training curve usually logarithmic?", options: ["Matplotlib requires it", "Loss values are negative", "The loss shrinks by orders of magnitude, and a log axis keeps late improvements and train/validation gaps visible", "It makes the loss smaller"], answer: 2, explain: "Equal distances on a log axis mean equal ratios, so the whole range of the curve stays readable." },
+        { q: "Why is the loss axis of a training curve usually logarithmic?", options: ["Matplotlib requires it", "Loss values are negative", "The loss shrinks by orders of magnitude, and a log axis keeps late improvements and train/validation gaps visible", "It makes the loss smaller"], answer: 2, explain: "Equal distances on a log axis mean equal ratios, so the whole curve stays readable." },
         { kind: "numeric", q: "A meshgrid uses 300 x-values and 200 y-values. How many points must the model predict to draw the decision regions?", answer: 60000, tolerance: 0, explain: "Every combination: 300 × 200 = 60,000 points." },
-        { q: "You compare two grayscale digit images with `imshow` without `vmin`/`vmax`. One has max ink 8, the other 16. What happens?", options: ["The first looks fainter", "Both look equally dark because each is scaled to its own max", "An error is raised", "The first is drawn smaller"], answer: 1, explain: "Autoscaling maps each image's own maximum to the darkest colour; set `vmin=0, vmax=16` for a fair comparison." },
+        { q: "You compare two grayscale digit images with `imshow` without `vmin`/`vmax`. One has max ink 8, the other 16. What happens?", options: ["The first looks fainter", "Both look equally dark because each is scaled to its own max", "An error is raised", "The first is drawn smaller"], answer: 1, explain: "Auto-scaling maps each image's own maximum to the darkest colour. Set `vmin=0, vmax=16` for a fair comparison." },
       ] },
-      { t: "exercise", title: "Density histogram by hand", prompt: "Ten values $(0.2, 0.4, 0.5, 1.1, 1.3, 1.4, 1.6, 1.8, 2.5, 2.9)$ are put in a histogram with 3 bins over $[0, 3]$. Give the counts and the density heights, and check that the bar areas sum to 1.", hint: "Bin width is $3/3 = 1$; the bins are $[0,1)$, $[1,2)$ and $[2,3]$.", solution: [
+      { t: "exercise", title: "Density histogram by hand", prompt: "Ten values $(0.2, 0.4, 0.5, 1.1, 1.3, 1.4, 1.6, 1.8, 2.5, 2.9)$ go into a histogram with 3 bins over $[0, 3]$. Give the counts and the density heights, and check that the bar areas sum to 1.", hint: "Bin width is $3/3 = 1$; the bins are $[0,1)$, $[1,2)$ and $[2,3]$.", solution: [
         { t: "steps", items: [
           { title: "Counts", text: "$[0,1)$: 0.2, 0.4, 0.5 → 3. $[1,2)$: 1.1, 1.3, 1.4, 1.6, 1.8 → 5. $[2,3]$: 2.5, 2.9 → 2. Total 10." },
           { title: "Densities", tex: String.raw`h_k = \frac{c_k}{N w} = \frac{(3,\,5,\,2)}{10 \times 1} = (0.3,\ 0.5,\ 0.2)` },
@@ -622,9 +629,9 @@ const lesson: Lesson = {
         ] },
         { t: "p", text: "`np.histogram(v, bins=3, range=(0, 3), density=True)` returns exactly `[0.3, 0.5, 0.2]`." },
       ] },
-      { t: "exercise", title: "A 2 × 5 grid of digits", prompt: "Using `load_digits`, draw a 2 × 5 grid showing the first image of each digit 0–9 with a common colour scale and its label as the title, no ticks. Also print the axes-array shape, the index of each digit's first image, and the average ink per digit class. Which digit uses the most ink?", hint: "`np.flatnonzero(digits.target == d)[0]` gives the first index of digit d; iterate over `axes.flat`; `ax.axis(\"off\")` hides the ticks.", solution: [
+      { t: "exercise", title: "A 2 × 5 grid of digits", prompt: "Using `load_digits`, draw a 2 × 5 grid showing the first image of each digit 0–9, with a shared colour scale, its label as the title, and no ticks. Also print the axes-array shape, the index of each digit's first image, and the average ink per digit class. Which digit uses the most ink?", hint: "`np.flatnonzero(digits.target == d)[0]` gives the first index of digit d; loop over `axes.flat`; `ax.axis(\"off\")` hides the ticks.", solution: [
         { t: "code", lang: "python", title: "digit_grid.py", code: EX_SOLUTION, output: EX_SOLUTION_OUT },
-        { t: "p", text: "The first ten images happen to be the digits 0–9 in order. Digit 8 uses the most ink on average (5.16) and 7 the least (4.74) — a sensible result, since an 8 has two closed loops and a 7 is just two strokes. The differences are small, which is exactly why a printed table is easier to misread than the picture grid." },
+        { t: "p", text: "The first ten images happen to be the digits 0–9 in order. Digit 8 uses the most ink on average (5.16) and 7 the least (4.74) — an 8 has two closed loops, a 7 just two strokes. The differences are small, so the printed table is easier to misread than the picture grid." },
       ] },
     ],
 
@@ -634,10 +641,10 @@ const lesson: Lesson = {
         "Plot before you model: Anscombe's quartet has the same mean (9, 7.50), variance (11, ≈4.12–4.13), correlation (0.816) and line $y = 0.5x + 3$ for four very different datasets.",
         "Figure = the whole image; Axes = one panel. Use `fig, axes = plt.subplots(rows, cols, figsize=...)` and call methods on each Axes.",
         "Line plots for curves and training histories (train and validation together, `set_yscale(\"log\")`); scatter for two variables coloured by class; histograms for distributions (`bins`, `density=True`).",
-        "`imshow` shows images and matrices; choose a `cmap`, fix `vmin`/`vmax` when comparing, and add a `colorbar`. A confusion matrix is a 2-D count table drawn this way.",
+        "`imshow` shows images and matrices: choose a `cmap`, fix `vmin`/`vmax` when comparing, and add a `colorbar`. A confusion matrix is a 2-D count table drawn this way.",
         "Decision boundaries: `meshgrid` → flatten → predict → reshape → `contourf` + `contour` at 0.5 → `scatter` the data.",
-        "Always label axes, give series labels and call `legend()`. Save with `savefig(path, dpi=...)`; PNG for screens, PDF/SVG for print.",
-        "Use `matplotlib.use(\"Agg\")` for scripts without a display; the in-browser Run button shows open figures inline.",
+        "Always label axes, give series labels and call `legend()`. Save with `savefig(path, dpi=...)`: PNG for screens, PDF/SVG for print.",
+        "Use `matplotlib.use(\"Agg\")` for scripts without a display; the in-browser Run button shows open figures under the output.",
       ] },
       { t: "math", tex: String.raw`\text{pixels} = \text{inches}\times\text{dpi}, \qquad h_k = \frac{c_k}{N w}, \qquad r = \frac{\sum_i (x_i-\bar x)(y_i-\bar y)}{\sqrt{\sum_i (x_i-\bar x)^2 \sum_i (y_i-\bar y)^2}}` },
     ],
@@ -645,8 +652,8 @@ const lesson: Lesson = {
     // ------------------------------------------------------------------
     next: [
       { t: "list", items: [
-        "[The Deep Learning Workflow](/learn/m01/dl-workflow) — where these plots are used: inspecting data, comparing baselines and diagnosing training with learning curves on a real end-to-end project.",
-        "[Training: Epochs, Batches and Overfitting](/learn/m03/training-basics) — how to interpret the train/validation curves you can now draw.",
+        "[The Deep Learning Workflow](/learn/m01/dl-workflow) — where these plots are used: inspecting data, comparing baselines and diagnosing training with learning curves in a real end-to-end project.",
+        "[Training: Epochs, Batches and Overfitting](/learn/m03/training-basics) — how to read the train/validation curves you can now draw.",
         "[Linear and Logistic Regression](/learn/m03/linear-logistic-regression) — the model behind the straight decision boundary and the training curve in this lesson.",
         "[Classification Metrics](/learn/m17/classification-metrics) — confusion matrices in depth: precision, recall and why accuracy can mislead.",
       ] },

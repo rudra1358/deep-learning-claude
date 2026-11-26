@@ -60,19 +60,19 @@ export default function FittingSim() {
   let text: string;
   if (regime === "underfit") {
     title = `Degree ${degree}: underfitting`;
-    text = `A degree-${degree} polynomial is too simple to follow sin(2πx). Training MSE (${fmt(cur.trainMse)}) and validation MSE (${fmt(cur.valMse)}) are both high and close to each other — the error is dominated by bias. Adding capacity will help; validation error is lowest at degree ${best}.`;
+    text = `A degree-${degree} polynomial is too simple to follow sin(2πx). Training MSE (${fmt(cur.trainMse)}) and validation MSE (${fmt(cur.valMse)}) are both high and close together. Most of the error is bias: the model is too stiff. A more flexible model will help; validation error is lowest at degree ${best}.`;
   } else if (regime === "good") {
     title = `Degree ${degree}: good fit`;
-    text = `Validation MSE ${fmt(cur.valMse)} is near its minimum (best: degree ${best}, ${fmt(results[best].valMse)}). The noise variance is σ² = ${fmt(noiseVar)}, which is the lowest validation MSE any model could expect on average; the fit captures the signal without chasing the noise.`;
+    text = `Validation MSE ${fmt(cur.valMse)} is near its lowest (best: degree ${best}, ${fmt(results[best].valMse)}). The noise variance is σ² = ${fmt(noiseVar)}. No model can expect a lower validation MSE than that on average. This fit catches the real pattern without chasing the noise.`;
   } else {
     title = `Degree ${degree}: overfitting`;
-    text = `Training MSE keeps falling (${fmt(cur.trainMse)}${cur.trainMse < noiseVar ? `, already below the noise variance ${fmt(noiseVar)} — the curve is fitting noise` : ""}) while validation MSE rises to ${fmt(cur.valMse)}. ${params >= nTrain ? `With ${params} coefficients and only ${nTrain} training points the polynomial can pass through (almost) every training point. ` : ""}Variance dominates: a new sample would give a very different curve. More data or a lower degree fixes it.`;
+    text = `Training MSE keeps falling (${fmt(cur.trainMse)}${cur.trainMse < noiseVar ? `, already below the noise variance ${fmt(noiseVar)}, so the curve is fitting noise` : ""}), but validation MSE rises to ${fmt(cur.valMse)}. ${params >= nTrain ? `With ${params} coefficients and only ${nTrain} training points, the polynomial can pass through (almost) every training point. ` : ""}Most of the error is now variance: a new sample would give a very different curve. More data or a lower degree fixes it.`;
   }
 
   return (
     <SimShell
       title="Underfitting vs Overfitting"
-      subtitle="Least-squares polynomial fits to noisy samples of sin(2πx); filled = training, hollow = validation."
+      subtitle="Fit polynomials (least squares) to noisy samples of sin(2πx). Filled dots = training, hollow = validation."
       controls={
         <Controls
           s={s}
@@ -166,7 +166,7 @@ export default function FittingSim() {
               <g>
                 <line x1={P.l} x2={W - P.r} y1={ey(noiseVar)} y2={ey(noiseVar)} stroke="var(--text-muted)" strokeDasharray="2 3" />
                 <text x={W - P.r - 2} y={ey(noiseVar) - 3} fontSize="8.5" textAnchor="end" fill="var(--text-muted)">
-                  σ² (noise floor)
+                  σ² (noise floor: lowest possible)
                 </text>
               </g>
             )}

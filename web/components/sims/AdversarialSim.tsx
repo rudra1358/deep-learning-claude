@@ -18,7 +18,7 @@ import {
 
 const MODEL_URL = "/models/adversarial.json";
 const TITLE = "Adversarial examples: FGSM and PGD (trained models)";
-const SUB = "Nudge every pixel of a real digit by at most ε in the direction that increases the loss — and watch the prediction flip.";
+const SUB = "Nudge each pixel of a real digit by at most ε, in the direction that raises the loss. Watch the prediction flip.";
 const MODEL_LABEL: Record<ModelName, string> = { linear: "Softmax regression", mlp: "MLP", mlp_adv: "MLP, adversarially trained" };
 const MODEL_COLOR: Record<ModelName, string> = { linear: "var(--text-muted)", mlp: "var(--clay)", mlp_adv: "var(--accent)" };
 const NAMES: ModelName[] = ["linear", "mlp", "mlp_adv"];
@@ -56,7 +56,7 @@ function ProbBars({ clean, cur, label }: { clean: number[]; cur: number[]; label
   const predA = cur.indexOf(Math.max(...cur));
   return (
     <svg viewBox={`0 0 ${W} ${10 * rowH + 16}`} className="h-auto w-full" role="img" aria-label={`Class probabilities. Clean prediction ${predC}, current prediction ${predA}, true label ${label}`}>
-      <text x={L} y={10} fontSize={9} fill="var(--text-faint)">thin grey = clean x · thick = x_t (accent true, clay wrong)</text>
+      <text x={L} y={10} fontSize={9} fill="var(--text-faint)">thin grey = clean x · thick = x_t (accent = true class, clay = wrong)</text>
       {clean.map((pc, k) => {
         const y = 16 + k * rowH;
         const pa = cur[k];
@@ -102,7 +102,7 @@ function LossPlot({ traj, t }: { traj: PgdStep[]; t: number }) {
         <circle key={i} cx={sx(i)} cy={sy(v)} r={i === t ? 4 : 1.8} fill={i === t ? "var(--gold)" : "var(--clay)"} />
       ))}
       <text x={W - P.r} y={H - 4} fontSize={9} textAnchor="end" fill="var(--text-muted)">iteration t →</text>
-      <text x={P.l + 4} y={P.t + 10} fontSize={9} fill="var(--text-muted)">loss −log p(y | x_t)</text>
+      <text x={P.l + 4} y={P.t + 10} fontSize={9} fill="var(--text-muted)">loss = −log p(y | x_t)</text>
     </svg>
   );
 }
@@ -205,7 +205,7 @@ export default function AdversarialSim() {
   if (error) {
     return (
       <SimShell title={TITLE} subtitle={SUB}>
-        <p className="text-sm text-clay">Could not load the models ({error}). Check your connection and reload the page.</p>
+        <p className="text-sm text-clay">Could not load the models ({error}). Check your internet connection and reload the page.</p>
       </SimShell>
     );
   }
@@ -213,7 +213,7 @@ export default function AdversarialSim() {
     return (
       <SimShell title={TITLE} subtitle={SUB}>
         <div className="flex h-40 items-center justify-center text-sm text-muted" role="status">
-          Loading three trained digit classifiers (≈130 KB)…
+          Loading three trained digit models (about 130 KB)…
         </div>
       </SimShell>
     );
@@ -285,13 +285,13 @@ export default function AdversarialSim() {
 
   const aside = (
     <div className="flex flex-col gap-3">
-      <Narration title={attack === "fgsm" ? (t === 0 ? "Clean input" : "FGSM: one step of size ε") : `PGD iteration ${t} of ${steps}`}>{narrate({ attack, t, steps, eps, alpha, label, predClean, predCur, cur, clean, flipAt, model })}</Narration>
+      <Narration title={attack === "fgsm" ? (t === 0 ? "The clean digit" : "FGSM: one step of size ε") : `PGD step ${t} of ${steps}`}>{narrate({ attack, t, steps, eps, alpha, label, predClean, predCur, cur, clean, flipAt, model })}</Narration>
       <div className="rounded-lg border border-border p-2.5 text-[11px] leading-snug text-muted">
-        <span className="font-medium text-accent">Real trained models.</span> Trained with PyTorch on {json.data.n_train.toLocaleString()} of scikit-learn&apos;s 8×8 digits (pixels in [0, 1]): softmax regression ({json.models.linear.n_params} parameters, test accuracy {(json.models.linear.test_acc * 100).toFixed(1)}%), an MLP 64→32→10 ({json.models.mlp.n_params.toLocaleString()} parameters, {(json.models.mlp.test_acc * 100).toFixed(1)}%), and the same MLP trained on PGD examples (ε = {json.adv_training.eps}, {json.adv_training.steps} steps; {(json.models.mlp_adv.test_acc * 100).toFixed(1)}% clean). Gradients, attacks and the curves below are computed in your browser.
+        <span className="font-medium text-accent">These are real trained models.</span> We trained them in PyTorch on {json.data.n_train.toLocaleString()} of scikit-learn&apos;s 8×8 digits (pixels in [0, 1]): softmax regression ({json.models.linear.n_params} parameters, test accuracy {(json.models.linear.test_acc * 100).toFixed(1)}%), an MLP 64→32→10 ({json.models.mlp.n_params.toLocaleString()} parameters, {(json.models.mlp.test_acc * 100).toFixed(1)}%), and the same MLP trained on PGD attacks (ε = {json.adv_training.eps}, {json.adv_training.steps} steps; {(json.models.mlp_adv.test_acc * 100).toFixed(1)}% on clean digits). Your browser computes the gradients, attacks and curves below.
       </div>
       {check && (
         <div className="rounded-lg border border-border p-2.5 font-mono text-[11px] leading-snug text-muted">
-          browser vs NumPy reference: max |Δ| = {check.maxAbsDiff.toExponential(1)} over {check.checked} values {check.maxAbsDiff < 1e-6 ? "✓" : "✗"}
+          your browser vs NumPy answer: max |Δ| = {check.maxAbsDiff.toExponential(1)} over {check.checked} values {check.maxAbsDiff < 1e-6 ? "✓" : "✗"}
         </div>
       )}
     </div>
@@ -300,8 +300,8 @@ export default function AdversarialSim() {
   return (
     <SimShell title={TITLE} subtitle={SUB} controls={controls} aside={aside}>
       <div className="mb-3 grid grid-cols-2 justify-items-center gap-3 sm:grid-cols-4">
-        <Digit px={x0} label={`clean x (label ${label}, predicted ${predClean})`} highlight={t === 0} />
-        <Digit px={gradSign} mode="signed" label={`sign ∇ₓL at x_${t} (accent +, clay −)`} />
+        <Digit px={x0} label={`clean x (true ${label}, predicted ${predClean})`} highlight={t === 0} />
+        <Digit px={gradSign} mode="signed" label={`sign ∇ₓL at x_${t} (accent = +, clay = −)`} />
         <Digit px={delta} mode="signed" maxAbs={Math.max(eps, 1e-9)} label={`perturbation δ = x_${t} − x, ‖δ‖∞ = ${fmt(linfDist(cur.x, x0), 3)}`} />
         <Digit px={cur.x} label={`x_${t}: predicted ${predCur} (${(cur.probs[predCur] * 100).toFixed(1)}%)`} highlight={t > 0} />
       </div>
@@ -309,17 +309,17 @@ export default function AdversarialSim() {
       <div className={`mb-3 rounded-lg border p-2.5 text-xs ${predCur !== label ? "border-clay text-clay" : "border-border text-muted"}`} role="status">
         {predCur !== label ? (
           <>
-            <b>Decision flipped:</b> the model now says <b>{predCur}</b> with {(cur.probs[predCur] * 100).toFixed(1)}% confidence, although no pixel moved by more than {fmt(eps, 3)}.
+            <b>Fooled!</b> The model now says <b>{predCur}</b> with {(cur.probs[predCur] * 100).toFixed(1)}% confidence. Yet no pixel moved by more than {fmt(eps, 3)}.
           </>
         ) : (
           <>
-            Still correct: p(true class {label}) = {(cur.probs[label] * 100).toFixed(1)}% (was {(clean.probs[label] * 100).toFixed(1)}%). Loss {fmt(clean.loss, 3)} → {fmt(cur.loss, 3)}.
+            Still right: p(true class {label}) = {(cur.probs[label] * 100).toFixed(1)}% (was {(clean.probs[label] * 100).toFixed(1)}%). Loss went {fmt(clean.loss, 3)} → {fmt(cur.loss, 3)}.
           </>
         )}
         {t > 0 && (
           <span className="text-muted">
             {" "}
-            · {changed} of 64 pixels changed, {atEdge} sit on the edge of the ε-box (|δ| = ε); the rest are limited by the [0, 1] range{attack === "pgd" ? " or have not reached the edge yet" : ""}.
+            · {changed} of 64 pixels changed. {atEdge} are at the full limit (|δ| = ε); the rest hit the [0, 1] pixel range{attack === "pgd" ? " or have not reached the limit yet" : ""}.
           </span>
         )}
       </div>
@@ -332,13 +332,13 @@ export default function AdversarialSim() {
         <div className="min-w-0">
           <div className="mb-1 text-xs font-medium">Loss along the attack</div>
           <LossPlot traj={traj} t={t} />
-          <p className="mt-1 text-[11px] text-muted">Dashed line: loss = ln 2, where p(true class) = 50%; above it the true class can no longer have the majority.</p>
+          <p className="mt-1 text-[11px] text-muted">Dashed line: loss = ln 2, where p(true class) = 50%. Above it, the true class can no longer hold a majority.</p>
         </div>
       </div>
 
       <div className="mt-4 min-w-0">
         <div className="mb-1 text-xs font-medium">
-          Robustness curve: test accuracy under {attack === "fgsm" ? "FGSM" : "PGD (20 steps, α = 2.5ε/20)"} for all {nTest} test digits
+          Robustness curve: accuracy on all {nTest} test digits under {attack === "fgsm" ? "FGSM" : "PGD (20 steps, α = 2.5ε/20)"} attack
         </div>
         <RobustPlot curves={curves} model={model} eps={eps} attack={attack} />
         <div className="mt-1 overflow-x-auto">
@@ -363,7 +363,7 @@ export default function AdversarialSim() {
             </tbody>
           </table>
           <p className="mt-1 text-[11px] text-muted">
-            Curves are evaluated at ε ∈ {"{"}0, 0.025, …, 0.3{"}"}; the last column is shown when the slider sits on one of those values. Reference values from the PyTorch/NumPy run for the selected model at ε = 0.1: FGSM {(info.curves.fgsm[4] * 100).toFixed(1)}%, PGD {(info.curves.pgd[4] * 100).toFixed(1)}%.
+            Curves are measured at ε ∈ {"{"}0, 0.025, …, 0.3{"}"}. The last column fills in when the slider is on one of those values. Reference numbers from the PyTorch/NumPy run, this model, ε = 0.1: FGSM {(info.curves.fgsm[4] * 100).toFixed(1)}%, PGD {(info.curves.pgd[4] * 100).toFixed(1)}%.
           </p>
         </div>
       </div>
@@ -387,13 +387,13 @@ function narrate(a: {
 }): ReactNode {
   const { attack, t, steps, eps, alpha, label, predClean, predCur, cur, clean, flipAt, model } = a;
   if (t === 0) {
-    return `A held-out ${label}. The ${MODEL_LABEL[model].toLowerCase()} predicts ${predClean} with p = ${(clean.probs[predClean] * 100).toFixed(1)}%, loss ${fmt(clean.loss, 3)}. The second image is sign(∇ₓL): +1 (accent) where brightening a pixel increases the loss, −1 (clay) where darkening it does. ${attack === "fgsm" ? `FGSM will move every pixel by exactly ε = ${eps.toFixed(3)} in that direction (then clip to [0, 1]).` : `PGD will take ${steps} steps of size α = ${alpha.toFixed(3)} in that direction, recomputing the gradient each time and projecting back into the ε = ${eps.toFixed(3)} box around x.`}`;
+    return `A test ${label} the model never saw in training. The ${MODEL_LABEL[model].toLowerCase()} predicts ${predClean} with p = ${(clean.probs[predClean] * 100).toFixed(1)}%, loss ${fmt(clean.loss, 3)}. The second image is sign(∇ₓL), the gradient's sign. +1 (accent) means brightening that pixel raises the loss. −1 (clay) means darkening it does. ${attack === "fgsm" ? `FGSM will move every pixel by exactly ε = ${eps.toFixed(3)} that way, then clip to [0, 1].` : `PGD will take ${steps} small steps of size α = ${alpha.toFixed(3)} that way. After each one it recomputes the gradient and pulls x back inside the ε = ${eps.toFixed(3)} box.`}`;
   }
-  const flip = predCur !== label ? ` The prediction is now ${predCur} — an adversarial example.` : ` The prediction is still ${label}.`;
+  const flip = predCur !== label ? ` The prediction is now ${predCur}. That is an adversarial example!` : ` The prediction is still ${label}.`;
   if (attack === "fgsm") {
-    return `x' = clip(x + ε·sign(∇ₓL)). One gradient evaluation, one step: the loss rose from ${fmt(clean.loss, 3)} to ${fmt(cur.loss, 3)}.${flip} FGSM linearises the loss around x; for a linear model this is exactly the worst case inside the box (up to clipping), for a non-linear model it is only an approximation.`;
+    return `x' = clip(x + ε·sign(∇ₓL)). One gradient, one step: the loss rose from ${fmt(clean.loss, 3)} to ${fmt(cur.loss, 3)}.${flip} FGSM treats the loss as a straight line near x. For a linear model that gives the true worst case in the box (up to clipping). For a non-linear model it is only an estimate.`;
   }
-  const atBoundary = alpha * t >= eps ? ` After ${Math.ceil(eps / alpha - 1e-9)} steps most pixels sit on the edge of the ε-box, so further steps mainly re-allocate the budget.` : "";
-  const flipNote = flipAt > 0 ? ` (The decision first flipped at iteration ${flipAt}.)` : steps === t ? " PGD found no adversarial example within this budget — increase ε, the steps or α, or try the non-robust MLP." : "";
-  return `x_${t} = Π(x_${t - 1} + α·sign(∇ₓL(x_${t - 1}))): step, then clip to [x − ε, x + ε] and to [0, 1]. Loss ${fmt(cur.loss, 3)}, p(true class) = ${(cur.probs[label] * 100).toFixed(1)}%.${flip}${atBoundary}${flipNote}`;
+  const atBoundary = alpha * t >= eps ? ` After ${Math.ceil(eps / alpha - 1e-9)} steps most pixels are at the ε limit, so later steps mostly shuffle the budget around.` : "";
+  const flipNote = flipAt > 0 ? ` (The prediction first flipped at step ${flipAt}.)` : steps === t ? " PGD could not fool the model with this budget. Raise ε, the steps or α, or try the plain MLP." : "";
+  return `x_${t} = Π(x_${t - 1} + α·sign(∇ₓL(x_${t - 1}))): take a step, then clip back into [x − ε, x + ε] and [0, 1]. Loss ${fmt(cur.loss, 3)}, p(true class) = ${(cur.probs[label] * 100).toFixed(1)}%.${flip}${atBoundary}${flipNote}`;
 }

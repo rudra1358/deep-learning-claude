@@ -135,7 +135,7 @@ function BoxSliders({ boxes, names, setBox }: { boxes: Box[]; names: string[]; s
   const h = b.y2 - b.y1;
   return (
     <details className="text-xs">
-      <summary className="cursor-pointer text-muted">Adjust boxes with sliders</summary>
+      <summary className="cursor-pointer text-muted">Move boxes with sliders</summary>
       <div className="mt-2 space-y-1.5">
         <Seg label="Box" value={i} options={names.map((n, k) => ({ v: k, label: n }))} onChange={setSel} />
         <Slider label="x1" value={b.x1} min={0} max={W - w} step={1} onChange={(v) => setBox(i, { x1: v, y1: b.y1, x2: v + w, y2: b.y2 })} fmt={(v) => String(Math.round(v))} />
@@ -180,22 +180,22 @@ function IouMode({ gts, setGt }: { gts: Box[]; setGt: (i: number, b: Box) => voi
   const s = useStepper(IOU_STEPS.length, { baseMs: 1300 });
   const p = iouParts(gts[0], pred);
   const st = s.step;
-  const quality = p.iou >= 0.75 ? "a strict match (COCO's AP75 threshold)" : p.iou >= 0.5 ? "a match at the PASCAL VOC / mAP@0.5 threshold" : p.iou > 0 ? "below 0.5: counted as a false positive at mAP@0.5" : "no overlap at all: IoU is 0 however far apart the boxes are";
+  const quality = p.iou >= 0.75 ? "a strict match (COCO's AP75 threshold)" : p.iou >= 0.5 ? "a match at the usual PASCAL VOC / mAP@0.5 threshold" : p.iou > 0 ? "below 0.5, so it counts as a false positive at mAP@0.5" : "no overlap at all. IoU is 0 no matter how far apart the boxes are";
   const narr = [
-    <>Ground truth <b>G</b> {fmtBox(gts[0])} and prediction <b>P</b> {fmtBox(pred)}, corner format (x1, y1, x2, y2). Drag either box or its corner handle.</>,
+    <>Ground truth (the correct box) <b>G</b> {fmtBox(gts[0])} and prediction <b>P</b> {fmtBox(pred)}, written as corners (x1, y1, x2, y2). Drag either box, or its corner handle.</>,
     <>|G| = {r1(gts[0].x2 - gts[0].x1)} × {r1(gts[0].y2 - gts[0].y1)} = {r1(p.areaA)}; |P| = {r1(pred.x2 - pred.x1)} × {r1(pred.y2 - pred.y1)} = {r1(p.areaB)}.</>,
     p.interBox ? (
-      <>Intersection corners: max of the top-lefts, min of the bottom-rights → {fmtBox(p.interBox)}, area {r1(p.inter)}.</>
+      <>The overlap (intersection) box: take the max of the top-left corners and the min of the bottom-right corners → {fmtBox(p.interBox)}, area {r1(p.inter)}.</>
     ) : (
-      <>max(x1) ≥ min(x2) or max(y1) ≥ min(y2): the boxes do not overlap, intersection = 0.</>
+      <>max(x1) ≥ min(x2) or max(y1) ≥ min(y2), so the boxes do not overlap. Intersection = 0.</>
     ),
-    <>Union = |G| + |P| − |G∩P| = {r1(p.areaA)} + {r1(p.areaB)} − {r1(p.inter)} = {r1(p.union)} (the intersection would otherwise be counted twice).</>,
-    <>IoU = {r1(p.inter)} / {r1(p.union)} = <b>{fmt(p.iou)}</b> — {quality}.</>,
+    <>Union = |G| + |P| − |G∩P| = {r1(p.areaA)} + {r1(p.areaB)} − {r1(p.inter)} = {r1(p.union)}. We subtract the overlap so it is not counted twice.</>,
+    <>IoU = {r1(p.inter)} / {r1(p.union)} = <b>{fmt(p.iou)}</b>: {quality}.</>,
   ];
   return (
     <SimShell
       title="Intersection over Union"
-      subtitle="Overlap of a predicted box with a ground-truth box, normalised by their union."
+      subtitle="How much a predicted box overlaps the true box, divided by the area they cover together."
       controls={<Controls s={s} />}
       aside={
         <div className="space-y-3">
@@ -283,7 +283,7 @@ function AnchorsMode({ gts, setGt }: { gts: Box[]; setGt: (i: number, b: Box) =>
   return (
     <SimShell
       title="Anchors and target assignment"
-      subtitle="Every grid cell carries anchors of several scales and aspect ratios; each is labelled by its best IoU with the ground truth."
+      subtitle="Every grid cell holds anchors (preset boxes) of several sizes and shapes. Each gets a label from its best IoU with a true box."
       controls={
         <div className="space-y-2">
           <Controls s={s} />
@@ -298,7 +298,7 @@ function AnchorsMode({ gts, setGt }: { gts: Box[]; setGt: (i: number, b: Box) =>
           </div>
           <div className="flex flex-wrap gap-3 text-xs">
             <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={force} onChange={(e) => { setForce(e.target.checked); s.reset(); }} /> each GT keeps its best anchor
+              <input type="checkbox" checked={force} onChange={(e) => { setForce(e.target.checked); s.reset(); }} /> each true box keeps its best anchor
             </label>
             <label className="flex items-center gap-1.5">
               <input type="checkbox" checked={showNeg} onChange={(e) => setShowNeg(e.target.checked)} /> draw negatives
@@ -316,7 +316,7 @@ function AnchorsMode({ gts, setGt }: { gts: Box[]; setGt: (i: number, b: Box) =>
             <Stat label="positive" value={<span className="text-accent">{counts.pos}</span>} />
             <Stat label="ignored" value={counts.ignore} />
             <Stat label="negative" value={counts.neg} />
-            {negThr > posThr && <div className="mt-1 text-xs text-clay">Negative threshold clipped to the positive one.</div>}
+            {negThr > posThr && <div className="mt-1 text-xs text-clay">Negative threshold capped at the positive one.</div>}
           </div>
           {a && m && (
             <div>
@@ -340,11 +340,11 @@ function AnchorsMode({ gts, setGt }: { gts: Box[]; setGt: (i: number, b: Box) =>
             {a && m && ac && gc ? (
               m.label === "pos" ? (
                 <>
-                  {m.forced ? <>Its IoU {fmt(m.bestIou)} is below {posThr.toFixed(2)}, but it is GT {m.gt + 1}&apos;s best anchor, so it is made positive. </> : <>IoU {fmt(m.bestIou)} ≥ {posThr.toFixed(2)} → positive for GT {m.gt + 1}. </>}
-                  Targets: tx = ({r1(gc.cx)} − {r1(ac.cx)}) / {r1(ac.w)} = {fmt(t!.tx)}, ty = ({r1(gc.cy)} − {r1(ac.cy)}) / {r1(ac.h)} = {fmt(t!.ty)}, tw = ln({r1(gc.w)} / {r1(ac.w)}) = {fmt(t!.tw)}, th = ln({r1(gc.h)} / {r1(ac.h)}) = {fmt(t!.th)}. The network learns to output these four numbers here.
+                  {m.forced ? <>Its IoU {fmt(m.bestIou)} is below {posThr.toFixed(2)}. But it is GT {m.gt + 1}&apos;s best anchor, so we make it positive. </> : <>IoU {fmt(m.bestIou)} ≥ {posThr.toFixed(2)} → positive for GT {m.gt + 1}. </>}
+                  Targets: tx = ({r1(gc.cx)} − {r1(ac.cx)}) / {r1(ac.w)} = {fmt(t!.tx)}, ty = ({r1(gc.cy)} − {r1(ac.cy)}) / {r1(ac.h)} = {fmt(t!.ty)}, tw = ln({r1(gc.w)} / {r1(ac.w)}) = {fmt(t!.tw)}, th = ln({r1(gc.h)} / {r1(ac.h)}) = {fmt(t!.th)}. The network learns to output these four numbers for this anchor: how far to shift and stretch it.
                 </>
               ) : (
-                <>IoU {fmt(m.bestIou)} lies between {neg.toFixed(2)} and {posThr.toFixed(2)}: ambiguous, so this anchor is <b>ignored</b> — it contributes to neither the classification nor the box loss.</>
+                <>IoU {fmt(m.bestIou)} is between {neg.toFixed(2)} and {posThr.toFixed(2)}. That is unclear, so this anchor is <b>ignored</b>. It adds nothing to either the class loss or the box loss.</>
               )
             ) : (
               <>Lower the positive threshold, add scales closer to the object sizes, or drag a box.</>
@@ -437,7 +437,7 @@ function NmsMode({ gts, setGt }: { gts: Box[]; setGt: (i: number, b: Box) => voi
   return (
     <SimShell
       title="Greedy non-maximum suppression"
-      subtitle="Keep the highest-scoring box, delete every remaining box that overlaps it by more than the threshold, repeat."
+      subtitle="Keep the highest-scoring box. Delete every other box that overlaps it more than the threshold. Repeat."
       controls={
         <div className="space-y-2">
           <Controls s={s} />
@@ -473,17 +473,17 @@ function NmsMode({ gts, setGt }: { gts: Box[]; setGt: (i: number, b: Box) => voi
             <Stat label="after NMS" value={`P ${fmt(after.precision, 2)}  R ${fmt(after.recall, 2)}`} />
             <Stat label="  TP / FP / FN" value={`${after.tp} / ${after.fp} / ${after.fn}`} />
           </div>
-          <Narration title={done ? "Finished" : ev ? (ev.kind === "pick" ? "Pick the highest remaining score" : "Compare and suppress") : "Start"}>
-            {!ev && <>{live.length} candidates have score ≥ {scoreThr.toFixed(2)}. Sort them by score; press Step.</>}
-            {ev && ev.kind === "pick" && !done && <>Box #{trace.order.indexOf(ev.idx) + 1} (score {cands[ev.idx].score.toFixed(2)}) is the best of the {ev.remaining.length} remaining boxes → it is <b>kept</b>.</>}
+          <Narration title={done ? "Finished" : ev ? (ev.kind === "pick" ? "Pick the highest remaining score" : "Compare and remove") : "Start"}>
+            {!ev && <>{live.length} candidate boxes have score ≥ {scoreThr.toFixed(2)}. Sort them by score, then press Step.</>}
+            {ev && ev.kind === "pick" && !done && <>Box #{trace.order.indexOf(ev.idx) + 1} (score {cands[ev.idx].score.toFixed(2)}) is the best of the {ev.remaining.length} boxes left → we <b>keep</b> it.</>}
             {ev && ev.kind === "suppress" && !done && (
               <>
-                IoU with each remaining box: {ev.comps.length ? ev.comps.map((c) => `${fmt(c.iou, 2)}${c.suppressed ? "✕" : ""}`).join(", ") : "none left"}. Those above {thr.toFixed(2)} (✕) are suppressed: {ev.comps.filter((c) => c.suppressed).length} removed, {ev.comps.filter((c) => !c.suppressed).length} remain.
+                IoU with each remaining box: {ev.comps.length ? ev.comps.map((c) => `${fmt(c.iou, 2)}${c.suppressed ? "✕" : ""}`).join(", ") : "none left"}. Those above {thr.toFixed(2)} (✕) are suppressed (removed): {ev.comps.filter((c) => c.suppressed).length} removed, {ev.comps.filter((c) => !c.suppressed).length} remain.
               </>
             )}
             {done && (
               <>
-                Kept {trace.keep.length} of {live.length} boxes. Precision rose from {fmt(before.precision, 2)} to {fmt(after.precision, 2)} because duplicates count as false positives; recall is {fmt(after.recall, 2)}. Try a threshold of 0.1 (neighbouring objects may be wrongly merged) or 0.9 (duplicates survive).
+                Kept {trace.keep.length} of {live.length} boxes. Precision rose from {fmt(before.precision, 2)} to {fmt(after.precision, 2)}, because duplicate boxes count as false positives. Recall is {fmt(after.recall, 2)}. Try a threshold of 0.1 (nearby objects may wrongly merge) or 0.9 (duplicates survive).
               </>
             )}
           </Narration>

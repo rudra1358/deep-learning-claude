@@ -11,8 +11,8 @@ export default function GlossaryPage() {
   const letters = Array.from(new Set(sorted.map((g) => g.term[0].toUpperCase())));
   return (
     <Container>
-      <PageHeader eyebrow="Glossary" title="Every term, defined once">
-        Concise definitions with the defining formula and a link to the lesson that teaches the concept properly.
+      <PageHeader eyebrow="Glossary" title="Every term, in plain words">
+        Short definitions, the key formula, and a link to the lesson that explains each idea fully.
       </PageHeader>
       <nav className="sticky top-14 z-10 -mx-4 flex flex-wrap gap-1 border-b border-border bg-bg/95 px-4 py-2 backdrop-blur" aria-label="Letters">
         {letters.map((l) => (

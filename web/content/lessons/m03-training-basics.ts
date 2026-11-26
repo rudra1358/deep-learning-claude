@@ -4,7 +4,7 @@ const lesson: Lesson = {
   id: "m03/training-basics",
   title: "Training: Epochs, Batches and Overfitting",
   summary:
-    "What one pass of a training loop actually does, how epochs, batches and iterations relate arithmetically, and how to diagnose and fix underfitting and overfitting using the bias–variance trade-off and learning curves.",
+    "What one pass of a training loop really does, how to count epochs, batches and iterations, and how to spot and fix underfitting and overfitting with the bias–variance trade-off and learning curves.",
   minutes: 55,
   level: "beginner",
   prerequisites: ["m03/artificial-neuron", "m03/multilayer-networks", "m06/gradient-descent"],
@@ -29,21 +29,21 @@ const lesson: Lesson = {
     intro: [
       {
         t: "p",
-        text: "A neural network starts with random parameters and is useless. **Training** is the procedure that turns it into a useful function: show it examples, measure how wrong it is, compute in which direction each parameter should move to be less wrong, move a little, and repeat — tens of thousands to millions of times. The code that does this is the **training loop**, and almost every deep learning program, from a 10-line regression demo to a large language model, has the same five-step loop at its core.",
+        text: "A new neural network has random parameters and is useless. **Training** turns it into something useful: show it examples, measure how wrong it is, work out which way each parameter should move to be less wrong, move a little, and repeat — tens of thousands to millions of times. The code that does this is the **training loop**. Almost every deep learning program, from a 10-line demo to a large language model, has the same five-step loop at its heart.",
       },
       {
         t: "p",
-        text: "This lesson covers two things that every practitioner needs on day one. First, the **mechanics and vocabulary** of training: what happens inside one iteration, and how **epochs**, **batches** and **iterations** relate (with the exact arithmetic, including the awkward last batch). Second, the central question of machine learning: **does the model generalize?** A model that only memorizes its training data is worthless on new data. We will define **underfitting** and **overfitting**, explain them with the **bias–variance trade-off** and **model capacity**, and learn to read **learning curves** — the plots you will look at every time you train anything.",
+        text: "This lesson covers two day-one skills. First, the **mechanics and words** of training: what happens in one iteration, and how **epochs**, **batches** and **iterations** relate (with exact counting, including the awkward last batch). Second, the big question of machine learning: **does the model generalize** — does it work on new data? A model that only memorizes its training data is worthless. We define **underfitting** and **overfitting**, explain them with the **bias–variance trade-off** and **model capacity**, and learn to read **learning curves**, the plots you will check every time you train.",
       },
       {
         t: "p",
-        text: "Why was this framework introduced? Because minimizing training error is easy and is not the goal. Early statistical learning theory (and long before it, polynomial curve fitting) showed that a sufficiently flexible model can drive training error to zero while making terrible predictions. The tools in this lesson — held-out validation data, learning curves, capacity control — are how the field turned \"fit the data\" into the well-posed goal \"perform well on data we have not seen\".",
+        text: "Why do we need all this? Because driving training error down is easy, and it is not the goal. A flexible enough model can reach zero training error and still predict terribly (curve fitters knew this long before neural networks). Held-out validation data, learning curves and capacity control turn \"fit the data\" into the real goal: \"do well on data we have not seen\".",
       },
       {
         t: "callout",
         kind: "key",
         title: "Where this is used",
-        text: "Everywhere. Choosing the number of epochs, the batch size, when to stop training, whether to collect more data, whether to make the network bigger or add regularization — every one of these daily decisions is made by reading train and validation curves as described here.",
+        text: "Everywhere. How many epochs, what batch size, when to stop, whether to collect more data, whether to grow the network or add regularization — you make each of these daily choices by reading train and validation curves, as shown here.",
       },
     ],
 
@@ -52,11 +52,11 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "[The Artificial Neuron](/learn/m03/artificial-neuron) — you need the idea of a model with **weights and a bias** that produces a prediction from an input, and the notion that learning means changing those weights.",
-          "[Multi-Layer Networks and Model Capacity](/learn/m03/multilayer-networks) — helpful for understanding that bigger networks can represent more functions; a light reading is enough, this lesson re-explains capacity.",
-          "[Gradient Descent](/learn/m06/gradient-descent) — the update rule $w \\leftarrow w - \\eta\\,\\partial L/\\partial w$. A light reading suffices: here we only need the idea that the gradient points uphill and we step the other way; the details of optimizers come later.",
-          "[Derivatives and the Chain Rule](/learn/m02/derivatives-chain-rule) — to follow the one worked gradient computation in the Mathematical Explanation (derivative of a squared error).",
-          "[Probability](/learn/m02/probability) — expectation and variance, used in the bias–variance decomposition. You need $\\mathbb{E}[X]$, $\\mathrm{Var}(X) = \\mathbb{E}[(X-\\mathbb{E}X)^2]$ and the fact that independent zero-mean noise has no cross-term with anything else.",
+          "[The Artificial Neuron](/learn/m03/artificial-neuron) — a model with **weights and a bias** that turns an input into a prediction, and the idea that learning means changing those weights.",
+          "[Multi-Layer Networks and Model Capacity](/learn/m03/multilayer-networks) — bigger networks can represent more functions. A quick read is enough; capacity is re-explained here.",
+          "[Gradient Descent](/learn/m06/gradient-descent) — the update rule $w \\leftarrow w - \\eta\\,\\partial L/\\partial w$. A quick read is enough: the gradient points uphill, and we step the other way. Optimizer details come later.",
+          "[Derivatives and the Chain Rule](/learn/m02/derivatives-chain-rule) — for the one worked gradient in the Math section (derivative of a squared error).",
+          "[Probability](/learn/m02/probability) — expectation and variance, for the bias–variance decomposition. You need $\\mathbb{E}[X]$, $\\mathrm{Var}(X) = \\mathbb{E}[(X-\\mathbb{E}X)^2]$, and the fact that independent zero-mean noise has no cross-term with anything else.",
         ],
       },
     ],
@@ -67,19 +67,19 @@ const lesson: Lesson = {
         t: "callout",
         kind: "analogy",
         title: "A student preparing for an exam",
-        text: "Training data is the set of practice problems; the validation set is a mock exam with new problems; the test set is the real exam. One **epoch** is working through the whole practice book once. A **batch** is the handful of problems you do before checking the answers and adjusting your understanding; each such adjustment is an **iteration**. A student who has not studied enough gets both the practice problems and the mock exam wrong — **underfitting**. A student who memorized the answer key of the practice book scores 100% on it but fails the mock exam — **overfitting**. What we want is the student who learned the underlying method.",
+        text: "Training data is the practice book; the validation set is a mock exam with new questions; the test set is the real exam. One **epoch** is working through the whole practice book once. A **batch** is the handful of problems you do before checking answers and adjusting your understanding; each adjustment is an **iteration**. A student who has not studied enough fails both the practice and the mock exam: **underfitting**. A student who memorized the answer key scores 100% on the practice book but fails the mock exam: **overfitting**. We want the student who learned the method. (Where the analogy stops: a model never \"understands\"; it only fits numbers.)",
       },
       {
         t: "p",
-        text: "Think about fitting a curve through noisy dots. A straight line through dots that clearly follow a wave misses the pattern: it is too simple, so it is wrong on old and new points alike. A wildly wiggling curve that passes exactly through every dot has also captured the noise — the random jitter of each particular dot — and between and beyond the dots it swings to absurd values. The sensible curve is in between: flexible enough to follow the wave, too stiff to chase each individual dot.",
+        text: "Picture fitting a curve through noisy dots that follow a wave. A straight line misses the pattern: too simple, so it is wrong on old and new points alike. A wildly wiggling curve through every dot has also captured the noise — the random jitter of each dot — and swings to silly values between and beyond them. The sensible curve sits in between: bendy enough to follow the wave, stiff enough not to chase each dot.",
       },
       {
         t: "p",
-        text: "The key insight is that **training error alone cannot tell these cases apart in the right direction**: the wiggly curve has the lowest training error of all. That is why we always keep some data aside (the **validation set**) that the model never trains on, and judge models by their error there. Training error measures how well the model fits; validation error estimates how well it **generalizes**.",
+        text: "The key point: **training error alone points the wrong way here**. The wiggly curve has the lowest training error of all. So we always keep some data aside — the **validation set** — that the model never trains on, and judge models there. Training error measures fit; validation error estimates how well the model **generalizes**.",
       },
       {
         t: "p",
-        text: "Why split data into batches at all? Computing the exact gradient over a million examples before taking a single step is slow and wasteful: the gradient from a random sample of 64 examples already points roughly the right way. So we take many cheap, slightly noisy steps instead of a few expensive exact ones. One pass over all the data, in batches, is an epoch; we usually need many epochs.",
+        text: "Why use batches at all? Computing the exact gradient over a million examples before one step is slow and wasteful. The gradient from a random 64 examples already points roughly the right way. So we take many cheap, slightly noisy steps instead of a few costly exact ones. One pass over all the data, in batches, is an epoch; we usually need many.",
       },
     ],
 
@@ -89,34 +89,34 @@ const lesson: Lesson = {
       {
         t: "steps",
         items: [
-          { title: "Sample a mini-batch", text: "Take the next $B$ examples $(x_i, y_i)$ from a shuffled ordering of the training set. $B$ is the **batch size**." },
-          { title: "Zero the gradients", text: "Clear gradient buffers left over from the previous iteration. Frameworks such as PyTorch **accumulate** gradients by default, so skipping this adds the old gradient to the new one." },
-          { title: "Forward pass", tex: String.raw`\hat{y}_i = f(x_i;\,\theta)`, text: "Run the batch through the model with current parameters $\\theta$ to get predictions." },
-          { title: "Compute the loss", tex: String.raw`L(\theta) = \frac{1}{B}\sum_{i=1}^{B} \ell(\hat{y}_i, y_i)`, text: "A single number measuring how wrong the predictions are on this batch (e.g. mean squared error)." },
-          { title: "Backward pass", tex: String.raw`g = \nabla_\theta L`, text: "Backpropagation computes the gradient of the loss with respect to every parameter." },
-          { title: "Update the parameters", tex: String.raw`\theta \leftarrow \theta - \eta\, g`, text: "The optimizer moves each parameter a small step against its gradient. $\\eta$ is the **learning rate**. Adam and other optimizers change how the step is computed, not the structure of the loop." },
-          { title: "Repeat until the epoch ends, then evaluate", text: "After all batches have been used once (one epoch), switch the model to evaluation mode, compute training and validation loss **without** updating anything, log them, and optionally save a checkpoint if validation improved." },
+          { title: "Sample a mini-batch", text: "Take the next $B$ examples $(x_i, y_i)$ from a shuffled order of the training set. $B$ is the **batch size**." },
+          { title: "Zero the gradients", text: "Clear the gradients left from the last iteration. PyTorch and similar frameworks **add up** gradients by default, so skipping this mixes the old gradient into the new one." },
+          { title: "Forward pass", tex: String.raw`\hat{y}_i = f(x_i;\,\theta)`, text: "Run the batch through the model with the current parameters $\\theta$ to get predictions." },
+          { title: "Compute the loss", tex: String.raw`L(\theta) = \frac{1}{B}\sum_{i=1}^{B} \ell(\hat{y}_i, y_i)`, text: "One number saying how wrong the predictions are on this batch (e.g. mean squared error)." },
+          { title: "Backward pass", tex: String.raw`g = \nabla_\theta L`, text: "Backpropagation computes the gradient of the loss for every parameter." },
+          { title: "Update the parameters", tex: String.raw`\theta \leftarrow \theta - \eta\, g`, text: "The optimizer moves each parameter a small step against its gradient. $\\eta$ is the **learning rate**. Adam and friends change how the step is computed, not the loop." },
+          { title: "Repeat until the epoch ends, then evaluate", text: "Once every batch has been used (one epoch), switch to evaluation mode, compute training and validation loss **without** updating anything, log them, and maybe save a checkpoint if validation improved." },
         ],
       },
       {
         t: "p",
-        text: "Wrapped around this is an outer loop over epochs, and at the start of each epoch the training set is **reshuffled**, so batches differ from epoch to epoch. Shuffling matters: if data is sorted (e.g. all cats, then all dogs), consecutive gradients would all push the model the same way and training oscillates.",
+        text: "Around this sits an outer loop over epochs. At the start of each epoch the training set is **reshuffled**, so batches differ each time. This matters: with sorted data (all cats, then all dogs), consecutive gradients push the model the same way and training swings back and forth.",
       },
       { t: "h", text: "Epochs, batches and iterations" },
       {
         t: "table",
         head: ["Term", "Definition", "Typical values"],
         rows: [
-          ["Batch (mini-batch)", "A subset of $B$ training examples processed together to compute one gradient estimate.", "32–512 for vision; thousands of sequences for large language models"],
+          ["Batch (mini-batch)", "$B$ training examples processed together to compute one gradient estimate.", "32–512 for vision; thousands of sequences for large language models"],
           ["Iteration (step)", "One parameter update = one forward + backward pass on one batch.", "Thousands to millions over a run"],
-          ["Epoch", "One full pass over every training example once.", "1 (huge datasets) to hundreds (small datasets)"],
+          ["Epoch", "One full pass over every training example.", "1 (huge datasets) to hundreds (small datasets)"],
           ["Batch gradient descent", "$B = N$: one iteration per epoch, exact gradient.", "Small datasets, convex problems"],
-          ["Stochastic gradient descent (pure)", "$B = 1$: $N$ iterations per epoch, very noisy gradient.", "Mostly of historical/theoretical interest"],
+          ["Stochastic gradient descent (pure)", "$B = 1$: $N$ iterations per epoch, very noisy gradient.", "Mostly historical / theory"],
         ],
       },
       {
         t: "p",
-        text: String.raw`With $N$ training examples and batch size $B$, the number of iterations per epoch is $\lceil N/B \rceil$ (the ceiling: round up), because the leftover examples form a smaller final batch of size $N - (\lceil N/B\rceil - 1)B$. Setting **drop_last** (PyTorch's DataLoader argument of that name) discards that partial batch instead, giving $\lfloor N/B \rfloor$ iterations and skipping $N \bmod B$ examples per epoch — which ones are skipped changes every epoch because of shuffling, so no example is permanently lost. Total iterations for $E$ epochs is $E \cdot \lceil N/B \rceil$.`,
+        text: String.raw`With $N$ examples and batch size $B$, there are $\lceil N/B \rceil$ iterations per epoch (the ceiling: round up). The leftovers form a smaller last batch of size $N - (\lceil N/B\rceil - 1)B$. Setting **drop_last** (a PyTorch DataLoader argument) throws that partial batch away instead: $\lfloor N/B \rfloor$ iterations, skipping $N \bmod B$ examples per epoch. Shuffling changes which ones are skipped each epoch, so none is lost for good. For $E$ epochs, total iterations are $E \cdot \lceil N/B \rceil$.`,
       },
       {
         t: "callout",
@@ -127,21 +127,21 @@ const lesson: Lesson = {
       { t: "h", text: "Parameters vs hyperparameters" },
       {
         t: "p",
-        text: "**Parameters** are the numbers the training loop learns: weights and biases. **Hyperparameters** are everything you choose before or around training that the gradient does not set: learning rate, batch size, number of epochs, number of layers and units, activation function, optimizer and its settings, regularization strength, dropout rate, data augmentation. Hyperparameters are tuned by training several models and comparing their **validation** performance — never their test performance, otherwise the test set is no longer an unbiased estimate.",
+        text: "**Parameters** are the numbers the loop learns: weights and biases. **Hyperparameters** are everything you choose that the gradient does not set: learning rate, batch size, epochs, layers and units, activation, optimizer and its settings, regularization strength, dropout rate, data augmentation. Tune them by training several models and comparing **validation** scores — never test scores, or the test set stops being a fair estimate.",
       },
       { t: "h", text: "Three data splits" },
       {
         t: "list",
         items: [
           "**Training set** — used to compute gradients and update parameters.",
-          "**Validation set** (dev set) — never used for gradients; used to choose hyperparameters, pick the best epoch (early stopping) and detect overfitting.",
-          "**Test set** — touched once at the end to report an unbiased estimate of performance on new data. Common splits are 80/10/10 or 70/15/15; with millions of examples a few percent each for validation and test is enough.",
+          "**Validation set** (dev set) — never used for gradients; used to choose hyperparameters, pick the best epoch (early stopping) and spot overfitting.",
+          "**Test set** — used once at the end, for a fair estimate on new data. Common splits are 80/10/10 or 70/15/15; with millions of examples, a few percent each for validation and test is enough.",
         ],
       },
       { t: "h", text: "Underfitting, overfitting and capacity" },
       {
         t: "p",
-        text: "**Model capacity** is, informally, how large and flexible the family of functions a model can represent is. For polynomials it grows with the degree; for neural networks with the number of parameters, depth, and also with how long you train (a network trained for a few steps can only reach functions close to its initialization). Capacity, relative to the amount of data, determines which of three regimes you land in:",
+        text: "**Model capacity** is, roughly, how big and flexible the set of functions a model can represent is. For polynomials it grows with the degree. For neural networks it grows with parameters, depth, and even training time (after a few steps a network can only reach functions close to where it started). Capacity compared with the amount of data decides which of three regimes you are in:",
       },
       {
         t: "table",
@@ -155,21 +155,21 @@ const lesson: Lesson = {
       { t: "h", text: "Learning curves and how to read them" },
       {
         t: "p",
-        text: "Two kinds of plots are called learning curves. (1) **Loss vs epoch** for training and validation: training loss normally falls monotonically (with batch noise). If validation loss falls with it, keep training. If validation loss bottoms out and starts rising while training loss keeps falling, the model has begun to overfit; the epoch at the minimum is where **early stopping** would stop. If both curves are flat and high, the model underfits — train longer, raise the learning rate, or add capacity. If training loss itself goes up or explodes, the learning rate is too large (an optimization problem, not a generalization problem).",
+        text: "Two kinds of plot are called learning curves. (1) **Loss vs epoch**, for training and validation. Training loss normally keeps falling (with some batch noise). If validation loss falls with it, keep training. If validation loss bottoms out and starts rising while training loss keeps falling, overfitting has begun; the epoch at the minimum is where **early stopping** would stop. If both curves are flat and high, the model underfits: train longer, raise the learning rate, or add capacity. If training loss itself rises or explodes, the learning rate is too large (a training problem, not a generalization problem).",
       },
       {
         t: "p",
-        text: "(2) **Error vs training-set size** for a fixed model: training error **rises** with more data (it is harder to fit more points), validation error **falls**, and both converge toward a plateau. If they converge at a high value, the model is biased — more data will not help, more capacity will. If there is a large gap that is still shrinking, the model is variance-limited — more data (or regularization) will help.",
+        text: "(2) **Error vs training-set size**, for a fixed model. Training error **rises** with more data (more points are harder to fit), validation error **falls**, and both level off. If they meet at a high value, the model is biased: more data won't help, more capacity will. If a large gap is still shrinking, variance is the limit: more data (or regularization) will help.",
       },
       { t: "h", text: "Remedies" },
       {
         t: "table",
         head: ["Symptom", "Remedies (roughly in order of what to try)"],
         rows: [
-          ["Underfitting (both errors high)", "Train longer; tune the learning rate; increase capacity (wider/deeper network, better architecture); reduce regularization; engineer better input features; check for bugs (labels shuffled, wrong normalization)."],
-          ["Overfitting (large gap)", "Get more data; data augmentation; early stopping; L2 regularization / weight decay; dropout; smaller model; ensembling; transfer learning from a pre-trained model."],
-          ["Validation noisy/unreliable", "Larger validation set; k-fold cross-validation for small datasets; average over several random seeds."],
-          ["Training loss diverges or oscillates", "Lower the learning rate; gradient clipping; normalize inputs; check the loss implementation."],
+          ["Underfitting (both errors high)", "Train longer; tune the learning rate; add capacity (wider/deeper network, better architecture); reduce regularization; better input features; check for bugs (shuffled labels, wrong normalization)."],
+          ["Overfitting (large gap)", "More data; data augmentation; early stopping; L2 regularization / weight decay; dropout; smaller model; ensembling; transfer learning from a pre-trained model."],
+          ["Validation noisy/unreliable", "Bigger validation set; k-fold cross-validation for small datasets; average over several random seeds."],
+          ["Training loss diverges or oscillates", "Lower the learning rate; gradient clipping; normalize inputs; check the loss code."],
         ],
       },
     ],
@@ -179,7 +179,7 @@ const lesson: Lesson = {
       { t: "h", text: "Empirical risk and true risk" },
       {
         t: "p",
-        text: String.raw`Let the data be drawn from an unknown distribution $p(x,y)$, let $f(x;\theta)$ be the model with parameters $\theta$ and $\ell$ a per-example loss. What we want to minimize is the **true risk** (expected loss on new data); what we can compute is the **empirical risk** on the $N$ training examples:`,
+        text: String.raw`Say the data comes from an unknown distribution $p(x,y)$, $f(x;\theta)$ is the model with parameters $\theta$, and $\ell$ is the loss on one example. We want to minimize the **true risk** (average loss on new data). We can only compute the **empirical risk** on the $N$ training examples:`,
       },
       {
         t: "math",
@@ -187,12 +187,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Training minimizes $\hat R_{\text{train}}$. The **generalization gap** is $R(\theta) - \hat R_{\text{train}}(\theta)$. Because $\theta$ was chosen using the training points, $\hat R_{\text{train}}$ is an optimistically biased estimate of $R$; the error on an independent validation set is an unbiased estimate of $R$ for a fixed $\theta$.`,
+        text: String.raw`Training minimizes $\hat R_{\text{train}}$. The **generalization gap** is $R(\theta) - \hat R_{\text{train}}(\theta)$. Since $\theta$ was picked using the training points, $\hat R_{\text{train}}$ is too optimistic. The error on a separate validation set is an unbiased (fair) estimate of $R$ for a fixed $\theta$.`,
       },
       { t: "h", text: "Mini-batch gradient and the update" },
       {
         t: "p",
-        text: String.raw`For a mini-batch $\mathcal{B}$ of size $B$ the loss and its gradient are $L_{\mathcal B}(\theta) = \frac1B\sum_{i\in\mathcal B}\ell_i$ and $g_{\mathcal B} = \frac1B\sum_{i\in\mathcal B}\nabla_\theta \ell_i$. If $\mathcal B$ is a uniformly random subset, $\mathbb E[g_{\mathcal B}] = \nabla_\theta \hat R_{\text{train}}$ — the batch gradient is an **unbiased** estimate of the full gradient, and its variance shrinks like $1/B$. The update is $\theta \leftarrow \theta - \eta\, g_{\mathcal B}$.`,
+        text: String.raw`For a mini-batch $\mathcal{B}$ of size $B$, the loss and gradient are $L_{\mathcal B}(\theta) = \frac1B\sum_{i\in\mathcal B}\ell_i$ and $g_{\mathcal B} = \frac1B\sum_{i\in\mathcal B}\nabla_\theta \ell_i$. If $\mathcal B$ is a uniformly random subset, $\mathbb E[g_{\mathcal B}] = \nabla_\theta \hat R_{\text{train}}$. In plain words: on average the batch gradient equals the full gradient (it is **unbiased**), and its noise (variance) shrinks like $1/B$. The update is $\theta \leftarrow \theta - \eta\, g_{\mathcal B}$.`,
       },
       { t: "h", text: "Worked example: one iteration by hand" },
       {
@@ -219,12 +219,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: "MNIST-sized example: $N = 60{,}000$, $B = 128$: $\\lceil 468.75 \\rceil = 469$ iterations per epoch, last batch $60000 - 468\\cdot128 = 96$; 5 epochs = 2,345 updates. With drop_last: 468 iterations per epoch.",
+        text: "MNIST-sized: $N = 60{,}000$, $B = 128$: $\\lceil 468.75 \\rceil = 469$ iterations per epoch, last batch $60000 - 468\\cdot128 = 96$; 5 epochs = 2,345 updates. With drop_last: 468 iterations per epoch.",
       },
       { t: "h", text: "The bias–variance decomposition" },
       {
         t: "p",
-        text: String.raw`Assume $y = f(x) + \varepsilon$ with $\mathbb E[\varepsilon] = 0$, $\mathrm{Var}(\varepsilon) = \sigma^2$, noise independent of everything else. Train a model on a random training set $D$ to get $\hat f_D$. At a fixed input $x$, write $\bar f(x) = \mathbb E_D[\hat f_D(x)]$ for the average prediction over all possible training sets. The expected squared error on a **new** noisy label at $x$ is:`,
+        text: String.raw`Assume $y = f(x) + \varepsilon$ with $\mathbb E[\varepsilon] = 0$, $\mathrm{Var}(\varepsilon) = \sigma^2$, and noise independent of everything else. Training on a random training set $D$ gives $\hat f_D$. At a fixed input $x$, let $\bar f(x) = \mathbb E_D[\hat f_D(x)]$ be the average prediction over all possible training sets. The expected squared error on a **new** noisy label at $x$ is:`,
       },
       {
         t: "math",
@@ -236,21 +236,21 @@ const lesson: Lesson = {
         blocks: [
           {
             t: "p",
-            text: String.raw`Write $y - \hat f_D = \varepsilon + (f - \bar f) + (\bar f - \hat f_D)$ (all at the same $x$). Square and take expectations. The cross-terms vanish: $\mathbb E[\varepsilon \cdot (\cdot)] = 0$ because $\varepsilon$ is zero-mean and independent of $D$; $\mathbb E_D[(f - \bar f)(\bar f - \hat f_D)] = (f - \bar f)\,\mathbb E_D[\bar f - \hat f_D] = (f-\bar f)\cdot 0$ because $f - \bar f$ is a constant and $\bar f$ is by definition the mean of $\hat f_D$. What remains is $\mathbb E[\varepsilon^2] + (f - \bar f)^2 + \mathbb E_D[(\bar f - \hat f_D)^2] = \sigma^2 + \text{bias}^2 + \text{variance}$. Averaging over $x$ gives the same identity for the expected test MSE.`,
+            text: String.raw`Write $y - \hat f_D = \varepsilon + (f - \bar f) + (\bar f - \hat f_D)$ (all at the same $x$). Square and take expectations. The cross-terms vanish: $\mathbb E[\varepsilon \cdot (\cdot)] = 0$ because $\varepsilon$ is zero-mean and independent of $D$; and $\mathbb E_D[(f - \bar f)(\bar f - \hat f_D)] = (f - \bar f)\,\mathbb E_D[\bar f - \hat f_D] = (f-\bar f)\cdot 0$, because $f - \bar f$ is a constant and $\bar f$ is the mean of $\hat f_D$. What remains is $\mathbb E[\varepsilon^2] + (f - \bar f)^2 + \mathbb E_D[(\bar f - \hat f_D)^2] = \sigma^2 + \text{bias}^2 + \text{variance}$. Averaging over $x$ gives the same identity for the expected test MSE.`,
           },
         ],
       },
       {
         t: "list",
         items: [
-          "**Bias** — the error of the *average* model: systematic error from the model family being too restrictive (a line cannot follow a sine). High bias ↔ underfitting.",
-          "**Variance** — how much the learned function changes when you train on a different sample of the same size. High variance ↔ overfitting.",
-          String.raw`**Irreducible error** $\sigma^2$ — noise in the labels themselves; no model can go below it on average.`,
+          "**Bias** — the error of the *average* model: a built-in mistake because the model family is too limited (a line cannot follow a sine). High bias ↔ underfitting.",
+          "**Variance** — how much the learned function changes if you train on a different sample of the same size. High variance ↔ overfitting.",
+          String.raw`**Irreducible error** $\sigma^2$ — noise in the labels themselves; no model can beat it on average.`,
         ],
       },
       {
         t: "p",
-        text: String.raw`**Numerical check.** Fit polynomials of degree $d$ to 25 points of $y = \sin(2\pi x) + \varepsilon$, $\sigma = 0.3$, repeated over 2,000 independent training sets, and evaluate on 50 fixed inputs. The sum bias² + variance + σ² matches a direct Monte-Carlo estimate of the test MSE to within sampling error, and the U-shape appears: bias falls with degree, variance rises.`,
+        text: String.raw`**Numerical check.** Fit degree-$d$ polynomials to 25 points of $y = \sin(2\pi x) + \varepsilon$, $\sigma = 0.3$, over 2,000 independent training sets, and evaluate on 50 fixed inputs. Bias² + variance + σ² matches a direct Monte-Carlo estimate of the test MSE within sampling error, and the U-shape shows up: bias falls with degree, variance rises.`,
       },
       {
         t: "code",
@@ -294,12 +294,12 @@ for d in [0, 1, 3, 5, 7, 8]:
       },
       {
         t: "p",
-        text: "Degree 3 minimizes the total: degrees 0–1 are dominated by bias (underfitting), degrees 7–8 by variance (overfitting) — with only 25 points, a degree-8 polynomial occasionally lands on a training set with a gap and swings wildly, and those rare blow-ups dominate the average.",
+        text: "Degree 3 has the lowest total. Degrees 0–1 are dominated by bias (underfitting), degrees 7–8 by variance (overfitting). With only 25 points, a degree-8 polynomial sometimes gets a training set with a gap and swings wildly, and those rare blow-ups dominate the average.",
       },
       { t: "h", text: "Why training error is optimistic" },
       {
         t: "p",
-        text: String.raw`For linear least squares with $p$ parameters, $n$ training points, Gaussian noise of variance $\sigma^2$ and a model family that contains the true function, the expected training MSE is exactly $\sigma^2(1 - p/n)$ — **below** the noise floor, because the fit uses $p$ degrees of freedom to absorb noise. With $\sigma^2 = 0.0625$ and $n = 20$: $p = 4$ (cubic) gives $0.05$ and $p = 10$ (degree 9) gives $0.03125$. The coding exercise below measures 0.0509 and 0.0319 for these cases. As $p \to n$ training error goes to zero while validation error explodes.`,
+        text: String.raw`Take linear least squares with $p$ parameters, $n$ training points, Gaussian noise of variance $\sigma^2$, and a model family that contains the true function. The expected training MSE is exactly $\sigma^2(1 - p/n)$ — **below** the noise floor, because the fit spends its $p$ degrees of freedom soaking up noise. With $\sigma^2 = 0.0625$ and $n = 20$: $p = 4$ (cubic) gives $0.05$ and $p = 10$ (degree 9) gives $0.03125$. The coding exercise measures 0.0509 and 0.0319. As $p \to n$, training error goes to zero while validation error explodes.`,
       },
     ],
 
@@ -307,24 +307,24 @@ for d in [0, 1, 3, 5, 7, 8]:
     visual: [
       {
         t: "p",
-        text: String.raw`The simulator draws noisy samples $y = \sin(2\pi x) + \varepsilon$ with $\varepsilon \sim \mathcal N(0, \sigma^2)$ and $x$ uniform in $[0, 1]$ from a seeded random generator, and splits them 2/3 training (filled dots) and 1/3 validation (hollow dots). It fits a polynomial of degree $d$ by least squares on the training points only (normal equations with a tiny ridge of $10^{-8}$ for numerical stability, with $x$ rescaled to $[-1, 1]$). The left plot shows the data, the true function (dashed) and the fitted polynomial. The right plot shows training and validation MSE for every degree 0–15 on a logarithmic scale, with a marker at the current degree and the degree with the best validation error highlighted.`,
+        text: String.raw`The simulator draws noisy samples $y = \sin(2\pi x) + \varepsilon$, with $\varepsilon \sim \mathcal N(0, \sigma^2)$ and $x$ uniform in $[0, 1]$, from a seeded random generator. It splits them 2/3 training (filled dots) and 1/3 validation (hollow dots). It fits a degree-$d$ polynomial by least squares on the training points only (normal equations, a tiny ridge of $10^{-8}$ for stability, $x$ rescaled to $[-1, 1]$). Left plot: the data, the true function (dashed) and the fit. Right plot: training and validation MSE for degrees 0–15 on a log scale, marking the current degree and the best-validation degree.`,
       },
       { t: "sim", id: "fitting", caption: "Polynomial fitting: underfitting, good fit and overfitting as the degree grows." },
       {
         t: "steps",
         items: [
-          { title: "Press Play", text: "The degree animates from 0 to 15. Watch the narration change from **underfitting** (both errors high; the curve is a flat line or a gentle slope) through **good fit** (validation near its minimum — with the default sample, degrees 5–7; the exact range moves with every new sample) to **overfitting** (training error keeps falling, validation error rises, the curve wiggles between the dots)." },
-          { title: "Read the right-hand plot as a capacity curve", text: "This is the classic U-shape: the training curve decreases monotonically with degree because each higher degree contains all lower ones; the validation curve is U-shaped. The best-validation marker is the degree you would choose." },
-          { title: "Small vs large data", text: "Set degree 9 (then 12) and compare n = 10 with n = 200. With 10 points (about 6–7 for training) the degree-9 fit interpolates the training dots and swings off the chart; with 200 points the same degree-9 polynomial is smooth and close to the sine. More data reduces variance — overfitting is a property of capacity **relative to** data." },
-          { title: "No noise vs heavy noise", text: "Set σ = 0: high degrees no longer hurt much, because there is no noise to memorize (the sine is smooth and well approximated by polynomials). Set σ = 0.5: every validation error rises (it can no longer go below about σ² = 0.25), and the high-degree fits swing far more wildly between the dots, because there is more noise to memorize. In expectation noisier data supports less capacity, but with only about 10 validation points the best-validation degree itself jumps around from sample to sample — press **New sample** a few times to see how unreliable a single small validation set is." },
-          { title: "Resample", text: "Press **New sample** several times at a high degree with small n. The fitted curve changes dramatically from sample to sample — that is **variance**, seen directly. At degree 1 the line barely changes but is always wrong — that is **bias**." },
+          { title: "Press Play", text: "The degree runs from 0 to 15. The narration moves from **underfitting** (both errors high; a flat line or gentle slope) through **good fit** (validation near its minimum — degrees 5–7 for the default sample; the range moves with each new sample) to **overfitting** (training error keeps falling, validation rises, the curve wiggles between dots)." },
+          { title: "Read the right-hand plot as a capacity curve", text: "The classic U-shape. Training error only goes down with degree, since each higher degree includes all lower ones. Validation error is U-shaped. The best-validation marker is the degree you would pick." },
+          { title: "Small vs large data", text: "Set degree 9 (then 12) and compare n = 10 with n = 200. With 10 points (about 6–7 for training), the degree-9 fit passes through every training dot and swings off the chart. With 200 points the same polynomial is smooth and close to the sine. More data cuts variance: overfitting depends on capacity **relative to** data." },
+          { title: "No noise vs heavy noise", text: "Set σ = 0: high degrees barely hurt, because there is no noise to memorize (polynomials approximate the smooth sine well). Set σ = 0.5: every validation error rises (it cannot go much below σ² = 0.25), and high-degree fits swing far more wildly, with more noise to memorize. On average noisier data supports less capacity. But with only about 10 validation points, the best degree itself jumps around — press **New sample** a few times to see how unreliable one small validation set is." },
+          { title: "Resample", text: "Press **New sample** several times at a high degree with small n. The curve changes a lot each time: that is **variance**, seen directly. At degree 1 the line barely moves but is always wrong: that is **bias**." },
         ],
       },
       {
         t: "callout",
         kind: "tip",
         title: "What to notice",
-        text: "Training MSE drops below the noise variance σ² once the degree is high: the model is fitting noise, which can never help on new data. Validation MSE can never go much below σ² on average, so a validation error near σ² means you are close to the best achievable.",
+        text: "At high degrees, training MSE drops below the noise variance σ²: the model is fitting noise, which never helps on new data. On average validation MSE cannot go much below σ², so a validation error near σ² means you are close to the best possible.",
       },
     ],
 
@@ -332,7 +332,7 @@ for d in [0, 1, 3, 5, 7, 8]:
     scratch: [
       {
         t: "p",
-        text: "A complete NumPy program with two parts. Part 1 is a real mini-batch training loop (shuffle → batch → forward → loss → gradient → update, with train/validation evaluation after each epoch) for a cubic polynomial model. Part 2 sweeps model capacity (polynomial degree 0–15) using the exact least-squares solution, showing underfitting, good fit and overfitting on the same data.",
+        text: "A NumPy program in two parts. Part 1 is a real mini-batch training loop for a cubic model (shuffle → batch → forward → loss → gradient → update, then train/validation evaluation each epoch). Part 2 sweeps capacity (degree 0–15) with the exact least-squares fit, showing underfitting, good fit and overfitting on the same data.",
       },
       {
         t: "code",
@@ -442,10 +442,10 @@ best validation degree = 6 (val MSE 0.0419); noise variance = 0.0625`,
       {
         t: "list",
         items: [
-          "**Iteration arithmetic**: 20 training examples with batch 8 give $\\lceil 20/8 \\rceil = 3$ iterations per epoch (batches of 8, 8 and 4), so 300 epochs = 900 updates — the iters column confirms it.",
-          "**Part 1 learning curve**: both errors fall together; after 300 epochs the gradient-descent cubic (train 0.0644) approaches the exact least-squares cubic from Part 2 (train 0.0630). It is still slowly converging — not overfitting.",
-          "**Part 2 capacity sweep**: degrees 0–2 underfit (both errors high), degrees 5–6 fit well (best validation 0.0419), and from degree 10 on the training error keeps shrinking (to 0.0100, far below the noise variance 0.0625) while validation error climbs back above 0.14 — overfitting.",
-          "The validation curve is not perfectly smooth (degree 13 dips) because 10 validation points is a small, noisy estimate — a reason to use larger validation sets or cross-validation.",
+          "**Iteration counting**: 20 training examples with batch 8 give $\\lceil 20/8 \\rceil = 3$ iterations per epoch (batches of 8, 8 and 4), so 300 epochs = 900 updates, as the iters column shows.",
+          "**Part 1 learning curve**: both errors fall together. After 300 epochs the gradient-descent cubic (train 0.0644) nears the exact least-squares cubic from Part 2 (train 0.0630). It is still slowly converging, not overfitting.",
+          "**Part 2 capacity sweep**: degrees 0–2 underfit (both errors high), degrees 5–6 fit well (best validation 0.0419). From degree 10 on, training error keeps shrinking (to 0.0100, far below the noise variance 0.0625) while validation error climbs back above 0.14: overfitting.",
+          "The validation curve is bumpy (degree 13 dips) because 10 validation points give a small, noisy estimate — a reason to use bigger validation sets or cross-validation.",
         ],
       },
     ],
@@ -460,7 +460,7 @@ best validation degree = 6 (val MSE 0.0419); noise variance = 0.0625`,
             blocks: [
               {
                 t: "p",
-                text: "The canonical PyTorch training loop with a DataLoader, explicit zero_grad → forward → loss → backward → step, a separate evaluation pass under torch.no_grad(), and a best-validation checkpoint (the mechanism behind early stopping). The network is deliberately large (4,353 parameters) for 20 training points so overfitting appears in the validation curve.",
+                text: "The standard PyTorch training loop: a DataLoader, explicit zero_grad → forward → loss → backward → step, a separate evaluation pass under torch.no_grad(), and a best-validation checkpoint (how early stopping works). The network is purposely large (4,353 parameters) for 20 training points, so overfitting shows up in the validation curve.",
               },
               {
                 t: "code",
@@ -531,7 +531,7 @@ best validation MSE 0.0427 at epoch 526`,
               },
               {
                 t: "p",
-                text: "Reading the curve: training MSE falls steadily to 0.0131 — well below the noise variance 0.0625 — while validation MSE reaches its minimum (0.0427) at epoch 526 and then drifts up. Restoring the epoch-526 weights is exactly what early stopping does. Note the noisy early validation values (0.18 at epoch 1, 0.27 at epoch 10): with 10 validation points, single-epoch values are unreliable, so always look at the trend.",
+                text: "Reading the curve: training MSE falls steadily to 0.0131, well below the noise variance 0.0625. Validation MSE hits its minimum (0.0427) at epoch 526, then drifts up. Restoring the epoch-526 weights is exactly what early stopping does. Note the noisy early validation values (0.18 at epoch 1, 0.27 at epoch 10): with 10 validation points, single epochs are unreliable, so watch the trend.",
               },
             ],
           },
@@ -540,7 +540,7 @@ best validation MSE 0.0427 at epoch 526`,
             blocks: [
               {
                 t: "p",
-                text: "Keras hides the inner loop inside model.fit: batch_size and epochs are arguments, validation_data triggers a validation pass after each epoch, and the EarlyStopping callback implements best-checkpoint rollback.",
+                text: "Keras hides the inner loop inside model.fit: batch_size and epochs are arguments, validation_data runs a validation pass after each epoch, and the EarlyStopping callback rolls back to the best checkpoint.",
               },
               {
                 t: "code",
@@ -596,11 +596,11 @@ print(f"best epoch {best + 1}: train {h['loss'][best]:.4f}  val {h['val_loss'][b
         t: "table",
         head: ["Scheme", "Batch size", "Advantages", "Disadvantages", "Use cases"],
         rows: [
-          ["Batch (full) gradient descent", "$B = N$", "Exact gradient, deterministic, smooth loss curve", "One update per epoch; memory grows with $N$; no gradient noise to help escape poor regions", "Small datasets, classical convex problems"],
-          ["Stochastic gradient descent", "$B = 1$", "Cheapest update; maximum gradient noise (mild regularizing effect)", "Very noisy, cannot use vectorized hardware efficiently", "Online learning, streaming data"],
-          ["Mini-batch gradient descent", "$1 < B < N$ (32–512 typical)", "Good GPU utilization, moderate noise, many updates per epoch", "Batch size becomes a hyperparameter interacting with learning rate", "Default for nearly all deep learning"],
+          ["Batch (full) gradient descent", "$B = N$", "Exact gradient, repeatable, smooth loss curve", "One update per epoch; memory grows with $N$; no gradient noise to help escape bad regions", "Small datasets, classical convex problems"],
+          ["Stochastic gradient descent", "$B = 1$", "Cheapest update; most gradient noise (mild regularizing effect)", "Very noisy; wastes parallel hardware", "Online learning, streaming data"],
+          ["Mini-batch gradient descent", "$1 < B < N$ (32–512 typical)", "Good GPU use, moderate noise, many updates per epoch", "Batch size becomes a hyperparameter tied to learning rate", "Default for nearly all deep learning"],
           ["Large-batch training", "thousands+", "High throughput across many accelerators", "Needs learning-rate scaling and warmup; can generalize slightly worse if not tuned", "Pre-training large models"],
-          ["Gradient accumulation", "effective $B = k \\cdot B_{\\text{micro}}$", "Simulates a large batch on limited memory", "$k$ times fewer updates per epoch; BatchNorm still sees micro-batches", "Fine-tuning large models on one GPU"],
+          ["Gradient accumulation", "effective $B = k \\cdot B_{\\text{micro}}$", "Fakes a large batch on limited memory", "$k$ times fewer updates per epoch; BatchNorm still sees micro-batches", "Fine-tuning large models on one GPU"],
         ],
       },
       { t: "h", text: "Variants of validation" },
@@ -609,9 +609,9 @@ print(f"best epoch {best + 1}: train {h['loss'][best]:.4f}  val {h['val_loss'][b
         head: ["Method", "How", "Advantages", "Disadvantages"],
         rows: [
           ["Hold-out validation", "One fixed train/val split", "Cheap, simple", "Noisy estimate when the validation set is small"],
-          ["k-fold cross-validation", "Split into k folds; train k times, each time validating on a different fold; average", "Uses all data for both; lower-variance estimate", "k times the compute; rarely affordable for large networks"],
-          ["Time-based split", "Validate on data strictly later than the training data", "Realistic for forecasting; prevents look-ahead leakage", "Distribution shift over time makes the gap larger"],
-          ["Grouped split", "Keep all samples of a patient/user/document in the same split", "Prevents leakage from near-duplicates", "Requires group metadata"],
+          ["k-fold cross-validation", "Split into k folds; train k times, validating on a different fold each time; average", "All data used for both; steadier estimate", "k times the compute; rarely affordable for large networks"],
+          ["Time-based split", "Validate on data strictly later than the training data", "Realistic for forecasting; stops peeking into the future", "Changes over time make the gap larger"],
+          ["Grouped split", "Keep all samples of one patient/user/document in the same split", "Stops leakage from near-duplicates", "Needs group information"],
         ],
       },
       { t: "h", text: "Two kinds of learning curve" },
@@ -619,16 +619,16 @@ print(f"best epoch {best + 1}: train {h['loss'][best]:.4f}  val {h['val_loss'][b
         t: "table",
         head: ["Curve", "x-axis", "What it diagnoses"],
         rows: [
-          ["Loss vs epoch (training curve)", "Epoch or iteration", "Convergence speed, learning-rate problems, when overfitting begins (early stopping point)"],
+          ["Loss vs epoch (training curve)", "Epoch or iteration", "How fast training converges, learning-rate problems, when overfitting starts (early stopping point)"],
           ["Error vs training-set size", "Number of training examples", "Whether more data will help (high variance) or not (high bias)"],
-          ["Error vs capacity (validation curve)", "Degree, width, depth, regularization strength", "Which capacity to choose: the minimum of the U-shaped validation curve"],
+          ["Error vs capacity (validation curve)", "Degree, width, depth, regularization strength", "Which capacity to pick: the bottom of the U-shaped validation curve"],
         ],
       },
       {
         t: "callout",
         kind: "note",
         title: "Beyond the U-curve: double descent",
-        text: "For very over-parameterized models (far more parameters than training points), test error has been observed to rise near the point where the model can just interpolate the training data and then fall again as capacity grows further — called \"double descent\" (Belkin et al., 2019). This is why huge neural networks can generalize well despite being able to memorize their training sets. The classical U-curve remains the correct picture in the regime most small and medium models operate in, and validation error remains the arbiter either way.",
+        text: "For hugely over-parameterized models (far more parameters than training points), test error has been seen to rise near the point where the model can just fit every training point, then fall again as capacity keeps growing. This is \"double descent\" (Belkin et al., 2019), and it is why huge networks can generalize well even though they could memorize their training sets. The classic U-curve is still the right picture for most small and medium models, and validation error is the judge either way.",
       },
     ],
 
@@ -637,12 +637,12 @@ print(f"best epoch {best + 1}: train {h['loss'][best]:.4f}  val {h['val_loss'][b
       {
         t: "list",
         items: [
-          "**Choosing the number of epochs** — practically every supervised model (image classifiers, speech recognizers, recommender models) is trained with a validation curve and stopped or checkpointed at the best validation epoch.",
-          "**Hyperparameter search** — tools such as grid/random search and Bayesian optimization (e.g. Optuna, Ray Tune) compare runs purely by validation metrics computed in the evaluation phase of the training loop described here.",
-          "**Data-collection decisions** — in industrial projects (medical imaging, defect detection) error-vs-dataset-size curves are used to estimate whether labeling more data is worth the cost.",
-          "**Fine-tuning pre-trained models** — fine-tuning a pre-trained language or vision model on a small labeled set overfits within a few epochs; practitioners typically train for only a handful of epochs and monitor validation loss closely.",
-          "**Large-scale pre-training** — large language models are often trained for about one epoch or less over their data; with that much data overfitting is rarely the limiting factor and the training loss curve itself is the main diagnostic.",
-          "**Monitoring in production** — the gap between validation performance at training time and live performance reveals distribution shift, which looks like overfitting but is caused by the data changing.",
+          "**Choosing the number of epochs** — almost every supervised model (image classifiers, speech recognizers, recommenders) is trained with a validation curve and stopped or checkpointed at the best validation epoch.",
+          "**Hyperparameter search** — grid/random search and Bayesian optimization (e.g. Optuna, Ray Tune) compare runs only by the validation metrics from the loop's evaluation phase.",
+          "**Data-collection decisions** — in industry (medical imaging, defect detection), error-vs-dataset-size curves show whether labeling more data is worth the cost.",
+          "**Fine-tuning pre-trained models** — fine-tuning a pre-trained language or vision model on a small labeled set overfits within a few epochs, so people train only a handful of epochs and watch validation loss closely.",
+          "**Large-scale pre-training** — large language models often train for about one epoch or less. With that much data, overfitting is rarely the limit, and the training loss curve is the main check.",
+          "**Monitoring in production** — a gap between validation scores at training time and live scores reveals distribution shift. It looks like overfitting, but the cause is the data changing.",
         ],
       },
     ],
@@ -665,17 +665,17 @@ print(f"best epoch {best + 1}: train {h['loss'][best]:.4f}  val {h['val_loss'][b
       {
         t: "list",
         items: [
-          "**More capacity** lowers bias and allows the model to represent complex patterns, but raises variance and compute cost and needs more data or regularization.",
-          "**Less capacity** is cheaper, more stable and more interpretable, but has a floor on how low error can go (bias).",
-          "**More epochs** lower training error but past the validation minimum increase overfitting; **fewer epochs** act like a regularizer (early stopping) but risk underfitting.",
-          "**Validation set size**: a bigger validation set gives more reliable decisions but leaves less data for training. With small datasets, k-fold cross-validation trades compute for both.",
+          "**More capacity** lowers bias and captures complex patterns, but raises variance and compute, and needs more data or regularization.",
+          "**Less capacity** is cheaper, steadier and easier to interpret, but error cannot go below a floor (bias).",
+          "**More epochs** lower training error but, past the validation minimum, add overfitting; **fewer epochs** act as a regularizer (early stopping) but risk underfitting.",
+          "**Validation set size**: bigger gives more reliable decisions but leaves less for training. With small datasets, k-fold cross-validation buys both with extra compute.",
         ],
       },
       {
         t: "callout",
         kind: "warning",
         title: "Limitations of the bias–variance picture",
-        text: "The decomposition is exact for squared error. For classification losses (0–1 loss, cross-entropy) there are analogous but not identical decompositions. It describes the average over training sets, which you never observe directly — in practice you only see one training set and estimate everything from train/validation errors.",
+        text: "The decomposition is exact for squared error. Classification losses (0–1 loss, cross-entropy) have similar but not identical versions. It describes an average over training sets, which you never see: in practice you have one training set and estimate everything from train/validation errors.",
       },
     ],
 
@@ -684,29 +684,29 @@ print(f"best epoch {best + 1}: train {h['loss'][best]:.4f}  val {h['val_loss'][b
       {
         t: "list",
         items: [
-          "**Forgetting to zero gradients** (PyTorch). Why wrong: .backward() adds to existing .grad buffers, so each step uses the sum of all past gradients and training diverges or behaves erratically. Fix: call optimizer.zero_grad() once per iteration, before backward (or set_to_none=True, the default in recent versions).",
-          "**Evaluating in training mode or with gradients enabled.** Why wrong: dropout stays active and BatchNorm updates its running statistics with validation data, so validation numbers are noisy and the model is changed by evaluation; gradient tracking wastes memory. Fix: model.eval() and torch.no_grad() for evaluation, model.train() before the next epoch.",
-          "**Tuning hyperparameters on the test set.** Why wrong: every choice made by looking at test performance leaks information, so the final test score is optimistically biased. Fix: tune on validation (or cross-validation), touch the test set once.",
-          "**Not shuffling the training data**, or shuffling the validation split differently each run. Why wrong: sorted data gives correlated batches that push the model back and forth; changing validation splits makes runs incomparable. Fix: shuffle=True for training each epoch; a fixed, seeded validation split.",
-          "**Data leakage between splits** — e.g. computing normalization statistics on the full dataset, or having near-duplicate images (or the same patient) in train and validation. Why wrong: validation becomes optimistic and overfitting goes undetected. Fix: fit preprocessing on training data only; split by group.",
-          "**Confusing epochs and iterations** in a learning-rate schedule or log. Why wrong: a schedule designed for 100 epochs that is stepped every iteration decays hundreds of times too fast. Fix: be explicit about whether scheduler.step() is called per batch or per epoch, and compute iterations = epochs × ⌈N/B⌉.",
-          "**Reading a single noisy validation value** as a trend. Why wrong: small validation sets fluctuate (see the PyTorch output, epochs 1 and 10). Fix: smooth or look over several epochs, use a larger validation set, and use patience in early stopping.",
-          "**Believing low training loss means a good model.** Why wrong: training loss below the noise level is a sign of memorization. Fix: always report validation (and finally test) metrics next to training metrics.",
-          "**Diagnosing every high-error situation as overfitting.** Why wrong: if training error is also high, the problem is underfitting or an optimization bug, and regularization will make it worse. Fix: compare training error to a baseline (e.g. predicting the mean) and to the expected noise/human level first.",
+          "**Forgetting to zero gradients** (PyTorch). Why wrong: .backward() adds to the existing .grad buffers, so each step uses the sum of all past gradients and training diverges or acts strangely. Fix: call optimizer.zero_grad() once per iteration, before backward (or set_to_none=True, the default in recent versions).",
+          "**Evaluating in training mode or with gradients on.** Why wrong: dropout stays active and BatchNorm updates its running statistics with validation data, so numbers are noisy and evaluation changes the model; gradient tracking wastes memory. Fix: model.eval() and torch.no_grad() to evaluate, model.train() before the next epoch.",
+          "**Tuning hyperparameters on the test set.** Why wrong: every choice made by looking at test scores leaks information, so the final test score is too optimistic. Fix: tune on validation (or cross-validation); use the test set once.",
+          "**Not shuffling the training data**, or changing the validation split each run. Why wrong: sorted data gives similar batches that push the model back and forth; changing splits makes runs impossible to compare. Fix: shuffle=True for training each epoch; a fixed, seeded validation split.",
+          "**Leakage between splits** — e.g. normalization statistics computed on the full dataset, or near-duplicate images (or the same patient) in train and validation. Why wrong: validation looks too good and overfitting goes unnoticed. Fix: fit preprocessing on training data only; split by group.",
+          "**Mixing up epochs and iterations** in a learning-rate schedule or log. Why wrong: a schedule made for 100 epochs but stepped every iteration decays hundreds of times too fast. Fix: be clear whether scheduler.step() runs per batch or per epoch, and compute iterations = epochs × ⌈N/B⌉.",
+          "**Reading one noisy validation value** as a trend. Why wrong: small validation sets jump around (see the PyTorch output, epochs 1 and 10). Fix: look over several epochs, use a bigger validation set, and use patience in early stopping.",
+          "**Thinking low training loss means a good model.** Why wrong: training loss below the noise level signals memorization. Fix: always report validation (and finally test) metrics next to training ones.",
+          "**Calling every high error overfitting.** Why wrong: if training error is also high, the problem is underfitting or a training bug, and regularization makes it worse. Fix: first compare training error to a baseline (e.g. predicting the mean) and to the expected noise or human level.",
         ],
       },
     ],
 
     // ------------------------------------------------------------------
     interview: [
-      { t: "qa", level: "beginner", q: "What is the difference between an epoch, a batch and an iteration?", a: "A batch is a subset of training examples processed together. An iteration is one parameter update computed from one batch (forward pass, loss, backward pass, optimizer step). An epoch is one full pass over the whole training set, which takes ⌈N/B⌉ iterations for N examples and batch size B. For example 1,050 examples with batch size 32 take 33 iterations per epoch, the last batch holding 26 examples." },
-      { t: "qa", level: "beginner", q: "What is the difference between a parameter and a hyperparameter?", a: "Parameters (weights, biases) are learned by gradient descent from the training data. Hyperparameters (learning rate, batch size, number of epochs, architecture size, regularization strength, optimizer choice) are set by the practitioner and are not updated by the gradient; they are selected by comparing validation performance across training runs." },
-      { t: "qa", level: "beginner", q: "How do you recognize overfitting and underfitting?", a: "Underfitting: training and validation error are both high and close to each other — the model cannot even fit the training data. Overfitting: training error is low (often below the noise level) while validation error is much higher and typically rising as training continues or capacity grows. A good fit has low training error and validation error near its minimum with a small gap." },
-      { t: "qa", level: "intermediate", q: "Derive or state the bias–variance decomposition and explain each term.", a: "For y = f(x) + ε with zero-mean noise of variance σ², the expected squared error of a model trained on a random dataset D is E[(y − f̂_D(x))²] = (f(x) − E_D f̂_D(x))² + E_D[(f̂_D(x) − E_D f̂_D(x))²] + σ². Bias² is the error of the average model (systematic, from too restrictive a model family); variance is how much the model changes across training sets (sensitivity to the particular sample); σ² is irreducible label noise. Cross-terms vanish because the noise is independent and zero-mean and the deviation from the mean model has zero expectation. Increasing capacity usually lowers bias and raises variance." },
-      { t: "qa", level: "intermediate", q: "Why do we need a validation set if we already have a test set?", a: "Every decision made by looking at a dataset — which epoch to stop at, which learning rate, which architecture — fits the model to that dataset a little. If those decisions were made on the test set, the test score would be optimistically biased and no longer estimate performance on truly new data. The validation set absorbs that selection bias; the test set is used once at the end." },
-      { t: "qa", level: "intermediate", q: "Your training loss is decreasing but your validation loss started increasing after epoch 20. What do you do?", a: "The model is overfitting after epoch 20. Immediately: use the checkpoint with the best validation loss (early stopping). Then reduce the gap: add data or data augmentation, add weight decay or dropout, reduce model size, or use a pre-trained model. Also confirm the validation increase is a trend rather than noise from a small validation set, and check for leakage or distribution differences between the splits." },
-      { t: "qa", level: "advanced", q: "Why is the mini-batch gradient an unbiased estimator of the full-batch gradient, and how does batch size affect its variance and the choice of learning rate?", a: "If a batch is a uniformly random subset (with or without replacement), each example appears with equal probability, so the expectation of the batch-average gradient equals the dataset-average gradient. Its covariance scales like Σ/B (times a finite-population correction (N−B)/(N−1) when sampling without replacement), where Σ is the per-example gradient covariance. Larger batches therefore give less noisy steps, which allows larger learning rates — the common heuristic scales η roughly linearly with B, combined with warmup — but each epoch has fewer updates, and beyond a problem-dependent \"critical batch size\" increasing B gives diminishing reductions in the number of steps needed." },
-      { t: "qa", level: "advanced", q: "Modern networks have far more parameters than training examples and can fit random labels, yet they generalize. How does this square with the bias–variance trade-off?", a: "Parameter count is a poor measure of effective capacity. The function actually learned depends on the optimizer, initialization, architecture and training duration — gradient descent from small initialization is biased toward simple (e.g. low-norm) solutions, which acts as implicit regularization. Empirically, test error versus model size can show double descent: a peak near the interpolation threshold, then a decrease for larger models. The decomposition itself still holds for squared error; what changes is that variance can decrease again for very large models. Practically, held-out validation error, not parameter count, is what decides whether a model overfits." },
+      { t: "qa", level: "beginner", q: "What is the difference between an epoch, a batch and an iteration?", a: "A batch is a group of training examples processed together. An iteration is one parameter update from one batch (forward pass, loss, backward pass, optimizer step). An epoch is one full pass over the training set: ⌈N/B⌉ iterations for N examples and batch size B. For example, 1,050 examples with batch size 32 take 33 iterations per epoch, and the last batch holds 26." },
+      { t: "qa", level: "beginner", q: "What is the difference between a parameter and a hyperparameter?", a: "Parameters (weights, biases) are learned by gradient descent from training data. Hyperparameters (learning rate, batch size, epochs, model size, regularization strength, optimizer) are set by you, not by the gradient; you pick them by comparing validation scores across runs." },
+      { t: "qa", level: "beginner", q: "How do you recognize overfitting and underfitting?", a: "Underfitting: training and validation error are both high and close together — the model cannot even fit the training data. Overfitting: training error is low (often below the noise level) while validation error is much higher, and usually rising as training goes on or capacity grows. A good fit has low training error and validation error near its minimum, with a small gap." },
+      { t: "qa", level: "intermediate", q: "Derive or state the bias–variance decomposition and explain each term.", a: "For y = f(x) + ε with zero-mean noise of variance σ², the expected squared error of a model trained on a random dataset D is E[(y − f̂_D(x))²] = (f(x) − E_D f̂_D(x))² + E_D[(f̂_D(x) − E_D f̂_D(x))²] + σ². Bias² is the error of the average model (a built-in mistake from a too-limited model family). Variance is how much the model changes between training sets (sensitivity to the sample). σ² is label noise no model can remove. Cross-terms vanish because the noise is independent and zero-mean, and the deviation from the average model averages to zero. More capacity usually lowers bias and raises variance." },
+      { t: "qa", level: "intermediate", q: "Why do we need a validation set if we already have a test set?", a: "Every decision made by looking at a dataset — when to stop, which learning rate, which architecture — fits the model to that dataset a little. Made on the test set, those decisions would make the test score too optimistic, so it would no longer estimate performance on truly new data. The validation set soaks up that selection bias; the test set is used once at the end." },
+      { t: "qa", level: "intermediate", q: "Your training loss is decreasing but your validation loss started increasing after epoch 20. What do you do?", a: "The model is overfitting after epoch 20. First, use the checkpoint with the best validation loss (early stopping). Then shrink the gap: more data or augmentation, weight decay or dropout, a smaller model, or a pre-trained model. Also check the rise is a real trend, not noise from a small validation set, and look for leakage or differences between the splits." },
+      { t: "qa", level: "advanced", q: "Why is the mini-batch gradient an unbiased estimator of the full-batch gradient, and how does batch size affect its variance and the choice of learning rate?", a: "If a batch is a uniformly random subset (with or without replacement), every example is equally likely to appear, so the expected batch-average gradient equals the dataset-average gradient. Its covariance scales like Σ/B (times a finite-population correction (N−B)/(N−1) when sampling without replacement), where Σ is the per-example gradient covariance. So larger batches give less noisy steps and allow larger learning rates — a common rule scales η roughly linearly with B, plus warmup. But each epoch has fewer updates, and past a problem-dependent \"critical batch size\", raising B cuts the number of steps needed less and less." },
+      { t: "qa", level: "advanced", q: "Modern networks have far more parameters than training examples and can fit random labels, yet they generalize. How does this square with the bias–variance trade-off?", a: "Parameter count is a poor measure of real capacity. What gets learned depends on the optimizer, initialization, architecture and training time. Gradient descent from a small initialization leans toward simple (e.g. low-norm) solutions, which acts as hidden (implicit) regularization. In experiments, test error vs model size can show double descent: a peak near the point where the model fits every training example, then a drop for larger models. The decomposition still holds for squared error; what changes is that variance can fall again for very large models. In practice, held-out validation error, not parameter count, decides whether a model overfits." },
     ],
 
     // ------------------------------------------------------------------
@@ -739,13 +739,13 @@ print(f"best epoch {best + 1}: train {h['loss'][best]:.4f}  val {h['val_loss'][b
             q: "Training error 0.01, validation error 0.40, noise variance about 0.05. What is the most likely diagnosis?",
             options: ["Underfitting", "Overfitting", "Learning rate too large", "A good fit"],
             answer: 1,
-            explain: "Training error is far below the noise level and the gap to validation is large — the model is memorizing noise.",
+            explain: "Training error is far below the noise level and the gap to validation is large: the model is memorizing noise.",
           },
           {
             q: "Training and validation error are both 0.35 and nearly flat over many epochs; a simple baseline gets 0.40. Which change is most likely to help?",
             options: ["Add dropout", "Collect more data", "Increase model capacity or train with a better-tuned learning rate", "Stop training earlier"],
             answer: 2,
-            explain: "Both errors are high and close: high bias / underfitting. Regularization, more data or earlier stopping address variance, not bias.",
+            explain: "Both errors are high and close: high bias, underfitting. Regularization, more data or earlier stopping fix variance, not bias.",
           },
           {
             q: "In a PyTorch training loop, what happens if you never call optimizer.zero_grad()?",
@@ -769,7 +769,7 @@ print(f"best epoch {best + 1}: train {h['loss'][best]:.4f}  val {h['val_loss'][b
             q: "For linear least squares with p = 6 parameters, n = 24 training points and noise variance σ² = 0.08 (true function inside the model family), what is the expected training MSE?",
             answer: 0.06,
             tolerance: 0.0005,
-            explain: "σ²(1 − p/n) = 0.08 × (1 − 6/24) = 0.08 × 0.75 = 0.06 — lower than the noise variance, which shows why training error is optimistic.",
+            explain: "σ²(1 − p/n) = 0.08 × (1 − 6/24) = 0.08 × 0.75 = 0.06 — below the noise variance, which is why training error is optimistic.",
           },
         ],
       },
@@ -785,8 +785,8 @@ print(f"best epoch {best + 1}: train {h['loss'][best]:.4f}  val {h['val_loss'][b
             items: [
               "(a) ⌈10000/64⌉ = ⌈156.25⌉ = 157 iterations; the last batch has 10000 − 156·64 = 16 examples.",
               "(b) 157 × 20 = 3,140 updates.",
-              "(c) ⌊10000/64⌋ = 156 iterations per epoch, 156 × 20 = 3,120 updates; 10000 mod 64 = 16 examples are skipped each epoch (different ones each epoch because of shuffling).",
-              "(d) 5000/156 = 32.05, so 33 epochs are needed (32 epochs give only 4,992 updates).",
+              "(c) ⌊10000/64⌋ = 156 iterations per epoch, 156 × 20 = 3,120 updates; 10000 mod 64 = 16 examples skipped each epoch (different ones each time, thanks to shuffling).",
+              "(d) 5000/156 = 32.05, so you need 33 epochs (32 give only 4,992 updates).",
             ],
           },
           {
@@ -804,8 +804,8 @@ print(i, N - (i - 1) * B, i * E, N // B, N % B, (N // B) * E, math.ceil(5000 / (
       {
         t: "exercise",
         title: "Learning curves vs training-set size (coding)",
-        prompt: "Using y = sin(2πx) + ε with σ = 0.25, fit polynomials of degree 1, 3 and 9 by least squares on training sets of size n ∈ {12, 20, 40, 80, 160, 320}. For each (degree, n), average the training MSE over 200 random training sets and report the median validation MSE on a fixed set of 2,000 validation points. Interpret the three curves in terms of bias and variance.",
-        hint: "Rescale x to [−1, 1] before building np.vander features and add a tiny ridge (1e-8) to the normal equations. The median is more robust than the mean because a few unlucky small training sets make the degree-9 fit explode.",
+        prompt: "Using y = sin(2πx) + ε with σ = 0.25, fit polynomials of degree 1, 3 and 9 by least squares on training sets of size n ∈ {12, 20, 40, 80, 160, 320}. For each (degree, n), average training MSE over 200 random training sets and report the median validation MSE on a fixed set of 2,000 validation points. Explain the three curves in terms of bias and variance.",
+        hint: "Rescale x to [−1, 1] before building np.vander features, and add a tiny ridge (1e-8) to the normal equations. Use the median, not the mean: a few unlucky small training sets make the degree-9 fit explode.",
         solution: [
           {
             t: "code",
@@ -865,9 +865,9 @@ noise floor sigma^2 = 0.0625`,
           {
             t: "list",
             items: [
-              "**Degree 1 (high bias):** the curves converge quickly to about 0.26 — four times the noise floor. More data barely helps; only more capacity would.",
-              "**Degree 3 (balanced):** small gap that closes to about 0.066, close to σ² = 0.0625.",
-              "**Degree 9 (high variance):** with 12 points the median validation MSE is about 90 (the polynomial explodes between points) while training MSE is 0.013; the gap closes as n grows, and by n = 320 degree 9 is slightly better than degree 3 (0.0632 vs 0.0658). With enough data, the higher-capacity model wins.",
+              "**Degree 1 (high bias):** the curves quickly meet at about 0.26, four times the noise floor. More data barely helps; only more capacity would.",
+              "**Degree 3 (balanced):** a small gap that closes to about 0.066, close to σ² = 0.0625.",
+              "**Degree 9 (high variance):** with 12 points the median validation MSE is about 90 (the polynomial explodes between points) while training MSE is 0.013. The gap closes as n grows, and by n = 320 degree 9 slightly beats degree 3 (0.0632 vs 0.0658). With enough data, the bigger model wins.",
               String.raw`Training MSE rises with n toward σ², matching $\sigma^2(1-p/n)$: for n = 20, degree 3 (p = 4) predicts 0.05 (measured 0.0509) and degree 9 (p = 10) predicts 0.03125 (measured 0.0319).`,
             ],
           },
@@ -880,14 +880,14 @@ noise floor sigma^2 = 0.0625`,
       {
         t: "list",
         items: [
-          "**Training loop**: for each epoch, shuffle; for each batch: zero gradients → forward → loss → backward → update. Then evaluate on validation data in eval mode without gradients.",
+          "**Training loop**: each epoch, shuffle; for each batch: zero gradients → forward → loss → backward → update. Then evaluate on validation data in eval mode, without gradients.",
           String.raw`**Arithmetic**: iterations per epoch $=\lceil N/B\rceil$; last batch $= N - (\lceil N/B\rceil - 1)B$; total updates $= E\lceil N/B\rceil$; with drop_last $\lfloor N/B\rfloor$ and $N \bmod B$ skipped per epoch.`,
           "**Parameters** are learned by gradients; **hyperparameters** are chosen by validation performance.",
           "**Train / validation / test**: train for gradients, validation for decisions, test once for the final report.",
           "**Underfitting** = high bias: both errors high, small gap. **Overfitting** = high variance: training error low (below noise), large and growing gap.",
           String.raw`**Bias–variance**: $\mathbb E[(y-\hat f)^2] = \text{bias}^2 + \text{variance} + \sigma^2$ — verified by Monte-Carlo; capacity trades bias for variance, giving a U-shaped validation curve.`,
           String.raw`**Training error is optimistic**: for least squares, $\mathbb E[\text{train MSE}] = \sigma^2(1 - p/n)$.`,
-          "**Learning curves**: loss vs epoch tells you when to stop and whether optimization works; error vs data size tells you whether more data will help.",
+          "**Learning curves**: loss vs epoch shows when to stop and whether training works; error vs data size shows whether more data will help.",
           "**Remedies**: underfitting → more capacity, longer training, better learning rate, less regularization; overfitting → more data, augmentation, early stopping, weight decay, dropout, smaller model.",
         ],
       },
@@ -898,9 +898,9 @@ noise floor sigma^2 = 0.0625`,
       {
         t: "list",
         items: [
-          "[Gradient Descent: Batch, Stochastic, Mini-Batch](/learn/m06/gradient-descent) — the update step of the loop in depth: how the learning rate and batch size control convergence, with the simulator for divergence and oscillation.",
-          "[Regularization: L1, L2, Dropout, Early Stopping](/learn/m07/regularization) — the toolbox for the overfitting remedies listed here, with what each one does to the weights and the loss.",
-          "[Regression Losses: MSE, MAE, Huber, Log-Cosh](/learn/m05/regression-losses) — the loss function computed in step 3 of every iteration, and how its choice changes what the model learns.",
+          "[Gradient Descent: Batch, Stochastic, Mini-Batch](/learn/m06/gradient-descent) — the loop's update step in depth: how learning rate and batch size control convergence, with a simulator for divergence and oscillation.",
+          "[Regularization: L1, L2, Dropout, Early Stopping](/learn/m07/regularization) — the toolbox for the overfitting fixes listed here, and what each does to the weights and the loss.",
+          "[Regression Losses: MSE, MAE, Huber, Log-Cosh](/learn/m05/regression-losses) — the loss computed in every iteration, and how its choice changes what the model learns.",
         ],
       },
     ],

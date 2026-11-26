@@ -24,9 +24,9 @@ export function ProgressDashboard({ published, projects }: { published: string[]
   return (
     <div className="space-y-10 py-10">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Topics completed" value={`${done.length}`} sub={`of ${TOTAL_TOPICS} (${published.length} published)`} />
-        <Stat label="Learning streak" value={`${streak(p.activeDays)}`} sub="consecutive days" />
-        <Stat label="Quizzes" value={`${quizzes.length}`} sub={quizzes.length ? `average best score ${(avg * 100).toFixed(0)}%` : "none attempted yet"} />
+        <Stat label="Topics completed" value={`${done.length}`} sub={`of ${TOTAL_TOPICS} (${published.length} ready)`} />
+        <Stat label="Learning streak" value={`${streak(p.activeDays)}`} sub="days in a row" />
+        <Stat label="Quizzes" value={`${quizzes.length}`} sub={quizzes.length ? `average best score ${(avg * 100).toFixed(0)}%` : "none taken yet"} />
         <Stat label="Bookmarks" value={`${p.bookmarks.length}`} sub="saved topics" />
       </div>
 
@@ -60,7 +60,7 @@ export function ProgressDashboard({ published, projects }: { published: string[]
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
                   <div className="h-full rounded-full bg-accent" style={{ width: `${(c / total) * 100}%` }} />
                 </div>
-                {avail > 0 && <div className="mt-1 text-[0.68rem] text-faint">{avail} full lesson{avail > 1 ? "s" : ""} published</div>}
+                {avail > 0 && <div className="mt-1 text-[0.68rem] text-faint">{avail} full lesson{avail > 1 ? "s" : ""} ready</div>}
               </Link>
             );
           })}
@@ -71,7 +71,7 @@ export function ProgressDashboard({ published, projects }: { published: string[]
         <section>
           <h2 className="mb-3 font-serif text-xl font-semibold">Quiz scores</h2>
           {quizzes.length === 0 ? (
-            <p className="text-sm text-faint">Take the Knowledge Check at the end of any lesson.</p>
+            <p className="text-sm text-faint">No scores yet. Try the Knowledge Check at the end of any lesson.</p>
           ) : (
             <ul className="divide-y divide-border text-sm">
               {quizzes.map(([k, q]) => {
@@ -93,7 +93,7 @@ export function ProgressDashboard({ published, projects }: { published: string[]
         <section>
           <h2 className="mb-3 font-serif text-xl font-semibold">Bookmarks</h2>
           {p.bookmarks.length === 0 ? (
-            <p className="text-sm text-faint">Use the bookmark button on any lesson.</p>
+            <p className="text-sm text-faint">Nothing saved yet. Use the Bookmark button on any lesson.</p>
           ) : (
             <ul className="divide-y divide-border text-sm">
               {p.bookmarks.map((b) => (
@@ -125,11 +125,11 @@ export function ProgressDashboard({ published, projects }: { published: string[]
       </div>
 
       <section className="border-t border-border pt-6 text-sm text-muted">
-        Progress is stored in this browser{process.env.NEXT_PUBLIC_API_URL ? " and synced to the server" : ""}.{" "}
+        Your progress is saved in this browser{process.env.NEXT_PUBLIC_API_URL ? " and synced to the server" : ""}.{" "}
         <button
           className="text-clay underline underline-offset-2"
           onClick={() => {
-            if (confirm("Reset all progress? This cannot be undone.")) progress.reset();
+            if (confirm("Reset all your progress? You can't undo this.")) progress.reset();
           }}
         >
           Reset progress

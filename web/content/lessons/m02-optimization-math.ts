@@ -441,7 +441,7 @@ const lesson: Lesson = {
   id: "m02/optimization-math",
   title: "Optimization: Objectives, Convexity and Minima",
   summary:
-    "What it means to train a model as an optimization problem: objectives and empirical risk, constraints versus penalties, convex sets and functions with proofs, why neural networks are non-convex, local minima, saddle points and plateaus, optimality conditions, L-smoothness and the 1/L step size, numerical stability in floating point, and regularization as a modified objective.",
+    "Training a model as an optimization problem: objectives and empirical risk, constraints vs penalties, convex sets and functions (with proofs), why neural networks are non-convex, local minima, saddle points and plateaus, optimality conditions, L-smoothness and the 1/L step size, floating-point stability, and regularization as part of the objective.",
   minutes: 85,
   level: "intermediate",
   prerequisites: ["m02/derivatives-chain-rule", "m02/jacobians-hessians", "m02/eigen-svd", "m02/norms-spaces"],
@@ -452,21 +452,21 @@ const lesson: Lesson = {
     intro: [
       {
         t: "p",
-        text: String.raw`"Training a neural network" is shorthand for solving an **optimization problem**: find parameters $\theta$ that make a scalar **objective** $J(\theta)$ as small as possible. The objective is usually the average loss over the training set plus a regularization term. Everything else — the architecture, the optimizer, the learning-rate schedule, the choice of float16 or float32 — is in service of solving that problem well enough, fast enough, and in a way that generalizes.`,
+        text: String.raw`"Training a neural network" means solving an **optimization problem**: find the parameters $\theta$ (all weights and biases) that make one number, the **objective** $J(\theta)$, as small as possible. The objective is usually the average training loss plus a regularization term. Everything else — architecture, optimizer, learning-rate schedule, float16 or float32 — serves to solve that problem well enough, fast enough, and in a way that works on new data.`,
       },
       {
         t: "p",
-        text: String.raw`Classical optimization has a beautiful, complete theory for **convex** problems: every local minimum is global, and simple algorithms provably converge at known rates. Linear regression, logistic regression and support vector machines are convex. Neural networks are not, and this lesson explains precisely why (a symmetry argument), what the landscape looks like instead (many equivalent minima, vast numbers of saddle points, flat plateaus), and which pieces of the convex theory still carry over — in particular the **smoothness** condition that tells you how large a learning rate can safely be.`,
+        text: String.raw`For **convex** (single-bowl) problems, classical optimization has a complete theory: every local minimum is global, and simple algorithms provably converge at known speeds. Linear regression, logistic regression and support vector machines are convex. Neural networks are not. We show exactly why (a symmetry argument), what their landscape looks like instead (many equivalent minima, huge numbers of saddle points, flat plateaus), and which convex ideas still help — above all **smoothness**, which tells you how large a learning rate is safe.`,
       },
       {
         t: "p",
-        text: String.raw`The last part is about a less glamorous but equally practical topic: **numerical stability**. Computers optimize with finite-precision numbers. A mathematically correct softmax can return NaN, a variance can come out negative, and a gradient of $10^{-8}$ becomes exactly zero in float16. Knowing the log-sum-exp trick, the stable forms of sigmoid and softplus, and how loss scaling works is part of solving the optimization problem correctly.`,
+        text: String.raw`The last part is **numerical stability**. Computers store numbers with limited precision. A mathematically correct softmax can return NaN, a variance can come out negative, and a gradient of $10^{-8}$ becomes exactly zero in float16. The log-sum-exp trick, stable sigmoid and softplus, and loss scaling are part of solving the problem correctly.`,
       },
       {
         t: "callout",
         kind: "key",
         title: "What this lesson covers",
-        text: String.raw`Problem formulation and empirical risk minimisation; constraints vs penalties; convex sets and functions (definition, first- and second-order conditions, Jensen) and the proof that convex problems have no spurious local minima; why neural networks are non-convex; local minima, saddle points and plateaus; optimality conditions; $L$-smoothness and the step size $\eta \le 1/L$; floating-point pitfalls and their fixes; regularization as part of the objective.`,
+        text: String.raw`Setting up the problem and empirical risk minimisation; constraints vs penalties; convex sets and functions (definition, first- and second-order tests, Jensen) and the proof that convex problems have no false local minima; why neural networks are non-convex; local minima, saddles and plateaus; optimality conditions; $L$-smoothness and the step size $\eta \le 1/L$ ($\eta$ = learning rate); floating-point traps and fixes; regularization as part of the objective.`,
       },
     ],
 
@@ -476,10 +476,10 @@ const lesson: Lesson = {
         t: "list",
         items: [
           String.raw`[Derivatives, Partial Derivatives and the Chain Rule](/learn/m02/derivatives-chain-rule) — gradients, and the fact that $-\nabla f$ is the direction of steepest descent.`,
-          String.raw`[Jacobians, Hessians and Computational Graphs](/learn/m02/jacobians-hessians) — the Hessian, the second-order Taylor expansion and the classification of critical points by Hessian eigenvalues. This lesson uses them constantly.`,
-          String.raw`[Eigenvalues, Eigenvectors and SVD](/learn/m02/eigen-svd) — a symmetric matrix is positive semidefinite ($v^\top Av \ge 0$ for all $v$) exactly when all its eigenvalues are $\ge 0$.`,
+          String.raw`[Jacobians, Hessians and Computational Graphs](/learn/m02/jacobians-hessians) — the Hessian (the matrix of second derivatives, i.e. curvature), the second-order Taylor expansion, and classifying critical points by Hessian eigenvalues. Used throughout.`,
+          String.raw`[Eigenvalues, Eigenvectors and SVD](/learn/m02/eigen-svd) — a symmetric matrix is positive semidefinite ($v^\top Av \ge 0$ for all $v$: it curves up or stays flat in every direction) exactly when all its eigenvalues are $\ge 0$.`,
           String.raw`[Vector Spaces, Norms and Distances](/learn/m02/norms-spaces) — the $L_1$ and $L_2$ norms used in penalties and constraints.`,
-          String.raw`[Gradient Descent](/learn/m06/gradient-descent) is the natural companion: it derives the update rule and the condition $\eta < 2/\lambda_{\max}$ on quadratics. We refer to it rather than repeat it.`,
+          String.raw`[Gradient Descent](/learn/m06/gradient-descent) is the companion lesson: it derives the update rule and the condition $\eta < 2/\lambda_{\max}$ on quadratics. We refer to it rather than repeat it.`,
         ],
       },
     ],
@@ -490,19 +490,19 @@ const lesson: Lesson = {
         t: "callout",
         kind: "analogy",
         title: "Finding the lowest point in a foggy landscape",
-        text: "You are dropped somewhere in a mountain range in thick fog and must reach the lowest point. You can only feel the slope under your feet. If the terrain is a single smooth bowl (a **convex** landscape), walking downhill always gets you to the bottom, and wherever the ground is flat you have arrived. Real terrain is different: there are many valleys (local minima), mountain passes where the ground is flat but which lead downhill on two sides (saddle points), and vast flat plains where you can hardly tell which way is down (plateaus). Your stride length matters too: in a narrow gully a long stride carries you up the opposite wall (too large a learning rate).",
+        text: "You are dropped into mountains in thick fog and must reach the lowest point. You can only feel the slope under your feet. If the terrain is one smooth bowl (a **convex** landscape), walking downhill always gets you to the bottom, and wherever the ground is flat you have arrived. Real terrain has many valleys (local minima), mountain passes that are flat but lead downhill on two sides (saddle points), and wide flat plains where you can hardly tell which way is down (plateaus). Stride length matters too: in a narrow gully a long stride carries you up the far wall (learning rate too large).",
       },
       {
         t: "p",
-        text: String.raw`**Convexity** is the mathematical version of "a single bowl": the straight line between any two points on the graph lies on or above the graph. That single property rules out separate valleys, and it is why convex problems are considered "solved".`,
+        text: String.raw`**Convexity** is the maths version of "one bowl": the straight line between any two points on the graph lies on or above the graph. That rules out separate valleys, which is why convex problems count as "solved".`,
       },
       {
         t: "p",
-        text: String.raw`**Neural networks are not bowls.** Swap two hidden neurons (together with their incoming and outgoing weights) and the network computes exactly the same function, so every good solution has many identical twins elsewhere in parameter space. Walk in a straight line between two twins and the loss rises in the middle: a bowl could not do that. Yet in practice training works well, because in very high dimensions most flat points are saddles you can slide off, not traps, and many of the valleys are about equally deep.`,
+        text: String.raw`**Neural networks are not bowls.** Swap two hidden neurons (with their incoming and outgoing weights) and the network computes exactly the same function. So every good solution has many identical twins elsewhere in parameter space. Walk straight between two twins and the loss rises in the middle — a bowl can't do that. Yet training works well in practice: in very high dimensions most flat points are saddles you slide off, not traps, and many valleys are about equally deep.`,
       },
       {
         t: "p",
-        text: String.raw`**Smoothness** is a promise about how fast the slope can change. If the slope cannot change faster than $L$ per unit distance, a step of size $1/L$ along the downhill direction is guaranteed to go down. **Numerical stability** is the promise that your arithmetic does not betray you: $e^{1000}$ is too large for any floating-point format, so a well-written program never computes it, even when the mathematics says it should.`,
+        text: String.raw`**Smoothness** limits how fast the slope can change. If it changes by at most $L$ per unit distance, a step of size $1/L$ downhill is guaranteed to go down. **Numerical stability** means your arithmetic doesn't betray you: $e^{1000}$ is too large for any floating-point format, so a good program never computes it, even when the formula says to.`,
       },
     ],
 
@@ -512,13 +512,13 @@ const lesson: Lesson = {
       {
         t: "steps",
         items: [
-          { title: "Choose a model family", text: String.raw`A parameterised function $f(x;\theta)$ with parameters $\theta\in\mathbb{R}^d$ (all weights and biases).` },
-          { title: "Choose a per-example loss", text: String.raw`$\ell(\hat y, y)\ge0$ measures how bad prediction $\hat y$ is when the truth is $y$: squared error for regression, cross-entropy for classification. See [classification losses](/learn/m05/classification-losses).` },
-          { title: "Average over the data: the empirical risk", text: String.raw`$\hat R(\theta) = \frac1N\sum_{i=1}^N \ell(f(x_i;\theta), y_i)$ — a proxy for the true risk on unseen data.` },
-          { title: "Add preferences: the regularized objective", text: String.raw`$J(\theta) = \hat R(\theta) + \lambda\,\Omega(\theta)$, where $\Omega$ penalises undesirable parameters (large or non-sparse weights) and $\lambda\ge0$ sets the trade-off. Hard requirements become constraints $\theta\in\mathcal{C}$ instead.` },
-          { title: "Pick an algorithm and its hyper-parameters", text: String.raw`Gradient descent or a variant, with a step size chosen from the problem's smoothness (or tuned), and an initialization. For non-convex $J$ the result depends on both.` },
-          { title: "Implement it in finite precision", text: String.raw`Compute $J$ and $\nabla J$ with numerically stable formulas (log-sum-exp, fused sigmoid + cross-entropy, epsilons in denominators), in a floating-point format whose range and precision suit the values involved.` },
-          { title: "Diagnose the landscape", text: String.raw`If training stalls, ask: is the gradient small because we are at a minimum, on a plateau or near a saddle? Is the loss diverging because $\eta$ exceeds the stability limit? Are NaNs coming from overflow? The tools below answer each question.` },
+          { title: "Choose a model family", text: String.raw`A function $f(x;\theta)$ with parameters $\theta\in\mathbb{R}^d$ ($d$ numbers: all weights and biases).` },
+          { title: "Choose a per-example loss", text: String.raw`$\ell(\hat y, y)\ge0$ says how bad prediction $\hat y$ is when the truth is $y$: squared error for regression, cross-entropy for classification. See [classification losses](/learn/m05/classification-losses).` },
+          { title: "Average over the data: the empirical risk", text: String.raw`$\hat R(\theta) = \frac1N\sum_{i=1}^N \ell(f(x_i;\theta), y_i)$ — the average loss on the $N$ training examples, a stand-in for the true risk on unseen data.` },
+          { title: "Add preferences: the regularized objective", text: String.raw`$J(\theta) = \hat R(\theta) + \lambda\,\Omega(\theta)$. $\Omega$ penalises unwanted parameters (large or non-sparse weights); $\lambda\ge0$ sets how much. Hard requirements become constraints $\theta\in\mathcal{C}$ instead.` },
+          { title: "Pick an algorithm and its hyper-parameters", text: String.raw`Gradient descent or a variant, a step size (from the problem's smoothness, or tuned) and an initialization. For non-convex $J$ the result depends on both.` },
+          { title: "Implement it in finite precision", text: String.raw`Compute $J$ and $\nabla J$ with stable formulas (log-sum-exp, fused sigmoid + cross-entropy, epsilons in denominators), in a floating-point format whose range and precision fit the values.` },
+          { title: "Diagnose the landscape", text: String.raw`If training stalls: is the gradient small because of a minimum, a plateau or a saddle? Is the loss diverging because $\eta$ is past the stability limit? Do NaNs come from overflow? The tools below answer each question.` },
         ],
       },
       { t: "h", text: "Decision guide: what is happening when the gradient is (nearly) zero?" },
@@ -526,7 +526,7 @@ const lesson: Lesson = {
         t: "table",
         head: ["Situation", "Gradient", "Hessian eigenvalues", "Loss nearby", "What to do"],
         rows: [
-          ["Local (or global) minimum", "$0$", "all $\\ge 0$", "rises in every direction", "stop, or move to a flatter/better basin with noise, restarts, schedules"],
+          ["Local (or global) minimum", "$0$", "all $\\ge 0$", "rises in every direction", "stop, or reach a better basin via noise, restarts, schedules"],
           ["Strict saddle point", "$0$", "at least one $< 0$", "falls along some directions", "keep going: noise, momentum or perturbations escape it"],
           ["Plateau", "tiny but non-zero", "all near $0$", "almost flat over a large region", "better initialization, normalization, non-saturating activations, adaptive optimizers"],
           ["Local maximum", "$0$", "all $\\le 0$", "falls in every direction", "unstable: gradient descent leaves immediately unless started exactly there"],
@@ -535,7 +535,7 @@ const lesson: Lesson = {
       {
         t: "callout",
         kind: "note",
-        text: "For a convex objective only the first row can occur, and every such point is a global minimum. That is the practical meaning of \"convex problems have no spurious local minima\".",
+        text: "For a convex objective only the first row can happen, and every such point is a global minimum. That is what \"convex problems have no false local minima\" means in practice.",
       },
     ],
 
@@ -548,16 +548,16 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`$J:\mathbb{R}^d\to\mathbb{R}$ is the **objective function**; the $g_i$ and $h_j$ define the **feasible set** $\mathcal{C} = \{\theta: g_i(\theta)\le0,\ h_j(\theta) = 0\}$. A point $\theta^\star\in\mathcal{C}$ is a **global minimum** if $J(\theta^\star)\le J(\theta)$ for all $\theta\in\mathcal{C}$, and a **local minimum** if this holds for all feasible $\theta$ within some distance $r > 0$ of $\theta^\star$. The set of global minimisers is written $\arg\min J$; it may be empty (the infimum is not attained, e.g. $e^{-\theta}$), a single point, or a whole set. Maximising $J$ is the same as minimising $-J$, so we always speak of minimisation.`,
+        text: String.raw`$J:\mathbb{R}^d\to\mathbb{R}$ (it maps $d$ numbers to one number) is the **objective function**. The $g_i$ and $h_j$ define the **feasible set** $\mathcal{C} = \{\theta: g_i(\theta)\le0,\ h_j(\theta) = 0\}$ — the allowed parameters. A point $\theta^\star\in\mathcal{C}$ is a **global minimum** if $J(\theta^\star)\le J(\theta)$ for every allowed $\theta$, and a **local minimum** if this holds for allowed $\theta$ within some distance $r > 0$ of it. The set of global minimisers, $\arg\min J$, may be empty (the lowest value is never reached, e.g. $e^{-\theta}$), one point, or a whole set. Maximising $J$ equals minimising $-J$, so we always talk about minimising.`,
       },
       {
         t: "p",
-        text: String.raw`**Vocabulary.** In deep learning, **loss** usually means the per-example quantity $\ell(\hat y, y)$; **cost** is often used for the average over a dataset or batch; **objective** is whatever is actually minimised, including regularization. The terms are used loosely and interchangeably in practice; what matters is to know exactly which function your optimizer differentiates.`,
+        text: String.raw`**Vocabulary.** **Loss** usually means the per-example $\ell(\hat y, y)$; **cost** the average over a dataset or batch; **objective** whatever is actually minimised, regularization included. People mix these up; what matters is knowing exactly which function your optimizer differentiates.`,
       },
       { t: "h", text: "2. Empirical risk minimisation" },
       {
         t: "p",
-        text: String.raw`Data $(x, y)$ come from an unknown distribution $\mathcal{D}$. What we want to minimise is the **(true) risk**, the expected loss on new data. What we can compute is the **empirical risk** on the $N$ training examples:`,
+        text: String.raw`Data $(x, y)$ come from an unknown distribution $\mathcal{D}$. We want to minimise the **(true) risk**, the expected loss on new data. We can only compute the **empirical risk** on the $N$ training examples:`,
       },
       {
         t: "math",
@@ -565,12 +565,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`For a **fixed** $\theta$, $\hat R_N(\theta)$ is an unbiased estimate of $R(\theta)$ and converges to it as $N\to\infty$ (law of large numbers). **Empirical risk minimisation** (ERM) picks $\hat\theta = \arg\min\hat R_N$. But $\hat\theta$ is chosen *using* the training data, so $\hat R_N(\hat\theta)$ is optimistically biased: the difference $R(\hat\theta) - \hat R_N(\hat\theta)$ is the **generalization gap**, and a flexible model can drive $\hat R_N$ to zero while $R$ stays large (overfitting, see [training basics](/learn/m03/training-basics)). This is why the objective that is minimised is usually *not* $\hat R_N$ alone, and why we watch a validation loss: optimization is a means to low $R$, not an end. Mini-batch SGD can also be read as optimising $R$ directly, since each fresh mini-batch gives an unbiased estimate of $\nabla R$ during the first epoch.`,
+        text: String.raw`For a **fixed** $\theta$, $\hat R_N(\theta)$ is an unbiased estimate of $R(\theta)$ and approaches it as $N\to\infty$ (law of large numbers). **Empirical risk minimisation** (ERM) picks $\hat\theta = \arg\min\hat R_N$. But $\hat\theta$ is chosen *using* the training data, so $\hat R_N(\hat\theta)$ looks too good. The difference $R(\hat\theta) - \hat R_N(\hat\theta)$ is the **generalization gap**: a flexible model can drive $\hat R_N$ to zero while $R$ stays large (overfitting, see [training basics](/learn/m03/training-basics)). So we rarely minimise $\hat R_N$ alone, and we watch a validation loss: optimization is a means to low $R$, not the goal. Mini-batch SGD can also be seen as optimising $R$ directly, since in the first epoch each fresh mini-batch gives an unbiased estimate of $\nabla R$.`,
       },
       { t: "h", text: "3. Constraints versus penalties" },
       {
         t: "p",
-        text: String.raw`A requirement such as "keep the weights small" can be imposed as a **constraint** ($\lVert\theta\rVert_2\le r$) or as a **penalty** added to the objective ($+\tfrac\lambda2\lVert\theta\rVert_2^2$). The two are linked by **Lagrange multipliers**. For $\min J(\theta)$ s.t. $g(\theta)\le0$, form the Lagrangian $\mathcal{L}(\theta,\mu) = J(\theta) + \mu\,g(\theta)$ with $\mu\ge0$. Under mild conditions a solution satisfies the **KKT conditions**:`,
+        text: String.raw`A wish like "keep the weights small" can be a **constraint** ($\lVert\theta\rVert_2\le r$, length at most $r$) or a **penalty** added to the objective ($+\tfrac\lambda2\lVert\theta\rVert_2^2$). **Lagrange multipliers** link the two. For $\min J(\theta)$ subject to $g(\theta)\le0$, form the Lagrangian $\mathcal{L}(\theta,\mu) = J(\theta) + \mu\,g(\theta)$ with $\mu\ge0$. Under mild conditions a solution satisfies the **KKT conditions**:`,
       },
       {
         t: "math",
@@ -579,16 +579,16 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**Worked example.** Minimise $(w-3)^2$ subject to $|w|\le1$. The unconstrained minimum $w = 3$ is infeasible, so the constraint is active and $w^\star = 1$. Stationarity at $w = 1$ with $g(w) = w^2 - 1$: $2(1-3) + \mu\cdot2(1) = 0$, so $\mu^\star = 2$. Now solve the **penalised** problem $\min (w-3)^2 + \lambda w^2$: setting the derivative $2(w-3) + 2\lambda w$ to zero gives $w = 3/(1+\lambda)$, i.e. $3$ for $\lambda = 0$, $2$ for $\lambda = 0.5$ and exactly $1$ for $\lambda = 2 = \mu^\star$. For convex problems this correspondence is general: every constraint radius $r$ corresponds to some penalty weight $\lambda$ and vice versa — though the mapping depends on the data and is rarely known in advance.`,
+        text: String.raw`**Worked example.** Minimise $(w-3)^2$ subject to $|w|\le1$. The free minimum $w = 3$ is not allowed, so the constraint is active and $w^\star = 1$. Stationarity at $w = 1$ with $g(w) = w^2 - 1$: $2(1-3) + \mu\cdot2(1) = 0$, so $\mu^\star = 2$. Now the **penalised** problem $\min (w-3)^2 + \lambda w^2$: setting the derivative $2(w-3) + 2\lambda w$ to zero gives $w = 3/(1+\lambda)$ — $3$ for $\lambda = 0$, $2$ for $\lambda = 0.5$, exactly $1$ for $\lambda = 2 = \mu^\star$. For convex problems this always works: each constraint radius $r$ matches some penalty weight $\lambda$ and vice versa, though the match depends on the data and is rarely known in advance.`,
       },
       {
         t: "p",
-        text: String.raw`**In practice.** Deep learning overwhelmingly uses penalties, because they keep the problem unconstrained and gradient descent applies unchanged. Constraints appear as (i) **projections** after each step (projected gradient descent: $\theta\leftarrow\Pi_{\mathcal{C}}(\theta - \eta\nabla J)$, e.g. max-norm constraints on each neuron's incoming weights, used with dropout by Srivastava et al., 2014), and (ii) **reparametrisations** that make the constraint automatic: a positive variance as $\sigma = \operatorname{softplus}(s)$ or $e^s$, a probability vector as $\operatorname{softmax}(z)$, an orthogonal matrix via a matrix exponential.`,
+        text: String.raw`**In practice** deep learning mostly uses penalties: the problem stays unconstrained and gradient descent works unchanged. Constraints appear as (i) **projections** after each step — projected gradient descent, $\theta\leftarrow\Pi_{\mathcal{C}}(\theta - \eta\nabla J)$, where $\Pi_{\mathcal{C}}$ moves $\theta$ to the nearest allowed point (e.g. max-norm limits on each neuron's incoming weights, used with dropout by Srivastava et al., 2014); and (ii) **reparametrisations** that make the constraint automatic: a positive variance as $\sigma = \operatorname{softplus}(s)$ or $e^s$, a probability vector as $\operatorname{softmax}(z)$, an orthogonal matrix via a matrix exponential.`,
       },
       { t: "h", text: "4. Convex sets and convex functions" },
       {
         t: "p",
-        text: String.raw`A set $\mathcal{C}\subseteq\mathbb{R}^d$ is **convex** if the segment between any two of its points stays inside it: $x, y\in\mathcal{C},\ t\in[0,1] \Rightarrow tx + (1-t)y\in\mathcal{C}$. Examples: hyperplanes, half-spaces $\{a^\top x\le b\}$, norm balls $\{\lVert x\rVert\le r\}$, the probability simplex, and any intersection of convex sets. Non-examples: a ring (annulus), the set of vectors with at most $k$ non-zero entries, the union of two disjoint balls.`,
+        text: String.raw`A set $\mathcal{C}$ is **convex** if the straight segment between any two of its points stays inside: $x, y\in\mathcal{C},\ t\in[0,1] \Rightarrow tx + (1-t)y\in\mathcal{C}$. Examples: hyperplanes, half-spaces $\{a^\top x\le b\}$, balls $\{\lVert x\rVert\le r\}$, the probability simplex, and any intersection of convex sets. Not convex: a ring, the vectors with at most $k$ non-zero entries, two separate balls.`,
       },
       {
         t: "p",
@@ -600,7 +600,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`It is **strictly convex** if the inequality is strict for $x\ne y$, $t\in(0,1)$, and **$\mu$-strongly convex** if $f(x) - \tfrac\mu2\lVert x\rVert^2$ is still convex (it curves up at least as much as a parabola of curvature $\mu$). For differentiable $f$ there are two equivalent tests:`,
+        text: String.raw`In words: the graph never rises above the straight line joining two of its points. It is **strictly convex** if the inequality is strict for $x\ne y$, $t\in(0,1)$, and **$\mu$-strongly convex** if $f(x) - \tfrac\mu2\lVert x\rVert^2$ is still convex (it curves up at least as much as a parabola of curvature $\mu$). For differentiable $f$ there are two equivalent tests:`,
       },
       {
         t: "math",
@@ -609,11 +609,11 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**Examples.** Least squares $\tfrac1N\lVert Xw - y\rVert^2$ has Hessian $\tfrac2N X^\top X\succeq0$: convex. Logistic regression's loss $\tfrac1N\sum_i[\log(1+e^{z_i}) - y_iz_i]$ with $z = Xw$ has Hessian $\tfrac1N X^\top SX$, $S = \operatorname{diag}(p_i(1-p_i))$, also $\succeq0$: convex. Norms, $\max(0, 1 - yz)$ (hinge), $\log\sum_i e^{z_i}$ (log-sum-exp) and $-\log\operatorname{softmax}(z)_y$ are convex in $z$. Sums with non-negative weights and pointwise maxima of convex functions are convex, and so is a convex function of an affine map — which is why every linear model with a convex loss is a convex problem. In contrast, composing a convex loss with a *non-linear* network $f(x;\theta)$ generally destroys convexity in $\theta$.`,
+        text: String.raw`**Examples.** Least squares $\tfrac1N\lVert Xw - y\rVert^2$ has Hessian $\tfrac2N X^\top X\succeq0$: convex. Logistic regression's loss $\tfrac1N\sum_i[\log(1+e^{z_i}) - y_iz_i]$ with $z = Xw$ has Hessian $\tfrac1N X^\top SX$, $S = \operatorname{diag}(p_i(1-p_i))$, also $\succeq0$: convex. Norms, $\max(0, 1 - yz)$ (hinge), $\log\sum_i e^{z_i}$ (log-sum-exp) and $-\log\operatorname{softmax}(z)_y$ are convex in $z$. Non-negative sums and pointwise maxima of convex functions are convex, and so is a convex function of a linear map — so every linear model with a convex loss is a convex problem. Feeding a convex loss a *non-linear* network $f(x;\theta)$ usually destroys convexity in $\theta$.`,
       },
       {
         t: "p",
-        text: String.raw`**Jensen's inequality.** Applying the definition to many points with weights $t_i\ge0$, $\sum t_i = 1$ (by induction), and in the limit to expectations:`,
+        text: String.raw`**Jensen's inequality.** The same definition for many points with weights $t_i\ge0$, $\sum t_i = 1$, and in the limit for expectations — "$f$ of the average ≤ average of $f$":`,
       },
       {
         t: "math",
@@ -621,7 +621,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`For $f(x) = x^2$ and $X$ uniform on $\{0, 2\}$: $(\mathbb{E}X)^2 = 1\le\mathbb{E}[X^2] = 2$; the gap is exactly the variance. Jensen underlies the non-negativity of the KL divergence, the evidence lower bound of variational autoencoders, and the observation that averaging the parameters of models trained from the same start can help (the loss of the average is at most the average loss, when the loss is convex in the region between them).`,
+        text: String.raw`For $f(x) = x^2$ and $X$ uniform on $\{0, 2\}$: $(\mathbb{E}X)^2 = 1\le\mathbb{E}[X^2] = 2$; the gap is the variance. Jensen is behind the non-negativity of KL divergence, the evidence lower bound of VAEs, and why averaging weights of models trained from the same start can help (loss of the average ≤ average loss, if the loss is convex between them).`,
       },
       { t: "h", text: "5. Why convex problems have no spurious local minima" },
       {
@@ -630,7 +630,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**Proof.** Let $x$ be a local minimum: $f(x)\le f(z)$ for every feasible $z$ with $\lVert z - x\rVert < r$. Suppose some feasible $y$ had $f(y) < f(x)$. For $t\in(0,1]$, the point $z_t = (1-t)x + ty$ is feasible (convex set) and, by convexity,`,
+        text: String.raw`**Proof.** Let $x$ be a local minimum: $f(x)\le f(z)$ for every allowed $z$ with $\lVert z - x\rVert < r$. Suppose some allowed $y$ had $f(y) < f(x)$. For $t\in(0,1]$, the point $z_t = (1-t)x + ty$ is allowed (convex set) and, by convexity,`,
       },
       {
         t: "math",
@@ -638,37 +638,37 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Choosing $t < r/\lVert y - x\rVert$ puts $z_t$ inside the neighbourhood where $x$ is supposed to be minimal, yet $f(z_t) < f(x)$ — a contradiction. Hence no such $y$ exists. $\square$`,
+        text: String.raw`Choosing $t < r/\lVert y - x\rVert$ puts $z_t$ inside the neighbourhood where $x$ should be lowest, yet $f(z_t) < f(x)$ — a contradiction. So no such $y$ exists. $\square$ In plain words: in a bowl, any lower point elsewhere would drag the ground right next to you lower too.`,
       },
       {
         t: "p",
-        text: String.raw`Two corollaries. (i) The set of global minimisers is convex (if $x$ and $y$ both attain the minimum, so does every point between them); with **strict** convexity it contains at most one point. (ii) For differentiable convex $f$ on $\mathbb{R}^d$, $\nabla f(x) = 0$ is **sufficient** for a global minimum: put $\nabla f(x) = 0$ into the first-order condition to get $f(y)\ge f(x)$ for all $y$.`,
+        text: String.raw`Two consequences. (i) The global minimisers form a convex set (if $x$ and $y$ both reach the minimum, so does every point between); with **strict** convexity there is at most one. (ii) For differentiable convex $f$, $\nabla f(x) = 0$ is **enough** for a global minimum: put $\nabla f(x) = 0$ into the first-order test to get $f(y)\ge f(x)$ for all $y$.`,
       },
       { t: "h", text: "6. Neural networks are non-convex" },
       {
         t: "p",
-        text: String.raw`**The smallest example.** The "network" $\hat y = w_2w_1x$ (two linear layers of width 1) fitted to the single example $x = 1$, $y = 1$ has loss $f(w_1, w_2) = (w_1w_2 - 1)^2$. Both $A = (1, 1)$ and $B = (-1, -1)$ are global minima with $f = 0$, but their midpoint $(0, 0)$ has $f = 1 > 0 = \tfrac12f(A) + \tfrac12f(B)$, violating convexity. At the origin the gradient $2(w_1w_2 - 1)(w_2, w_1)$ is zero and the Hessian is $\begin{pmatrix}0 & -2\\ -2 & 0\end{pmatrix}$ with eigenvalues $\pm2$: a saddle point. Even a linear network is non-convex in its parameters.`,
+        text: String.raw`**The smallest example.** The "network" $\hat y = w_2w_1x$ (two linear layers of width 1) fitted to one example $x = 1$, $y = 1$ has loss $f(w_1, w_2) = (w_1w_2 - 1)^2$. Both $A = (1, 1)$ and $B = (-1, -1)$ are global minima with $f = 0$, but their midpoint $(0, 0)$ has $f = 1 > 0 = \tfrac12f(A) + \tfrac12f(B)$, breaking convexity. At the origin the gradient $2(w_1w_2 - 1)(w_2, w_1)$ is zero and the Hessian $\begin{pmatrix}0 & -2\\ -2 & 0\end{pmatrix}$ has eigenvalues $\pm2$: a saddle point. Even a linear network is non-convex in its parameters.`,
       },
       {
         t: "p",
-        text: String.raw`**The general argument: permutation symmetry.** Consider one hidden layer of $H$ units, $f(x) = W_2\,\phi(W_1x + b_1) + b_2$. For any permutation $\pi$ of the hidden units, permuting the rows of $W_1$ and $b_1$ and the columns of $W_2$ in the same way gives parameters $\pi(\theta)$ that compute **exactly the same function**, hence $J(\pi(\theta)) = J(\theta)$. So if $\theta^\star$ is a minimiser with distinct hidden units, there are up to $H!$ distinct minimisers. Now suppose $J$ were convex. Average $\theta^\star$ over all $H!$ permutations: by Jensen, $J(\bar\theta)\le\frac{1}{H!}\sum_\pi J(\pi(\theta^\star)) = J^\star$, so $\bar\theta$ would also be optimal. But in $\bar\theta$ every hidden unit has the **same** incoming weights (the average of all units' weights), so it computes the same function as a network with a **single** hidden unit. Whenever one hidden unit cannot fit the data as well as $H$ units can — the typical case — this is a contradiction. Hence $J$ is not convex. $\square$`,
+        text: String.raw`**The general argument: permutation symmetry.** Take one hidden layer of $H$ units, $f(x) = W_2\,\phi(W_1x + b_1) + b_2$ ($\phi$ is the activation). Reorder the hidden units by any permutation $\pi$ — the rows of $W_1$ and $b_1$ and the columns of $W_2$ together — and the new parameters $\pi(\theta)$ compute **exactly the same function**, so $J(\pi(\theta)) = J(\theta)$. A minimiser $\theta^\star$ with distinct hidden units thus has up to $H!$ distinct copies. Now suppose $J$ were convex. Average $\theta^\star$ over all $H!$ permutations: by Jensen, $J(\bar\theta)\le\frac{1}{H!}\sum_\pi J(\pi(\theta^\star)) = J^\star$, so $\bar\theta$ would be optimal too. But in $\bar\theta$ every hidden unit has the **same** incoming weights (the average), so it acts like a network with a **single** hidden unit. Usually one unit fits worse than $H$ units — a contradiction. So $J$ is not convex. $\square$`,
       },
       {
         t: "p",
-        text: String.raw`The from-scratch code checks this on a real network: an 8-unit tanh MLP trained to fit $\sin x$ reaches loss $0.015545$; a permuted copy has the identical loss $0.015545$; and along the straight line between the two the loss climbs to $0.259372$ at the midpoint — about 17 times higher. Further symmetries add more equivalent minima: ReLU units can be rescaled ($w_{\text{in}}\to\alpha w_{\text{in}}$, $w_{\text{out}}\to w_{\text{out}}/\alpha$ for $\alpha > 0$) and tanh units can flip sign in both incoming and outgoing weights.`,
+        text: String.raw`The from-scratch code checks this: an 8-unit tanh MLP fitted to $\sin x$ reaches loss $0.015545$; a permuted copy has the same $0.015545$; on the straight line between them the loss climbs to $0.259372$ at the midpoint — about 17 times higher. More symmetries add more equal minima: ReLU units can be rescaled ($w_{\text{in}}\to\alpha w_{\text{in}}$, $w_{\text{out}}\to w_{\text{out}}/\alpha$ for $\alpha > 0$), and tanh units can flip the sign of both incoming and outgoing weights.`,
       },
       { t: "h", text: "7. Local minima, saddle points and plateaus" },
       {
         t: "p",
-        text: String.raw`A **critical** (stationary) point has $\nabla J = 0$. Using the [Hessian classification](/learn/m02/jacobians-hessians): it is a strict local minimum if $\nabla^2J\succ0$, a **strict saddle** if $\nabla^2J$ has at least one negative eigenvalue, and degenerate if some eigenvalues are zero. A **plateau** is an extended region where $\lVert\nabla J\rVert$ is tiny but the loss is far from optimal — e.g. when sigmoid or tanh units saturate (their derivative is nearly 0), or at the start of training with a poor initialization.`,
+        text: String.raw`A **critical** (stationary) point has $\nabla J = 0$ (flat ground). By the [Hessian classification](/learn/m02/jacobians-hessians): a strict local minimum if $\nabla^2J\succ0$ (curves up every way), a **strict saddle** if $\nabla^2J$ has at least one negative eigenvalue (curves down some way), degenerate if some eigenvalues are zero. A **plateau** is a large region where $\lVert\nabla J\rVert$ is tiny but the loss is far from good — e.g. when sigmoid or tanh units saturate (derivative near 0), or early in training after a poor initialization.`,
       },
       {
         t: "p",
-        text: String.raw`**Saddles dominate in high dimension — a heuristic.** At a "random" critical point, think of the Hessian as a random symmetric matrix. For it to be a minimum, **all** $d$ eigenvalues must be positive. With entries drawn from a Gaussian (the Gaussian orthogonal ensemble), the fraction of positive definite matrices measured on 20,000 samples is $0.5026$ for $d = 1$, $0.1458$ for $d = 2$, $0.0021$ for $d = 4$, and $0$ (none at all) for $d = 6, 8, 10$ — it decays faster than exponentially. Dauphin et al. (2014, "Identifying and attacking the saddle point problem in high-dimensional non-convex optimization") argued, using results from statistical physics and experiments on neural networks, that critical points with high loss are overwhelmingly saddles, while local minima tend to have loss close to the global minimum. This is a heuristic picture, not a theorem about every network, but it matches practice: training rarely gets stuck in a bad local minimum; it slows down near saddles and on plateaus.`,
+        text: String.raw`**Saddles dominate in high dimension — a rule of thumb.** Think of the Hessian at a "random" critical point as a random symmetric matrix. For a minimum, **all** $d$ eigenvalues must be positive. With Gaussian entries (the Gaussian orthogonal ensemble), the fraction of positive definite matrices in 20,000 samples is $0.5026$ for $d = 1$, $0.1458$ for $d = 2$, $0.0021$ for $d = 4$, and $0$ (none) for $d = 6, 8, 10$ — faster than exponential decay. Dauphin et al. (2014, "Identifying and attacking the saddle point problem in high-dimensional non-convex optimization") argued, from statistical physics and network experiments, that high-loss critical points are overwhelmingly saddles, while local minima tend to have loss close to the global minimum. This is a heuristic, not a theorem for every network, but it matches practice: training rarely gets stuck in a bad local minimum; it slows near saddles and on plateaus.`,
       },
       {
         t: "p",
-        text: String.raw`**Escaping a saddle.** Near a saddle, $J(\theta^\star + \Delta)\approx J^\star + \tfrac12\sum_i\lambda_ic_i^2$ in the Hessian eigenbasis. Gradient descent multiplies each coordinate by $1 - \eta\lambda_i$ per step, so along a negative eigenvalue $\lambda < 0$ the coordinate **grows** by $1 + \eta|\lambda|$ per step. Starting at distance $\varepsilon$ along that direction, reaching distance $r$ takes about $\ln(r/\varepsilon)/\ln(1 + \eta|\lambda|)$ steps — logarithmic in $1/\varepsilon$, but infinite if $\varepsilon = 0$ exactly. On the saddle surface $x^2 + y^4/4 - y^2/2$ (Hessian $\operatorname{diag}(2, -1)$ at the origin) with $\eta = 0.05$, the code measures:`,
+        text: String.raw`**Escaping a saddle.** Near a saddle, $J(\theta^\star + \Delta)\approx J^\star + \tfrac12\sum_i\lambda_ic_i^2$, where $c_i$ is the offset along the $i$-th Hessian eigenvector and $\lambda_i$ its curvature. Gradient descent multiplies each $c_i$ by $1 - \eta\lambda_i$ per step, so along a negative $\lambda$ the offset **grows** by $1 + \eta|\lambda|$ per step. From distance $\varepsilon$, reaching distance $r$ takes about $\ln(r/\varepsilon)/\ln(1 + \eta|\lambda|)$ steps — logarithmic in $1/\varepsilon$, but infinite if $\varepsilon = 0$ exactly. On the surface $x^2 + y^4/4 - y^2/2$ (Hessian $\operatorname{diag}(2, -1)$ at the origin) with $\eta = 0.05$, the code measures:`,
       },
       {
         t: "table",
@@ -682,7 +682,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`(The measured counts are slightly larger than predicted because the cubic term $y^3$ slows the motion as $|y|$ approaches 1.) Exact saddles are reached only from a measure-zero set of starting points: Lee et al. (2016, "Gradient Descent Only Converges to Minimizers") proved that gradient descent with a small fixed step and random initialization almost surely avoids strict saddles, and Jin et al. (2017, "How to Escape Saddle Points Efficiently") showed that adding small random perturbations escapes them in time polylogarithmic in the dimension. The noise of mini-batch SGD plays a similar role in practice, though slow escape can still cost many iterations.`,
+        text: String.raw`(Measured counts are a bit larger than predicted because the cubic term $y^3$ slows the motion as $|y|$ nears 1.) Exact saddles are reached only from a "measure-zero" set of starts (practically never by chance). Lee et al. (2016, "Gradient Descent Only Converges to Minimizers") proved gradient descent with a small fixed step and random initialization almost surely avoids strict saddles; Jin et al. (2017, "How to Escape Saddle Points Efficiently") showed small random perturbations escape them in time polylogarithmic in the dimension. Mini-batch noise plays a similar role in practice, though slow escape can still cost many steps.`,
       },
       { t: "h", text: "8. Optimality conditions" },
       {
@@ -698,17 +698,17 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**Why $\nabla J = 0$ is necessary.** If $g = \nabla J(\theta)\ne0$, the first-order expansion $J(\theta - tg) = J(\theta) - t\lVert g\rVert^2 + o(t)$ is smaller than $J(\theta)$ for small $t > 0$, so $\theta$ is not a local minimum. In deep learning we almost never reach an exact stationary point; training stops when the loss (or validation loss) stops improving, typically with a gradient that is small relative to its initial size but not zero.`,
+        text: String.raw`**Why $\nabla J = 0$ is necessary.** If $g = \nabla J(\theta)\ne0$, then $J(\theta - tg) = J(\theta) - t\lVert g\rVert^2 + o(t)$ is below $J(\theta)$ for small $t > 0$: a small downhill step helps, so $\theta$ is not a local minimum. In deep learning we almost never reach an exact stationary point; training stops when the (validation) loss stops improving, usually with a gradient that is small compared with its start but not zero.`,
       },
       { t: "h", text: "9. The learning rate and the quadratic model" },
       {
         t: "p",
-        text: String.raw`Near a minimum, any $C^2$ objective is approximately quadratic: $J(\theta)\approx J^\star + \tfrac12(\theta - \theta^\star)^\top H(\theta - \theta^\star)$. The [gradient descent lesson](/learn/m06/gradient-descent) shows that on such a quadratic, gradient descent converges iff $0 < \eta < 2/\lambda_{\max}(H)$, that the best fixed rate is $2/(\lambda_{\min} + \lambda_{\max})$, and that the speed is governed by the **condition number** $\kappa = \lambda_{\max}/\lambda_{\min}$. The next section turns this local statement into a global guarantee, valid far from the minimum and for non-convex functions.`,
+        text: String.raw`Near a minimum, any twice-differentiable ($C^2$) objective looks like a bowl-shaped quadratic: $J(\theta)\approx J^\star + \tfrac12(\theta - \theta^\star)^\top H(\theta - \theta^\star)$, with $H$ the Hessian. The [gradient descent lesson](/learn/m06/gradient-descent) shows gradient descent then converges iff $0 < \eta < 2/\lambda_{\max}(H)$, the best fixed rate is $2/(\lambda_{\min} + \lambda_{\max})$, and speed depends on the **condition number** $\kappa = \lambda_{\max}/\lambda_{\min}$ (steepest over flattest curvature). The next section turns this local fact into a global guarantee, valid far from the minimum and for non-convex functions.`,
       },
       { t: "h", text: "10. Lipschitz smoothness and the step size η ≤ 1/L" },
       {
         t: "p",
-        text: String.raw`$J$ is **$L$-smooth** if its gradient is $L$-Lipschitz: $\lVert\nabla J(x) - \nabla J(y)\rVert\le L\lVert x - y\rVert$ for all $x, y$. For twice-differentiable $J$ this is equivalent to $-LI\preceq\nabla^2J(x)\preceq LI$ everywhere: no direction ever has curvature larger than $L$ in absolute value. The key consequence is the **descent lemma**, a quadratic upper bound:`,
+        text: String.raw`$J$ is **$L$-smooth** if its gradient is $L$-Lipschitz: $\lVert\nabla J(x) - \nabla J(y)\rVert\le L\lVert x - y\rVert$ for all $x, y$ — the slope changes by at most $L$ per unit distance. For twice-differentiable $J$ this means $-LI\preceq\nabla^2J(x)\preceq LI$ everywhere: no direction ever curves more than $L$. The key result is the **descent lemma**, a quadratic upper bound:`,
       },
       {
         t: "math",
@@ -733,29 +733,29 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The guaranteed decrease $\eta(1 - L\eta/2)$ is positive for $0 < \eta < 2/L$ and largest at $\eta = 1/L$. So **with $\eta\le1/L$, every gradient step decreases the objective**, wherever you are, convex or not. Two convergence results follow directly:`,
+        text: String.raw`The guaranteed decrease $\eta(1 - L\eta/2)$ is positive for $0 < \eta < 2/L$ and largest at $\eta = 1/L$. So **with $\eta\le1/L$, every gradient step lowers the objective**, anywhere, convex or not. Two convergence results follow:`,
       },
       {
         t: "list",
         items: [
-          String.raw`**Non-convex, $L$-smooth, bounded below by $J_{\inf}$.** Summing the decrease over $T$ steps (telescoping): $\min_{t<T}\lVert\nabla J(\theta_t)\rVert^2\le 2L\,(J(\theta_0) - J_{\inf})/T$. Gradient descent finds an approximately stationary point at rate $O(1/T)$ — which could be a saddle; this is all that can be guaranteed without more structure.`,
-          String.raw`**Convex and $L$-smooth.** $J(\theta_T) - J^\star\le L\lVert\theta_0 - \theta^\star\rVert^2/(2T)$: the optimality gap shrinks like $1/T$. If $J$ is also $\mu$-strongly convex, the gap shrinks geometrically, by a factor of at most $1 - \mu/L$ per step with $\eta = 1/L$ — and $L/\mu$ is the condition number again.`,
+          String.raw`**Non-convex, $L$-smooth, never below $J_{\inf}$.** Adding up the decreases over $T$ steps: $\min_{t<T}\lVert\nabla J(\theta_t)\rVert^2\le 2L\,(J(\theta_0) - J_{\inf})/T$. Gradient descent finds a nearly flat point at rate $O(1/T)$ — possibly a saddle; nothing more is guaranteed without extra structure.`,
+          String.raw`**Convex and $L$-smooth.** $J(\theta_T) - J^\star\le L\lVert\theta_0 - \theta^\star\rVert^2/(2T)$: the gap to the best value shrinks like $1/T$. If $J$ is also $\mu$-strongly convex, the gap shrinks geometrically, by at most $1 - \mu/L$ per step with $\eta = 1/L$ — $L/\mu$ is the condition number again.`,
         ],
       },
       {
         t: "p",
-        text: String.raw`**Numerical check (L2-regularised logistic regression, $N = 200$, $d = 5$, $\lambda = 0.1$).** The Hessian is $\tfrac1N X^\top SX + \lambda I$ with $S_{ii} = p_i(1-p_i)\le\tfrac14$, so $L = \lambda_{\max}(X^\top X/N)/4 + \lambda = 0.4065$, giving $1/L = 2.46$ and $2/L = 4.92$. The actual largest curvature at the optimum is $0.3361 < L$ ($L$ is a worst-case bound). With $\eta = 1/L$ and $\eta = 1.9/L$ the loss decreases monotonically and the bound $J(\theta_t) - J^\star\le L\lVert\theta_0 - \theta^\star\rVert^2/(2t)$ holds at every step; with $\eta = 2.5/L$ — above $2/\lambda_{\max}$ at the optimum, $5.95$ — the iterates oscillate and the gap *grows* from $2.4\times10^{-3}$ after 10 steps to $2.5\times10^{-2}$ after 100. The descent lemma's guaranteed decrease was verified at 1000 random points.`,
+        text: String.raw`**Numerical check (L2-regularised logistic regression, $N = 200$, $d = 5$, $\lambda = 0.1$).** The Hessian is $\tfrac1N X^\top SX + \lambda I$ with $S_{ii} = p_i(1-p_i)\le\tfrac14$, so $L = \lambda_{\max}(X^\top X/N)/4 + \lambda = 0.4065$: $1/L = 2.46$, $2/L = 4.92$. The real largest curvature at the optimum is $0.3361 < L$ ($L$ is worst-case). With $\eta = 1/L$ and $1.9/L$ the loss falls every step and the bound $J(\theta_t) - J^\star\le L\lVert\theta_0 - \theta^\star\rVert^2/(2t)$ always holds. With $\eta = 2.5/L$ — above $2/\lambda_{\max}$ at the optimum, $5.95$ — the steps oscillate and the gap *grows* from $2.4\times10^{-3}$ after 10 steps to $2.5\times10^{-2}$ after 100. The descent lemma's decrease was checked at 1000 random points.`,
       },
       {
         t: "callout",
         kind: "note",
         title: "What this means for neural networks",
-        text: String.raw`Neural-network losses are not globally $L$-smooth with a known $L$ (ReLU kinks, curvature that grows with weight scale), and learning rates are tuned rather than set to $1/L$. The theory still explains what you observe: there is a curvature-dependent stability threshold; learning-rate warm-up helps when early curvature is high; and in full-batch training the top Hessian eigenvalue is often observed to rise until it hovers around $2/\eta$ (the "edge of stability", Cohen et al., 2021).`,
+        text: String.raw`Network losses are not globally $L$-smooth with a known $L$ (ReLU kinks, curvature growing with weight size), so learning rates are tuned, not set to $1/L$. The theory still explains what you see: a curvature-dependent stability limit exists; warm-up helps when early curvature is high; and in full-batch training the top Hessian eigenvalue often rises until it hovers around $2/\eta$ (the "edge of stability", Cohen et al., 2021).`,
       },
       { t: "h", text: "11. Numerical stability" },
       {
         t: "p",
-        text: String.raw`A binary floating-point number is stored as $(-1)^s\times1.m\times2^{e}$: a sign bit, an exponent $e$ (which sets the **range**) and a mantissa $m$ (which sets the **precision**). **Machine epsilon** $\epsilon$ is the gap between 1 and the next representable number; every arithmetic result is rounded with relative error at most $\epsilon/2$. Numbers too large to represent **overflow** to $\pm\infty$; numbers smaller than the smallest normal value lose precision gradually as **subnormals** and then **underflow** to $0$.`,
+        text: String.raw`A floating-point number is stored as $(-1)^s\times1.m\times2^{e}$: a sign bit, an exponent $e$ (sets the **range**) and a mantissa $m$ (sets the **precision**). **Machine epsilon** $\epsilon$ is the gap between 1 and the next storable number; every result is rounded with relative error at most $\epsilon/2$. Too-large numbers **overflow** to $\pm\infty$; numbers below the smallest normal value lose precision as **subnormals** and then **underflow** to $0$.`,
       },
       {
         t: "table",
@@ -769,11 +769,11 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`float16 has decent precision but a tiny range: $65504 + 16$ already overflows to $\infty$, and a gradient of $10^{-8}$ rounds to $0$. bfloat16 keeps float32's range but has only 8 significant bits: $256 + 1 = 256$ and $1 + 2^{-8} = 1$.`,
+        text: String.raw`float16 has fair precision but a tiny range: $65504 + 16$ overflows to $\infty$, and a gradient of $10^{-8}$ rounds to $0$. bfloat16 keeps float32's range but has only 8 significant bits: $256 + 1 = 256$ and $1 + 2^{-8} = 1$.`,
       },
       {
         t: "p",
-        text: String.raw`**Overflow in softmax and the log-sum-exp trick.** $e^{1000}$ exceeds float64's range, so the naive softmax of $z = (1000, 1001, 1002)$ computes $\infty/\infty = $ NaN. The fix is an exact identity: for any constant $m$,`,
+        text: String.raw`**Overflow in softmax and the log-sum-exp trick.** $e^{1000}$ is beyond float64's range, so the naive softmax of $z = (1000, 1001, 1002)$ computes $\infty/\infty = $ NaN. The fix is an exact identity that holds for any constant $m$:`,
       },
       {
         t: "math",
@@ -781,11 +781,11 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`With $m = \max z$ every exponent is $\le0$ (no overflow) and the largest term is exactly $e^0 = 1$, so the sum lies in $[1, n]$ and its logarithm is never $\log0$ (no underflow). For $z = (1000, 1001, 1002)$: $\operatorname{LSE} = 1002 + \log(e^{-2} + e^{-1} + 1) = 1002.407606$ and softmax $= (0.090031,\ 0.244728,\ 0.665241)$; for $z = (-1000, -1001)$ the naive result is $\log0 = -\infty$ while the stable value is $-999.686738$. The same idea gives **log-softmax** $\log p_i = z_i - \operatorname{LSE}(z)$, which is how cross-entropy should always be computed.`,
+        text: String.raw`With $m = \max z$ every exponent is $\le0$ (no overflow) and the largest term is $e^0 = 1$, so the sum is in $[1, n]$ and never gives $\log0$ (no underflow). For $z = (1000, 1001, 1002)$: $\operatorname{LSE} = 1002 + \log(e^{-2} + e^{-1} + 1) = 1002.407606$ and softmax $= (0.090031,\ 0.244728,\ 0.665241)$. For $z = (-1000, -1001)$ the naive result is $\log0 = -\infty$; the stable value is $-999.686738$. The same idea gives **log-softmax** $\log p_i = z_i - \operatorname{LSE}(z)$ — always compute cross-entropy this way.`,
       },
       {
         t: "p",
-        text: String.raw`**Stable sigmoid, softplus and binary cross-entropy.** Written as $e^x/(1+e^x)$, the sigmoid returns $\infty/\infty = $ NaN at $x = 800$. Branching on the sign so that only $e^{-|x|}\in(0,1]$ is ever computed avoids it: $\sigma(x) = 1/(1 + e^{-|x|})$ for $x\ge0$ and $e^{-|x|}/(1 + e^{-|x|})$ for $x < 0$. Similarly`,
+        text: String.raw`**Stable sigmoid, softplus and binary cross-entropy.** Written as $e^x/(1+e^x)$, the sigmoid returns $\infty/\infty = $ NaN at $x = 800$. Branch on the sign so only $e^{-|x|}\in(0,1]$ is computed: $\sigma(x) = 1/(1 + e^{-|x|})$ for $x\ge0$ and $e^{-|x|}/(1 + e^{-|x|})$ for $x < 0$. Similarly`,
       },
       {
         t: "math",
@@ -793,19 +793,19 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Computing BCE from the probability fails for confident mistakes: with logit $z = -120$ and label 1, $\sigma(z)\approx7.7\times10^{-53}$ underflows to $0$ in float32 and $-\log 0 = \infty$, while the logit form gives the correct $120$. This is why frameworks provide fused "with logits" losses.`,
+        text: String.raw`BCE computed from the probability fails on confident mistakes: with logit $z = -120$ and label 1, $\sigma(z)\approx7.7\times10^{-53}$ underflows to $0$ in float32 and $-\log 0 = \infty$; the logit form gives the correct $120$. Hence frameworks' fused "with logits" losses.`,
       },
       {
         t: "p",
-        text: String.raw`**Catastrophic cancellation.** Subtracting two nearly equal numbers cancels their leading digits and exposes their rounding errors. In float64, $(1 + 10^{-16}) - 1 = 0$, and $\log(1 + 10^{-10})$ evaluated naively is $1.000000083\times10^{-10}$ (only about 7 correct digits) while $\operatorname{log1p}(10^{-10}) = 9.9999999995\times10^{-11}$ (fully accurate). A classic failure: the variance formula $\mathbb{E}[x^2] - (\mathbb{E}x)^2$ on float32 data with mean $10^4$ and variance $\approx1$ subtracts two numbers near $10^8$ whose float32 spacing is $8$, and returns $-8.0$ — a *negative* variance — while the two-pass formula $\mathbb{E}[(x - \bar x)^2]$ gives $0.9962$, matching float64. Normalization layers use the two-pass form (or Welford's algorithm) for this reason.`,
+        text: String.raw`**Catastrophic cancellation.** Subtracting two nearly equal numbers cancels the leading digits and leaves mostly rounding error. In float64, $(1 + 10^{-16}) - 1 = 0$, and naive $\log(1 + 10^{-10})$ is $1.000000083\times10^{-10}$ (about 7 correct digits) while $\operatorname{log1p}(10^{-10}) = 9.9999999995\times10^{-11}$ (fully accurate). Classic failure: $\mathbb{E}[x^2] - (\mathbb{E}x)^2$ on float32 data with mean $10^4$ and variance $\approx1$ subtracts two numbers near $10^8$ whose float32 spacing is $8$, and returns $-8.0$ — a *negative* variance. The two-pass formula $\mathbb{E}[(x - \bar x)^2]$ gives $0.9962$, matching float64. Normalization layers use the two-pass form (or Welford's algorithm) for this reason.`,
       },
       {
         t: "p",
-        text: String.raw`**Epsilon in denominators.** Normalising a zero vector, $v/\lVert v\rVert$, produces $0/0 = $ NaN; $v/(\lVert v\rVert + \epsilon)$ produces $0$. Frameworks add such constants everywhere: Adam's $\hat m/(\sqrt{\hat v} + \epsilon)$ (PyTorch default $\epsilon = 10^{-8}$), LayerNorm and BatchNorm's $\sqrt{\sigma^2 + \epsilon}$ (default $10^{-5}$). Be careful when changing precision: $10^{-8}$ itself rounds to $0$ in float16.`,
+        text: String.raw`**Epsilon in denominators.** $v/\lVert v\rVert$ for a zero vector gives $0/0 = $ NaN; $v/(\lVert v\rVert + \epsilon)$ gives $0$. Such constants are everywhere: Adam's $\hat m/(\sqrt{\hat v} + \epsilon)$ (PyTorch default $\epsilon = 10^{-8}$), LayerNorm and BatchNorm's $\sqrt{\sigma^2 + \epsilon}$ (default $10^{-5}$). Careful when changing precision: $10^{-8}$ itself rounds to $0$ in float16.`,
       },
       {
         t: "p",
-        text: String.raw`**Mixed precision and loss scaling.** Training in float16 is fast, but small gradients underflow: $10^{-8}$ and $10^{-9}$ become exactly $0$ and $10^{-7}$ is stored as $1.19\times10^{-7}$. **Loss scaling** multiplies the loss by a factor $S$ (e.g. $2^{10}$–$2^{16}$) before backpropagation, so all gradients are $S$ times larger and representable, and divides by $S$ in float32 before the update. With $S = 1024$ the code recovers $10^{-8}$ to within $0.12\%$. Dynamic loss scalers lower $S$ when an overflow (inf/NaN) is detected and raise it otherwise. bfloat16 has float32's range, so it usually needs no loss scaling, at the price of lower precision; master copies of the weights are typically kept in float32 so that small updates are not rounded away.`,
+        text: String.raw`**Mixed precision and loss scaling.** float16 training is fast, but small gradients underflow: $10^{-8}$ and $10^{-9}$ become exactly $0$, and $10^{-7}$ is stored as $1.19\times10^{-7}$. **Loss scaling** multiplies the loss by $S$ (e.g. $2^{10}$–$2^{16}$) before backpropagation, so all gradients are $S$ times larger and storable, then divides by $S$ in float32 before the update. With $S = 1024$ the code recovers $10^{-8}$ within $0.12\%$. Dynamic scalers lower $S$ after an overflow (inf/NaN) and raise it otherwise. bfloat16 has float32's range, so it usually needs no scaling, at the price of lower precision; master weights stay in float32 so small updates are not rounded away.`,
       },
       { t: "h", text: "12. Regularization as a modified objective" },
       {
@@ -814,15 +814,15 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**$L_2$ (ridge, weight decay).** The gradient gains $\lambda\theta$, so a gradient step is $\theta\leftarrow(1 - \eta\lambda)\theta - \eta\nabla\hat R$: the weights shrink by a constant factor each step ("weight decay"; for adaptive optimizers the two are not identical — see AdamW in [the optimizers lesson](/learn/m06/momentum-adaptive)). The Hessian becomes $\nabla^2\hat R + \lambda I$: every eigenvalue shifts up by $\lambda$, so a convex $\hat R$ becomes $\lambda$-strongly convex with a unique minimiser, and the condition number improves. In the 1-D example above, the penalty $\lambda w^2$ moved the minimiser of $(w-3)^2$ from $3$ to $3/(1+\lambda)$.`,
+        text: String.raw`**$L_2$ (ridge, weight decay).** The gradient gains $\lambda\theta$, so a step is $\theta\leftarrow(1 - \eta\lambda)\theta - \eta\nabla\hat R$: weights shrink by a constant factor each step ("weight decay"; for adaptive optimizers the two differ — see AdamW in [the optimizers lesson](/learn/m06/momentum-adaptive)). The Hessian becomes $\nabla^2\hat R + \lambda I$: every eigenvalue moves up by $\lambda$, so a convex $\hat R$ becomes $\lambda$-strongly convex with one minimiser, and the condition number improves. Above, the penalty $\lambda w^2$ moved the minimiser of $(w-3)^2$ from $3$ to $3/(1+\lambda)$.`,
       },
       {
         t: "p",
-        text: String.raw`**$L_1$ (lasso).** $|w|$ is convex but not differentiable at $0$. Its effect is clearest in one dimension: $\arg\min_w\tfrac12(w - a)^2 + \lambda|w| = \operatorname{sign}(a)\max(|a| - \lambda, 0)$, the **soft-thresholding** operator. For $a = 3$: $\lambda = 1$ gives $w = 2$, and any $\lambda\ge3$ gives exactly $w = 0$. $L_1$ therefore produces exact zeros (sparsity), whereas $L_2$ only shrinks.`,
+        text: String.raw`**$L_1$ (lasso).** $|w|$ is convex but has a kink at $0$. In one dimension: $\arg\min_w\tfrac12(w - a)^2 + \lambda|w| = \operatorname{sign}(a)\max(|a| - \lambda, 0)$, **soft-thresholding** — move toward 0 by $\lambda$, stopping at 0. For $a = 3$: $\lambda = 1$ gives $w = 2$; any $\lambda\ge3$ gives exactly $w = 0$. So $L_1$ makes exact zeros (sparsity); $L_2$ only shrinks.`,
       },
       {
         t: "p",
-        text: String.raw`**Probabilistic reading.** Minimising $-\log p(\text{data}\mid\theta) - \log p(\theta)$ is MAP estimation: an $L_2$ penalty corresponds to a Gaussian prior on the weights and $L_1$ to a Laplace prior — see [Maximum Likelihood and MAP](/learn/m02/mle-map). Dropout, early stopping and data augmentation regularize without an explicit penalty term; all are covered in [Regularization](/learn/m07/regularization).`,
+        text: String.raw`**Probabilistic view.** Minimising $-\log p(\text{data}\mid\theta) - \log p(\theta)$ is MAP estimation: $L_2$ is a Gaussian prior on the weights, $L_1$ a Laplace prior — see [Maximum Likelihood and MAP](/learn/m02/mle-map). Dropout, early stopping and data augmentation regularize without a penalty term; see [Regularization](/learn/m07/regularization).`,
       },
     ],
 
@@ -833,10 +833,10 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`**Quadratic** $x^2$ (convex, $L = 2$): every start converges to the same minimum. The update is $x\leftarrow(1 - 2\eta)x$, so $\eta\le1/L = 0.5$ decreases $f$ monotonically; $0.5 < \eta < 1$ still converges but oscillates; $\eta = 1$ bounces forever; $\eta > 1 = 2/L$ diverges.`,
-          String.raw`**Two minima** $x^4 - 3x^2 + x$ (non-convex): start at $x_0 = 1.9$ and you reach the local minimum near $1.13$ ($f\approx-1.07$); start at $x_0 = -0.5$ and you reach the global one near $-1.30$ ($f\approx-3.51$). The final answer depends on initialization, which never happens for a convex function.`,
-          String.raw`**Plateau + cliff**: from $x_0 = -2.6$ the gradient is nearly zero and the first steps barely move — a plateau, not a minimum. Increase $\eta$ to cross it faster, then watch the steep wall near 0 punish the large step.`,
-          String.raw`**Flat bottom** $x^4/4$: convex, but the curvature $3x^2$ vanishes at the minimum, so it is not strongly convex and convergence near the bottom is sub-linear.`,
+          String.raw`**Quadratic** $x^2$ (convex, $L = 2$): every start reaches the same minimum. The update is $x\leftarrow(1 - 2\eta)x$, so $\eta\le1/L = 0.5$ lowers $f$ every step; $0.5 < \eta < 1$ converges but oscillates; $\eta = 1$ bounces forever; $\eta > 1 = 2/L$ diverges.`,
+          String.raw`**Two minima** $x^4 - 3x^2 + x$ (non-convex): from $x_0 = 1.9$ you reach the local minimum near $1.13$ ($f\approx-1.07$); from $x_0 = -0.5$, the global one near $-1.30$ ($f\approx-3.51$). The answer depends on the start — impossible for a convex function.`,
+          String.raw`**Plateau + cliff**: from $x_0 = -2.6$ the gradient is nearly zero and the first steps barely move — a plateau, not a minimum. Raise $\eta$ to cross faster, then watch the steep wall near 0 punish the big step.`,
+          String.raw`**Flat bottom** $x^4/4$: convex, but the curvature $3x^2$ is zero at the minimum, so it is not strongly convex and convergence near the bottom is slower than geometric (sub-linear).`,
         ],
       },
       { t: "h", text: "2. Saddle points and multiple basins in two dimensions" },
@@ -844,9 +844,9 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`**Saddle** $x^2 + y^4/4 - y^2/2$: the default start $(-1.8, 0.01)$ lies almost on the ridge $y = 0$. SGD reaches the saddle region quickly (the $x$-direction has curvature $+2$) and then lingers: the escape speed along $y$ is set by the negative curvature $-1$ and the tiny initial offset. Compare how long Momentum and Adam take to leave.`,
-          String.raw`Click start points closer and closer to the ridge $y = 0$: the closer the start, the longer SGD lingers (the escape time grows like $\ln(1/|y_0|)$). A start exactly on $y = 0$ would have zero $y$-gradient forever and converge to the saddle — the measure-zero exception described in the theory.`,
-          String.raw`**Multi-modal**: four wells of different depths. Start from several points and record which well each optimizer ends in — different local minima with different losses, the non-convex situation in miniature.`,
+          String.raw`**Saddle** $x^2 + y^4/4 - y^2/2$: the default start $(-1.8, 0.01)$ is almost on the ridge $y = 0$. SGD reaches the saddle fast (curvature $+2$ along $x$), then lingers: escape along $y$ depends on the negative curvature $-1$ and the tiny offset. Compare how long Momentum and Adam take to leave.`,
+          String.raw`Click starts ever closer to $y = 0$: the closer, the longer SGD lingers (escape time grows like $\ln(1/|y_0|)$). A start exactly on $y = 0$ has zero $y$-gradient forever and converges to the saddle — the measure-zero exception from the theory.`,
+          String.raw`**Multi-modal**: four wells of different depths. Start from several points and note which well each optimizer ends in — the non-convex situation in miniature.`,
         ],
       },
     ],
@@ -856,14 +856,14 @@ const lesson: Lesson = {
       { t: "h", text: "Landscapes: convexity, symmetry, saddles" },
       {
         t: "p",
-        text: "Five experiments in one program: a numerical test of the chord inequality for a convex and a non-convex 1-D function, gradient descent from several starts on each, the $(w_1w_2 - 1)^2$ counter-example, the permutation-symmetry experiment on a trained MLP, saddle escape on the simulator's saddle surface, and the random-symmetric-matrix estimate of how rare positive definite Hessians are.",
+        text: "Experiments in one program: the chord inequality tested on a convex and a non-convex 1-D function, gradient descent from several starts on each, the $(w_1w_2 - 1)^2$ counter-example, permutation symmetry on a trained MLP, saddle escape on the simulator's surface, and how rare positive definite random Hessians are.",
       },
       { t: "code", lang: "python", title: "landscapes.py", code: LAND_CODE, output: LAND_OUT },
       {
         t: "list",
         items: [
-          "The convex function (logistic loss + $0.1w^2$) never violates the chord inequality in 100,000 random trials and every start converges to $w = 1.1775$. The non-convex quartic violates it in about 45% of trials, and gradient descent ends at $-1.3008$ or $1.1309$ depending on the start.",
-          "The permutation is a random relabelling of the 8 hidden units; the loss is identical at both ends of the segment and highest in the middle.",
+          "The convex function (logistic loss + $0.1w^2$) never breaks the chord inequality in 100,000 random trials, and every start reaches $w = 1.1775$. The non-convex quartic breaks it in about 45% of trials; gradient descent ends at $-1.3008$ or $1.1309$ depending on the start.",
+          "The permutation randomly relabels the 8 hidden units; the loss is equal at both ends of the segment and highest in the middle.",
           "`while abs(w[1]) < 0.9` counts the steps needed to leave the saddle; with `y0 = 0` the loop stops at the 2000-step cap with the iterate sitting on the saddle.",
           "The last experiment symmetrises Gaussian matrices, $(M + M^\\top)/2$, and checks whether the smallest eigenvalue is positive.",
         ],
@@ -871,21 +871,21 @@ const lesson: Lesson = {
       { t: "h", text: "Smoothness and the step size" },
       {
         t: "p",
-        text: "L2-regularised logistic regression is convex and $L$-smooth with a computable $L$. The program computes $L$, finds the exact minimiser with Newton's method, runs gradient descent with three step sizes, checks the $O(1/t)$ convex rate bound, and verifies the descent lemma at random points.",
+        text: "L2-regularised logistic regression is convex and $L$-smooth with a computable $L$. The program computes $L$, finds the exact minimiser with Newton's method, runs gradient descent with three step sizes, checks the $O(1/t)$ bound, and verifies the descent lemma at random points.",
       },
       { t: "code", lang: "python", title: "smoothness.py", code: SMOOTH_CODE, output: SMOOTH_OUT },
       { t: "h", text: "Numerical stability" },
       {
         t: "p",
-        text: "Every failure mode from the Math section, reproduced and fixed. NumPy has no bfloat16 type, so `to_bfloat16` emulates it by rounding a float32 bit pattern to its top 16 bits (round-to-nearest-even), which is exactly how bfloat16 is defined.",
+        text: "Every failure from the Math section, reproduced and fixed. NumPy has no bfloat16, so `to_bfloat16` emulates it by rounding a float32 bit pattern to its top 16 bits (round-to-nearest-even) — exactly how bfloat16 is defined.",
       },
       { t: "code", lang: "python", title: "numerical_stability.py", code: STAB_CODE, output: STAB_OUT },
       {
         t: "list",
         items: [
-          "`np.seterr(all=\"ignore\")` lets the naive versions produce inf and NaN silently so they can be printed; in real code, NumPy's warnings and PyTorch's `torch.autograd.set_detect_anomaly(True)` help find where a NaN first appears.",
-          "The naive softplus at $x = -30$ returns $9.34808\\times10^{-14}$ instead of $9.35762\\times10^{-14}$: adding a tiny number to 1 and taking the log loses about three digits; `log1p` keeps them.",
-          "After loss scaling by 1024, $10^{-9}$ is recovered with 1% error because $1024\\times10^{-9}$ is still a float16 subnormal; a larger scale would recover it more accurately, as long as the largest gradients times the scale stay below 65504.",
+          "`np.seterr(all=\"ignore\")` lets the naive versions produce inf and NaN silently so we can print them; in real code, NumPy's warnings and PyTorch's `torch.autograd.set_detect_anomaly(True)` help find the first NaN.",
+          "The naive softplus at $x = -30$ returns $9.34808\\times10^{-14}$ instead of $9.35762\\times10^{-14}$: adding a tiny number to 1 then taking the log loses about three digits; `log1p` keeps them.",
+          "After scaling by 1024, $10^{-9}$ comes back with 1% error because $1024\\times10^{-9}$ is still a float16 subnormal. A larger scale would do better, as long as the largest gradient times the scale stays below 65504.",
         ],
       },
     ],
@@ -900,13 +900,13 @@ const lesson: Lesson = {
             blocks: [
               {
                 t: "p",
-                text: "PyTorch's built-ins already implement the stable formulas: `torch.softmax`, `torch.log_softmax` and `torch.logsumexp` subtract the maximum; `F.binary_cross_entropy_with_logits` and `F.cross_entropy` work from logits. The program also shows float16 gradient underflow and manual loss scaling (what `torch.amp.GradScaler` automates), that an L2 penalty in the loss equals `weight_decay` for plain SGD, and a constraint handled by projection.",
+                text: "PyTorch's built-ins already use the stable formulas: `torch.softmax`, `torch.log_softmax` and `torch.logsumexp` subtract the maximum; `F.binary_cross_entropy_with_logits` and `F.cross_entropy` work from logits. The program also shows float16 gradient underflow and manual loss scaling (what `torch.amp.GradScaler` automates), that an L2 penalty equals `weight_decay` for plain SGD, and a constraint by projection.",
               },
               { t: "code", lang: "python", title: "optimization_pytorch.py", code: TORCH_CODE, output: TORCH_OUT },
               {
                 t: "list",
                 items: [
-                  "`F.binary_cross_entropy(torch.sigmoid(logit), target)` clamps the log at $-100$, so the loss is capped at 100 and the gradient through the saturated sigmoid is essentially zero (printed as $-0.0000$). The fused version returns the true loss 120 and the correct gradient $\\sigma(z) - y = -1$: the model is told it is badly wrong.",
+                  "`F.binary_cross_entropy(torch.sigmoid(logit), target)` clamps the log at $-100$, so the loss caps at 100 and the gradient through the saturated sigmoid is essentially zero (printed $-0.0000$). The fused version returns the true loss 120 and gradient $\\sigma(z) - y = -1$: the model learns it is badly wrong.",
                   "The `logsumexp` value is printed from float32, hence $1002.407593$ instead of the float64 value $1002.407606$ from the NumPy program.",
                   "In real mixed-precision training use `torch.autocast(device_type=\"cuda\", dtype=torch.float16)` with `torch.amp.GradScaler`, or bfloat16 autocast without a scaler.",
                 ],
@@ -947,7 +947,7 @@ const lesson: Lesson = {
         t: "table",
         head: ["Format", "Advantages", "Disadvantages", "Use"],
         rows: [
-          ["float64", "huge range, 16 digits", "slow on GPUs, 2× memory of float32", "gradient checking, scientific computing, small reference runs"],
+          ["float64", "huge range, 16 digits", "slow on GPUs, 2× memory of float32", "gradient checking, small reference runs"],
           ["float32", "safe default, 7 digits", "slower and larger than 16-bit formats", "master weights, optimizer state, reductions"],
           ["float16", "fast, half the memory, 3–4 digits", "max 65504; gradients underflow without loss scaling", "mixed-precision training with a dynamic loss scaler; inference"],
           ["bfloat16", "float32 range, no loss scaling needed", "only 2–3 digits; small updates to large weights are lost", "large-model training on TPUs and recent GPUs"],
@@ -962,7 +962,7 @@ const lesson: Lesson = {
           ["L2 penalty / weight decay", "$+\\tfrac\\lambda2\\lVert\\theta\\rVert_2^2$", "shrinks all weights; strong convexity for convex losses", "equals weight decay for SGD but not for Adam (use AdamW)"],
           ["L1 penalty", "$+\\lambda\\lVert\\theta\\rVert_1$", "exact zeros (sparsity)", "non-differentiable at 0: subgradients or proximal steps"],
           ["Elastic net", "$+\\lambda_1\\lVert\\theta\\rVert_1 + \\tfrac{\\lambda_2}{2}\\lVert\\theta\\rVert_2^2$", "sparse and stable with correlated features", "two hyper-parameters"],
-          ["Hard constraint + projection", "$\\theta\\in\\mathcal{C}$, $\\theta\\leftarrow\\Pi_{\\mathcal{C}}(\\cdot)$", "guarantees the property exactly", "projection must be cheap (balls, boxes, simplex)"],
+          ["Hard constraint + projection", "$\\theta\\in\\mathcal{C}$, $\\theta\\leftarrow\\Pi_{\\mathcal{C}}(\\cdot)$", "property holds exactly", "projection must be cheap (balls, boxes, simplex)"],
           ["Reparametrisation", "$\\sigma = \\operatorname{softplus}(s)$, $p = \\operatorname{softmax}(z)$", "constraint holds automatically", "changes the landscape and the effective step sizes"],
         ],
       },
@@ -973,13 +973,13 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "**Every training run** minimises a regularized empirical risk; recognising which parts of the objective are data fit, which are penalty and which are constraint makes hyper-parameters such as weight decay interpretable.",
-          "**Convex models as reliable baselines.** Logistic regression and linear SVMs (e.g. in scikit-learn) are convex, so their results are reproducible regardless of initialization — a useful sanity check before training a network.",
-          "**Convex sub-problems inside deep learning.** The last layer of a network with frozen features (linear probing) is a convex problem; so is fitting a temperature for probability calibration.",
-          "**Learning-rate selection.** Learning-rate range tests and warm-up schedules are practical responses to the curvature-dependent stability limit; Hessian eigenvalue estimates (from Hessian-vector products) are used in research to explain divergence.",
-          "**Mixed-precision training** (float16 with loss scaling, or bfloat16) is standard for large models, and relies on the stable formulations in this lesson.",
-          "**Numerically stable kernels.** Softmax attention implementations, including memory-efficient ones such as FlashAttention, are built around a running-maximum form of the log-sum-exp trick.",
-          "**Model merging and weight averaging.** Averaging the weights of models fine-tuned from the same pre-trained start can work well when they lie in a common basin, but averaging independently trained networks generally fails without first aligning their hidden units — the permutation symmetry of Section 6 in action.",
+          "**Every training run** minimises a regularized empirical risk. Knowing which parts are data fit, penalty and constraint makes hyper-parameters like weight decay meaningful.",
+          "**Convex models as reliable baselines.** Logistic regression and linear SVMs (e.g. in scikit-learn) are convex, so results don't depend on initialization — a good sanity check before training a network.",
+          "**Convex sub-problems inside deep learning.** Training only the last layer on frozen features (linear probing) is convex; so is fitting a temperature for probability calibration.",
+          "**Learning-rate selection.** Range tests and warm-up are practical answers to the curvature-dependent stability limit; research uses Hessian eigenvalue estimates (from Hessian-vector products) to explain divergence.",
+          "**Mixed-precision training** (float16 with loss scaling, or bfloat16) is standard for large models and relies on this lesson's stable formulas.",
+          "**Numerically stable kernels.** Softmax attention, including memory-efficient versions like FlashAttention, is built on a running-maximum form of the log-sum-exp trick.",
+          "**Model merging and weight averaging.** Averaging models fine-tuned from the same pre-trained start can work when they share a basin, but averaging independently trained networks usually fails unless their hidden units are aligned first — Section 6's permutation symmetry in action.",
         ],
       },
     ],
@@ -989,11 +989,11 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "**Convex formulations** give global optima, reproducibility and convergence guarantees, but limit expressiveness; neural networks trade those guarantees for representational power.",
-          "**Non-convexity is less harmful than it sounds** in large networks — many minima are equivalent by symmetry and most bad critical points are saddles — but initialization, the optimizer and its noise still change which solution you get.",
-          "**Penalties** keep optimization unconstrained and simple, but the strength $\\lambda$ must be tuned and does not guarantee a hard bound; **constraints** guarantee the bound but need projections or reparametrisations.",
-          "**Smoothness-based step sizes** guarantee descent but are conservative (worst-case $L$); tuned or adaptive learning rates are faster but carry no guarantee.",
-          "**Lower precision** speeds up training and saves memory, at the cost of range (float16) or precision (bfloat16) and the need for stable formulations and loss scaling.",
+          "**Convex formulations** give global optima, reproducibility and guarantees, but limit what the model can express; neural networks trade the guarantees for power.",
+          "**Non-convexity hurts less than it sounds** in large networks — many minima are equal by symmetry and most bad critical points are saddles — but initialization, optimizer and noise still change which solution you get.",
+          "**Penalties** keep optimization simple, but $\\lambda$ must be tuned and gives no hard bound; **constraints** guarantee the bound but need projections or reparametrisations.",
+          "**Smoothness-based step sizes** guarantee descent but are cautious (worst-case $L$); tuned or adaptive rates are faster but guarantee nothing.",
+          "**Lower precision** is faster and saves memory, at the cost of range (float16) or precision (bfloat16), and needs stable formulas and loss scaling.",
           "**Epsilons and clamps** prevent NaNs but bias results slightly and can hide real bugs (a clamp that is always active means something upstream is wrong).",
         ],
       },
@@ -1004,32 +1004,32 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`**"The loss stopped decreasing, so we are at a minimum."** A small gradient can mean a minimum, a saddle or a plateau. Check whether the loss keeps decreasing with a different learning rate, momentum or a small perturbation, and look at the validation loss rather than declaring convergence.`,
-          String.raw`**Believing a convex loss makes the problem convex.** Cross-entropy is convex in the logits, but the logits are a non-linear function of the weights, so the training objective of a network is non-convex. Convexity must hold in the variables being optimised.`,
-          String.raw`**Writing softmax and cross-entropy separately.** $\log(\operatorname{softmax}(z))$ computed in two steps overflows or produces $\log0$ for large logits. Use log-softmax / cross-entropy on logits (PyTorch's cross-entropy loss expects raw logits, not probabilities).`,
-          String.raw`**Applying a sigmoid before a "with logits" loss**, or using the probability-based BCE on a sigmoid output. The first applies the sigmoid twice; the second loses the gradient for confident mistakes (the loss saturates at the clamp).`,
-          String.raw`**Adding epsilon in the wrong place.** $\sqrt{v} + \epsilon$ and $\sqrt{v + \epsilon}$ behave differently near $v = 0$ (the gradient of $\sqrt{v}$ is infinite at 0, so put $\epsilon$ inside when you need to differentiate through it). And an $\epsilon$ below float16's smallest subnormal is silently $0$.`,
+          String.raw`**"The loss stopped decreasing, so we are at a minimum."** A small gradient can mean a minimum, a saddle or a plateau. Try another learning rate, momentum or a small nudge, and check the validation loss before declaring convergence.`,
+          String.raw`**Believing a convex loss makes the problem convex.** Cross-entropy is convex in the logits, but logits are a non-linear function of the weights, so a network's training objective is non-convex. Convexity must hold in the variables you optimise.`,
+          String.raw`**Writing softmax and cross-entropy separately.** $\log(\operatorname{softmax}(z))$ in two steps overflows or gives $\log0$ for large logits. Use log-softmax / cross-entropy on logits (PyTorch's cross-entropy expects raw logits, not probabilities).`,
+          String.raw`**Applying a sigmoid before a "with logits" loss**, or probability-based BCE on a sigmoid output. The first applies the sigmoid twice; the second loses the gradient on confident mistakes (the loss sticks at the clamp).`,
+          String.raw`**Adding epsilon in the wrong place.** $\sqrt{v} + \epsilon$ and $\sqrt{v + \epsilon}$ differ near $v = 0$ (the gradient of $\sqrt{v}$ is infinite at 0, so put $\epsilon$ inside if you differentiate through it). An $\epsilon$ below float16's smallest subnormal is silently $0$.`,
           String.raw`**Computing variance as $\mathbb{E}[x^2] - (\mathbb{E}x)^2$ in low precision.** It can even come out negative. Subtract the mean first (two-pass) or use Welford's online algorithm.`,
-          String.raw`**Assuming L2 penalty and weight decay are always the same.** They coincide for plain SGD (verified in the PyTorch code) but not for adaptive optimizers like Adam, where the penalty gradient is rescaled per parameter. Use AdamW for decoupled weight decay.`,
-          String.raw`**Setting the learning rate without regard to scale.** Multiplying the loss by 10 (e.g. summing instead of averaging over a batch of 10) multiplies $L$ by 10 and the safe step size by 1/10. Keep the loss's reduction consistent when comparing learning rates.`,
-          String.raw`**Treating training NaNs as random bad luck.** They are almost always caused by an overflow (exp, large learning rate), $\log 0$, $0/0$ or $\sqrt{\text{negative}}$. Locate the first NaN (anomaly detection, assertions on finite values) and fix the formulation.`,
+          String.raw`**Assuming L2 penalty and weight decay are always the same.** Equal for plain SGD (checked in the PyTorch code), not for adaptive optimizers like Adam, which rescale the penalty gradient per parameter. Use AdamW for decoupled weight decay.`,
+          String.raw`**Ignoring loss scale when setting the learning rate.** Multiplying the loss by 10 (e.g. summing instead of averaging over a batch of 10) multiplies $L$ by 10 and the safe step by 1/10. Keep the reduction consistent when comparing learning rates.`,
+          String.raw`**Treating NaNs as bad luck.** They almost always come from overflow (exp, large learning rate), $\log 0$, $0/0$ or $\sqrt{\text{negative}}$. Find the first NaN (anomaly detection, finiteness asserts) and fix the formula.`,
         ],
       },
     ],
 
     /* ------------------------------------------------------------------ */
     interview: [
-      { t: "qa", level: "beginner", q: "What is the difference between a loss, a cost and an objective function?", a: "The loss usually measures the error on one example, $\\ell(\\hat y, y)$. The cost (or empirical risk) is the average loss over the dataset or a batch. The objective is the full function the optimizer minimises, typically the cost plus regularization terms. Usage is loose in practice; what matters is knowing exactly which function is being differentiated." },
-      { t: "qa", level: "beginner", q: "What is a convex function, and why do we like convex problems?", a: "$f$ is convex if $f(tx + (1-t)y)\\le tf(x) + (1-t)f(y)$ for all $x, y$ and $t\\in[0,1]$ — the graph lies below its chords. For convex problems every local minimum is global, the set of minimisers is convex, a zero gradient certifies optimality, and gradient methods have provable convergence rates." },
+      { t: "qa", level: "beginner", q: "What is the difference between a loss, a cost and an objective function?", a: "The loss usually measures the error on one example, $\\ell(\\hat y, y)$. The cost (empirical risk) is the average loss over the dataset or a batch. The objective is the full function the optimizer minimises, usually cost plus regularization. Usage is loose; what matters is knowing which function is differentiated." },
+      { t: "qa", level: "beginner", q: "What is a convex function, and why do we like convex problems?", a: "$f$ is convex if $f(tx + (1-t)y)\\le tf(x) + (1-t)f(y)$ for all $x, y$ and $t\\in[0,1]$ — the graph lies below its chords. Then every local minimum is global, the minimisers form a convex set, a zero gradient proves optimality, and gradient methods have provable convergence rates." },
       { t: "qa", level: "beginner", q: "What is a saddle point?", a: "A critical point (zero gradient) that is neither a minimum nor a maximum: the function increases along some directions and decreases along others. Its Hessian has both positive and negative eigenvalues. Example: $x^2 - y^2$ at the origin." },
-      { t: "qa", level: "beginner", q: "Why does a naive softmax return NaN for large logits, and how do you fix it?", a: "$e^{z}$ overflows to infinity for $z$ above about 709 in float64 (88 in float32), giving $\\infty/\\infty$. Subtract the maximum logit before exponentiating: $\\operatorname{softmax}(z) = \\operatorname{softmax}(z - \\max z)$ exactly, and now all exponents are $\\le 0$." },
+      { t: "qa", level: "beginner", q: "Why does a naive softmax return NaN for large logits, and how do you fix it?", a: "$e^{z}$ overflows to infinity for $z$ above about 709 in float64 (88 in float32), giving $\\infty/\\infty$. Subtract the largest logit first: $\\operatorname{softmax}(z) = \\operatorname{softmax}(z - \\max z)$ exactly, and all exponents are now $\\le 0$." },
       { t: "qa", level: "intermediate", q: "Prove that for a convex function every local minimum is a global minimum.", a: "Let $x$ be a local minimum and suppose $f(y) < f(x)$ for some $y$. For $t\\in(0,1]$, convexity gives $f((1-t)x + ty)\\le f(x) - t(f(x) - f(y)) < f(x)$. Taking $t$ small puts this point inside the neighbourhood where $x$ is minimal, a contradiction." },
-      { t: "qa", level: "intermediate", q: "Why is the training loss of a neural network non-convex?", a: "Hidden units can be permuted without changing the network's function, so every minimiser has many distinct copies with equal loss. If the loss were convex, the average of all permuted copies would also be a minimiser (Jensen), but that average has identical hidden units and is equivalent to a one-unit network, which generally fits worse. Even $(w_1w_2 - 1)^2$, a two-layer linear 'network', is non-convex: the midpoint of the minima $(1,1)$ and $(-1,-1)$ has higher loss." },
-      { t: "qa", level: "intermediate", q: "What does L-smoothness give you, and where does $\\eta\\le1/L$ come from?", a: "If $\\nabla J$ is $L$-Lipschitz, then $J(y)\\le J(x) + \\nabla J(x)^\\top(y - x) + \\tfrac L2\\lVert y - x\\rVert^2$ (descent lemma). For a gradient step this gives $J(x^+)\\le J(x) - \\eta(1 - L\\eta/2)\\lVert\\nabla J\\rVert^2$, a guaranteed decrease for $\\eta < 2/L$, maximal at $\\eta = 1/L$ where the decrease is $\\lVert\\nabla J\\rVert^2/(2L)$. Summing over steps yields $\\min_t\\lVert\\nabla J(\\theta_t)\\rVert^2\\le2L(J(\\theta_0) - J_{\\inf})/T$ even for non-convex $J$." },
-      { t: "qa", level: "intermediate", q: "Explain the log-sum-exp trick and where it is used.", a: "$\\log\\sum_ie^{z_i} = m + \\log\\sum_ie^{z_i - m}$ for any $m$; with $m = \\max_iz_i$ all exponents are non-positive and the sum is between 1 and $n$, so neither overflow nor $\\log 0$ can occur. It is used in softmax, log-softmax, cross-entropy, attention, log-likelihoods of mixture models and HMMs, and anywhere probabilities are combined in log space." },
-      { t: "qa", level: "advanced", q: "Why are saddle points, rather than bad local minima, considered the main obstacle in high-dimensional non-convex optimization?", a: "A local minimum needs all $d$ Hessian eigenvalues to be positive. Under random-matrix heuristics the probability of that falls extremely fast with $d$ (our simulation: 0.15 at $d = 2$, 0.002 at $d = 4$, none in 20,000 samples at $d\\ge6$), so most high-loss critical points are saddles; Dauphin et al. (2014) supported this empirically for networks. Gradient descent escapes strict saddles from almost every initialization, but slowly when the negative curvature is weak or the start is close to the stable manifold, so saddles mainly cost time. Noise, momentum and perturbations speed up escape." },
-      { t: "qa", level: "advanced", q: "How does mixed-precision training avoid gradient underflow, and why does bfloat16 usually not need loss scaling?", a: "In float16 the smallest positive number is about $6\\times10^{-8}$, so many small gradients round to 0. Loss scaling multiplies the loss by $S$ so that backpropagated gradients are $S$ times larger, then unscales them in float32 before the update; dynamic scalers reduce $S$ on overflow. bfloat16 uses an 8-bit exponent like float32, so its range extends to about $10^{-38}$ and gradients rarely underflow, though its 8-bit significand makes it imprecise; master weights are kept in float32 so that small updates are not rounded away." },
-      { t: "qa", level: "advanced", q: "When are a constrained problem and a penalised problem equivalent?", a: "For convex problems, under a constraint qualification such as Slater's condition, the solution of $\\min J$ s.t. $\\Omega(\\theta)\\le r$ is also a solution of $\\min J + \\mu^\\star\\Omega$, where $\\mu^\\star$ is the KKT multiplier; conversely each penalty weight corresponds to some radius. The map between $r$ and $\\lambda$ depends on the data. For non-convex problems the correspondence can fail — some constrained solutions are not minimisers of any penalised objective." },
+      { t: "qa", level: "intermediate", q: "Why is the training loss of a neural network non-convex?", a: "Hidden units can be reordered without changing the network's function, so every minimiser has many copies with equal loss. If the loss were convex, the average of all copies would also be a minimiser (Jensen), but that average has identical hidden units — effectively a one-unit network, which usually fits worse. Even $(w_1w_2 - 1)^2$, a two-layer linear 'network', is non-convex: the midpoint of minima $(1,1)$ and $(-1,-1)$ has higher loss." },
+      { t: "qa", level: "intermediate", q: "What does L-smoothness give you, and where does $\\eta\\le1/L$ come from?", a: "If $\\nabla J$ is $L$-Lipschitz, then $J(y)\\le J(x) + \\nabla J(x)^\\top(y - x) + \\tfrac L2\\lVert y - x\\rVert^2$ (descent lemma). For a gradient step, $J(x^+)\\le J(x) - \\eta(1 - L\\eta/2)\\lVert\\nabla J\\rVert^2$: a guaranteed decrease for $\\eta < 2/L$, largest at $\\eta = 1/L$, where it is $\\lVert\\nabla J\\rVert^2/(2L)$. Summing over steps gives $\\min_t\\lVert\\nabla J(\\theta_t)\\rVert^2\\le2L(J(\\theta_0) - J_{\\inf})/T$ even for non-convex $J$." },
+      { t: "qa", level: "intermediate", q: "Explain the log-sum-exp trick and where it is used.", a: "$\\log\\sum_ie^{z_i} = m + \\log\\sum_ie^{z_i - m}$ for any $m$; with $m = \\max_iz_i$ all exponents are $\\le 0$ and the sum is between 1 and $n$, so neither overflow nor $\\log 0$ can happen. Used in softmax, log-softmax, cross-entropy, attention, mixture-model and HMM log-likelihoods, and anywhere probabilities are combined in log space." },
+      { t: "qa", level: "advanced", q: "Why are saddle points, rather than bad local minima, considered the main obstacle in high-dimensional non-convex optimization?", a: "A local minimum needs all $d$ Hessian eigenvalues positive. Under random-matrix heuristics the chance of that falls extremely fast with $d$ (our simulation: 0.15 at $d = 2$, 0.002 at $d = 4$, none in 20,000 samples at $d\\ge6$), so most high-loss critical points are saddles; Dauphin et al. (2014) backed this with network experiments. Gradient descent escapes strict saddles from almost every start, but slowly when the negative curvature is weak or the start is near the stable manifold, so saddles mainly cost time. Noise, momentum and perturbations speed escape." },
+      { t: "qa", level: "advanced", q: "How does mixed-precision training avoid gradient underflow, and why does bfloat16 usually not need loss scaling?", a: "In float16 the smallest positive number is about $6\\times10^{-8}$, so many small gradients round to 0. Loss scaling multiplies the loss by $S$ so gradients are $S$ times larger, then unscales them in float32 before the update; dynamic scalers lower $S$ on overflow. bfloat16 has an 8-bit exponent like float32, so its range reaches about $10^{-38}$ and gradients rarely underflow, though its 8-bit significand is imprecise; master weights stay in float32 so small updates are not rounded away." },
+      { t: "qa", level: "advanced", q: "When are a constrained problem and a penalised problem equivalent?", a: "For convex problems, under a constraint qualification such as Slater's condition, the solution of $\\min J$ s.t. $\\Omega(\\theta)\\le r$ also solves $\\min J + \\mu^\\star\\Omega$, where $\\mu^\\star$ is the KKT multiplier; each penalty weight likewise matches some radius. The map between $r$ and $\\lambda$ depends on the data. For non-convex problems this can fail — some constrained solutions minimise no penalised objective." },
     ],
 
     /* ------------------------------------------------------------------ */
@@ -1037,13 +1037,13 @@ const lesson: Lesson = {
       {
         t: "quiz",
         questions: [
-          { q: "Which statement about a differentiable convex function $f$ on $\\mathbb{R}^d$ is true?", options: ["It has exactly one minimiser", "Any point with $\\nabla f = 0$ is a global minimiser", "Its Hessian is positive definite everywhere", "Gradient descent converges for any learning rate"], answer: 1, explain: "The first-order condition $f(y)\\ge f(x) + \\nabla f(x)^\\top(y - x)$ with $\\nabla f(x) = 0$ gives $f(y)\\ge f(x)$. Uniqueness needs strict convexity, the Hessian is only positive semidefinite, and step sizes must still respect smoothness." },
+          { q: "Which statement about a differentiable convex function $f$ on $\\mathbb{R}^d$ is true?", options: ["It has exactly one minimiser", "Any point with $\\nabla f = 0$ is a global minimiser", "Its Hessian is positive definite everywhere", "Gradient descent converges for any learning rate"], answer: 1, explain: "The first-order test $f(y)\\ge f(x) + \\nabla f(x)^\\top(y - x)$ with $\\nabla f(x) = 0$ gives $f(y)\\ge f(x)$. Uniqueness needs strict convexity, the Hessian is only positive semidefinite, and step sizes must still respect smoothness." },
           { kind: "numeric", q: "$f(w_1, w_2) = (w_1w_2 - 1)^2$. What is $f$ at the midpoint of its two minima $(1, 1)$ and $(-1, -1)$?", answer: 1, tolerance: 0.0001, explain: "The midpoint is $(0, 0)$ and $f(0,0) = (0 - 1)^2 = 1 > 0$, which violates convexity." },
           { kind: "numeric", q: "$J(w) = \\tfrac12 w^\\top Aw$ with $A = \\operatorname{diag}(1, 8)$. What is the largest step size $\\eta = 1/L$ that the descent lemma recommends?", answer: 0.125, tolerance: 0.0001, explain: "$L = \\lambda_{\\max}(A) = 8$, so $1/L = 0.125$ (and steps must stay below $2/L = 0.25$ to converge)." },
           { kind: "numeric", q: "Compute $\\operatorname{logsumexp}(1000, 1000) = \\log(e^{1000} + e^{1000})$ to 4 decimals.", answer: 1000.6931, tolerance: 0.0002, explain: "$1000 + \\log(1 + 1) = 1000 + \\ln2 = 1000.6931$ — computed without ever forming $e^{1000}$." },
           { kind: "numeric", q: "What is the largest finite float16 value?", answer: 65504, tolerance: 0, explain: "float16 has a 5-bit exponent and 10-bit mantissa; its maximum is $(2 - 2^{-10})\\times2^{15} = 65504$." },
           { q: "A gradient of magnitude $10^{-8}$ is stored in float16. What happens?", options: ["It is stored exactly", "It rounds to the nearest subnormal with ~1% error", "It underflows to exactly 0", "It overflows to infinity"], answer: 2, explain: "float16's smallest positive subnormal is $2^{-24}\\approx5.96\\times10^{-8}$; $10^{-8}$ is below half of it and rounds to 0. Loss scaling prevents this." },
-          { q: "At a critical point the Hessian has eigenvalues $(4, 0.5, -0.01)$. The point is:", options: ["a local minimum", "a local maximum", "a saddle point", "impossible to classify"], answer: 2, explain: "One negative eigenvalue makes it a (strict) saddle, however small; gradient descent will eventually leave along that eigenvector, slowly, because the curvature is weak." },
+          { q: "At a critical point the Hessian has eigenvalues $(4, 0.5, -0.01)$. The point is:", options: ["a local minimum", "a local maximum", "a saddle point", "impossible to classify"], answer: 2, explain: "One negative eigenvalue, however small, makes it a (strict) saddle; gradient descent eventually leaves along that eigenvector, slowly, because the curvature is weak." },
           { kind: "numeric", q: "Soft-thresholding: what is $\\arg\\min_w \\tfrac12(w - 3)^2 + 1.5|w|$?", answer: 1.5, tolerance: 0.0001, explain: "$\\operatorname{sign}(3)\\max(3 - 1.5, 0) = 1.5$." },
         ],
       },
@@ -1063,7 +1063,7 @@ const lesson: Lesson = {
               { title: "Actual step", tex: String.raw`w_1 = (1, 0) - 0.25(3, 1) = (0.25,\ -0.25),\qquad J(w_1) = \tfrac12(0.1875 - 0.125 + 0.1875) = 0.125` },
             ],
           },
-          { t: "p", text: "The actual value $0.125$ is below the guaranteed bound $0.25$: the bound is worst-case, using the largest curvature for every direction, while the gradient here is not aligned with the steepest eigenvector." },
+          { t: "p", text: "The actual $0.125$ is below the guaranteed $0.25$: the bound is worst-case, assuming the largest curvature in every direction, while this gradient is not aligned with the steepest eigenvector." },
         ],
       },
       {
@@ -1073,7 +1073,7 @@ const lesson: Lesson = {
         hint: "$-\\log p_y = \\operatorname{LSE}(z) - z_y$, and the gradient is $\\operatorname{softmax}(z) - e_y$.",
         solution: [
           { t: "code", lang: "python", title: "stable_cross_entropy.py", code: EX_CODE, output: EX_OUT },
-          { t: "p", text: "The naive version returns NaN when the correct class has a huge logit ($\\infty/\\infty$) and $\\infty$ when it has a hugely negative one ($\\log 0$). The stable version returns the exact losses $0$ and $2000$, and the gradient $p - e_y$ is exact to $10^{-10}$ on the ordinary example." },
+          { t: "p", text: "The naive version returns NaN when the correct class has a huge logit ($\\infty/\\infty$) and $\\infty$ when it has a hugely negative one ($\\log 0$). The stable version returns the exact losses $0$ and $2000$, and the gradient $p - e_y$ matches to $10^{-10}$ on the ordinary example." },
         ],
       },
     ],
@@ -1087,7 +1087,7 @@ const lesson: Lesson = {
           String.raw`Constraints ↔ penalties via Lagrange multipliers (KKT); deep learning uses penalties, projections and reparametrisations.`,
           String.raw`Convex: $f(tx + (1-t)y)\le tf(x) + (1-t)f(y)$ ⇔ $f(y)\ge f(x) + \nabla f(x)^\top(y - x)$ ⇔ $\nabla^2f\succeq0$. Jensen: $f(\mathbb{E}X)\le\mathbb{E}f(X)$.`,
           "Convex ⇒ every local minimum is global, and $\\nabla f = 0$ certifies optimality.",
-          "Neural networks are non-convex (permutation and scaling symmetries); high-loss critical points are mostly saddles, which gradient descent escapes from almost every start — but possibly slowly. Plateaus slow training without being minima.",
+          "Neural networks are non-convex (permutation and scaling symmetries); high-loss critical points are mostly saddles, which gradient descent escapes from almost every start, maybe slowly. Plateaus slow training without being minima.",
           String.raw`Optimality: $\nabla J = 0$ necessary; $\nabla J = 0$ and $\nabla^2J\succ0$ sufficient for a strict local minimum.`,
           String.raw`$L$-smooth ⇒ descent lemma $J(y)\le J(x) + \nabla J^\top(y-x) + \tfrac L2\lVert y-x\rVert^2$ ⇒ with $\eta = 1/L$, $J$ drops by $\lVert\nabla J\rVert^2/(2L)$ per step; convex rate $L\lVert\theta_0 - \theta^\star\rVert^2/(2T)$.`,
           String.raw`Stability: $\operatorname{LSE}(z) = m + \log\sum e^{z_i - m}$; stable sigmoid/softplus via $e^{-|x|}$; compute losses from logits; avoid cancellation ($\operatorname{log1p}$, two-pass variance); $\epsilon$ in denominators; float16 max 65504 and gradients below $\sim6\times10^{-8}$ vanish — use loss scaling or bfloat16.`,
@@ -1101,11 +1101,11 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "[Gradient Descent](/learn/m06/gradient-descent) — the algorithm that does the minimising: the update rule, the $2/\\lambda_{\\max}$ stability analysis on quadratics, and stochastic mini-batches.",
-          "[Momentum, NAG, AdaGrad, RMSProp, Adam, AdamW](/learn/m06/momentum-adaptive) — how practical optimizers cope with ill-conditioning, saddles and plateaus.",
-          "[Regularization: L1, L2, Dropout, Early Stopping](/learn/m07/regularization) — the modified objectives of Section 12 and the implicit regularizers, in practice.",
-          "[Maximum Likelihood and MAP Estimation](/learn/m02/mle-map) — where the loss functions and penalties come from probabilistically.",
-          "[Learning Rate Schedules and Gradient Clipping](/learn/m06/lr-schedules) — practical tools built on the smoothness and stability ideas of this lesson.",
+          "[Gradient Descent](/learn/m06/gradient-descent) — the algorithm itself: the update rule, $2/\\lambda_{\\max}$ stability on quadratics, and mini-batches.",
+          "[Momentum, NAG, AdaGrad, RMSProp, Adam, AdamW](/learn/m06/momentum-adaptive) — how practical optimizers handle ill-conditioning, saddles and plateaus.",
+          "[Regularization: L1, L2, Dropout, Early Stopping](/learn/m07/regularization) — Section 12's modified objectives and implicit regularizers in practice.",
+          "[Maximum Likelihood and MAP Estimation](/learn/m02/mle-map) — where losses and penalties come from, probabilistically.",
+          "[Learning Rate Schedules and Gradient Clipping](/learn/m06/lr-schedules) — practical tools built on this lesson's smoothness and stability ideas.",
         ],
       },
     ],

@@ -85,23 +85,23 @@ export default function LstmSim() {
   if (sub === "forget") {
     eqTitle = "f_t = σ(W_f·[h_{t−1}, x_t] + b_f)";
     eqLines = [`unit 1 pre-activation: ${expand(w, "f", st, 0)}`, `f_t = σ(${vec(st.pre.f)}) = ${vec(st.f)}`, `kept memory f_t ⊙ c_{t−1} = ${vec(st.f)} ⊙ ${vec(st.cPrev)} = ${vec(st.kept)}`];
-    explain = `Each forget-gate entry is the fraction of that unit's old memory that survives. With b_f = ${fmt(bf, 1)} the mean forget value so far is ${fmt(meanF, 2)}: raise b_f and memory persists longer.`;
+    explain = `The forget gate decides how much of each unit's old memory to keep (0 = forget all, 1 = keep all). With b_f = ${fmt(bf, 1)}, the average so far is ${fmt(meanF, 2)}. Raise b_f and memories last longer.`;
   } else if (sub === "input") {
     eqTitle = "i_t = σ(W_i·[h_{t−1}, x_t] + b_i),  g_t = tanh(W_g·[h_{t−1}, x_t] + b_g)";
     eqLines = [`unit 1 (input): ${expand(w, "i", st, 0)}`, `i_t = ${vec(st.i)}`, `unit 1 (candidate): ${expand(w, "g", st, 0)}`, `g_t = tanh(${vec(st.pre.g)}) = ${vec(st.g)}`, `written i_t ⊙ g_t = ${vec(st.written)}`];
-    explain = "The candidate g_t proposes new content in (−1, 1); the input gate i_t decides, per unit, how much of that proposal is actually written.";
+    explain = "The candidate g_t suggests new content, between −1 and 1. The input gate i_t decides, for each unit, how much of it really gets written.";
   } else if (sub === "cell") {
     eqTitle = "c_t = f_t ⊙ c_{t−1} + i_t ⊙ g_t";
     eqLines = [`c_t = ${vec(st.kept)} + ${vec(st.written)}`, `c_t = ${vec(st.c)}`];
-    explain = "The cell state changes only by a pointwise scale (f_t) and an addition. No weight matrix and no squashing sits on this path, which is why information and gradients can travel along it for many steps.";
+    explain = "The cell state (the long-term memory) only gets scaled by f_t and then added to. There is no weight matrix and no squashing on this path. That is why information and gradients can travel along it for many steps.";
   } else if (sub === "output") {
     eqTitle = "o_t = σ(W_o·[h_{t−1}, x_t] + b_o)";
     eqLines = [`unit 1: ${expand(w, "o", st, 0)}`, `o_t = σ(${vec(st.pre.o)}) = ${vec(st.o)}`];
-    explain = "The output gate decides which parts of the memory are exposed to the rest of the network at this step. A unit can hold a large c_t while showing almost nothing in h_t.";
+    explain = "The output gate decides which parts of the memory the rest of the network gets to see at this step. A unit can hold a large c_t but show almost nothing in h_t.";
   } else {
     eqTitle = "h_t = o_t ⊙ tanh(c_t)";
     eqLines = [`tanh(c_t) = tanh(${vec(st.c)}) = ${vec(st.tanhC)}`, `h_t = ${vec(st.o)} ⊙ ${vec(st.tanhC)} = ${vec(st.h)}`];
-    explain = t + 1 < seq.length ? `h_t and c_t are handed to time step ${t + 2}. h_t is also the layer's output at this step.` : "This was the last time step: h_T is typically fed to a classifier or regression head.";
+    explain = t + 1 < seq.length ? `h_t and c_t are passed on to step ${t + 2}. h_t is also the layer's output at this step.` : "This was the last step. Usually h_T now goes to a final layer that makes the prediction.";
   }
 
   // ---------- Vector panel rows ----------
@@ -127,7 +127,7 @@ export default function LstmSim() {
   return (
     <SimShell
       title="LSTM Cell, Step by Step"
-      subtitle={`Input size 1, hidden size ${hidden}, seeded weights. Every number is computed live.`}
+      subtitle={`Input size 1, hidden size ${hidden}, fixed random weights. Every number is computed live.`}
       controls={
         <div className="space-y-2">
           <Controls s={s} />
@@ -162,7 +162,7 @@ export default function LstmSim() {
             </div>
           </Narration>
           <div className="text-xs text-muted">
-            Try: play the default sequence with b_f = −2 and the pulse at t = 1 is gone from c_t within two steps; set b_f = +4 and most of it is still there at t = 5. Then edit the sequence (values between −3 and 3, up to 12 steps).
+            Try this: play the default sequence with b_f = −2. The pulse at t = 1 vanishes from c_t within two steps. Set b_f = +4 and most of it is still there at t = 5. Then edit the sequence (values from −3 to 3, up to 12 steps).
           </div>
         </div>
       }
@@ -260,7 +260,7 @@ export default function LstmSim() {
       </div>
 
       {/* timeline */}
-      <div className="mt-4 text-xs text-muted">Timeline: input, cell state c_t and hidden state h_t for every processed time step (columns).</div>
+      <div className="mt-4 text-xs text-muted">Timeline: the input, cell state c_t and hidden state h_t at each step so far (one column per step).</div>
       <div className="overflow-x-auto">
         <svg viewBox={`0 0 ${tlW} ${tlH}`} className="h-auto w-full" style={{ minWidth: Math.min(tlW, 520) }} role="img" aria-label="Timeline of cell state and hidden state across time steps">
           {Array.from({ length: seq.length }, (_, tau) => (
@@ -294,7 +294,7 @@ export default function LstmSim() {
           })}
         </svg>
       </div>
-      <div className="mt-1 font-mono text-[11px] text-muted">mean forget-gate value over steps 1..{t + 1}: {fmt(meanF, 3)}</div>
+      <div className="mt-1 font-mono text-[11px] text-muted">average forget gate over steps 1..{t + 1}: {fmt(meanF, 3)}</div>
     </SimShell>
   );
 }

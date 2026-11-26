@@ -247,7 +247,7 @@ export default function TransformerSim() {
   // Prompt validation against the vocabulary.
   const inputLower = input.toLowerCase();
   const unknown = model ? encode(model, inputLower).unknown : [];
-  const inputError = !model ? null : inputLower.length === 0 ? "Type at least one character." : unknown.length ? `Not in the model's vocabulary: ${unknown.map((c) => `'${c}'`).join(" ")}` : null;
+  const inputError = !model ? null : inputLower.length === 0 ? "Type at least one character." : unknown.length ? `The model doesn't know these characters: ${unknown.map((c) => `'${c}'`).join(" ")}` : null;
   useEffect(() => {
     if (model && !inputError) {
       setText(inputLower);
@@ -284,7 +284,7 @@ export default function TransformerSim() {
   if (error) {
     return (
       <SimShell title="Transformer Explorer (trained model)" subtitle="A real character-level Transformer running in your browser.">
-        <p className="text-sm text-clay">Could not load the model ({error}). Check your connection and reload the page.</p>
+        <p className="text-sm text-clay">Couldn&apos;t load the model ({error}). Check your connection and reload the page.</p>
       </SimShell>
     );
   }
@@ -338,7 +338,7 @@ export default function TransformerSim() {
           ))}
         </div>
       </div>
-      {inputError && <p className="text-xs text-clay">{inputError} The vocabulary is: <span className="font-mono">{model.vocab.map(show).join("")}</span></p>}
+      {inputError && <p className="text-xs text-clay">{inputError} The characters it knows are: <span className="font-mono">{model.vocab.map(show).join("")}</span></p>}
     </div>
   );
 
@@ -382,8 +382,8 @@ export default function TransformerSim() {
         <span className="animate-pulse text-gold">▍</span>
       </p>
       <p className="mt-1 text-[11px] text-muted">
-        {text.length - promptLen} generated · {greedy ? "greedy: always the arg-max character" : `sampling from softmax(logits / ${temperature.toFixed(2)}), seed ${seed}`} · each new character re-runs the full forward pass below
-        {offset > 0 ? ` · the context window holds the last ${cfg.context} characters (${offset} dropped)` : ""}.
+        {text.length - promptLen} generated · {greedy ? "greedy: always the most likely character" : `sampling at random from softmax(logits / ${temperature.toFixed(2)}), seed ${seed}`} · each new character re-runs the whole model below
+        {offset > 0 ? ` · the model only sees the last ${cfg.context} characters (${offset} dropped)` : ""}.
       </p>
     </div>
   );
@@ -393,7 +393,7 @@ export default function TransformerSim() {
   if (st.kind === "tokens") {
     body = (
       <div>
-        <p className="mb-2 text-xs text-muted">One token per character. Click a character to select its position (used by every later step).</p>
+        <p className="mb-2 text-xs text-muted">One token per character. Click a character to pick its position (every later step uses it).</p>
         <div className="flex flex-wrap gap-1">
           {trace.chars.map((c, i) => (
             <button key={i} onClick={() => setPosSel(i)} className="rounded border px-1.5 py-1 text-center" style={{ borderColor: i === pos ? "var(--gold)" : "var(--border-strong)", background: i === pos ? "var(--gold-soft)" : "var(--surface)" }} aria-pressed={i === pos} aria-label={`Position ${i}, character ${show(c)}, id ${trace.ids[i]}`}>
@@ -428,7 +428,7 @@ export default function TransformerSim() {
       body = (
         <div className="grid gap-4">
           <Heatmap title={`Residual stream entering layer ${l + 1}`} shape={dims(cfg.d_model)} M={L.xIn} labels={labels} sel={pos} onRow={setPosSel} />
-          <Heatmap title="LN₁(x): each row normalised to mean 0, variance 1, then × γ + β" shape={dims(cfg.d_model)} M={L.ln1.out} labels={labels} sel={pos} onRow={setPosSel} />
+          <Heatmap title="LN₁(x): each row rescaled to mean 0, variance 1, then × γ + β" shape={dims(cfg.d_model)} M={L.ln1.out} labels={labels} sel={pos} onRow={setPosSel} />
           <div className="grid gap-1">
             <VecPreview label={`x[${pos}] =`} v={L.xIn[pos]} />
             <VecPreview label={`LN₁(x)[${pos}] =`} v={L.ln1.out[pos]} />
@@ -482,7 +482,7 @@ export default function TransformerSim() {
                   ))}
                 </tbody>
               </table>
-              <p className="mt-1 text-[11px] text-muted">Grey characters are in the future: masked to −∞ before the softmax, so they receive weight exactly 0. Row sum = {row.reduce((a, b) => a + b, 0).toFixed(4)}.</p>
+              <p className="mt-1 text-[11px] text-muted">Grey characters are in the future. They are set to −∞ before the softmax, so they get weight exactly 0. No peeking ahead. Row sum = {row.reduce((a, b) => a + b, 0).toFixed(4)}.</p>
             </div>
           </div>
           <div>
@@ -532,7 +532,7 @@ export default function TransformerSim() {
           <Heatmap title="LN₂(x)" shape={dims(cfg.d_model)} M={L.ln2.out} labels={labels} sel={pos} onRow={setPosSel} />
           <Heatmap title={`FFN hidden layer GELU(LN₂(x)·W₁ + b₁)`} shape={dims(model.dFF)} M={L.ffAct} labels={labels} sel={pos} onRow={setPosSel} />
           <div className="font-mono text-[11px] text-muted">
-            fraction of the {model.dFF} hidden units with positive pre-activation: position {pos} → {(act * 100).toFixed(1)}%, all positions → {(allAct * 100).toFixed(1)}%. Strongest units at position {pos}: {topK(L.ffAct[pos], 5).map((u) => `#${u} (${L.ffAct[pos][u].toFixed(2)})`).join(", ")}
+            share of the {model.dFF} hidden units that switch on (input above 0): position {pos} → {(act * 100).toFixed(1)}%, all positions → {(allAct * 100).toFixed(1)}%. Strongest units at position {pos}: {topK(L.ffAct[pos], 5).map((u) => `#${u} (${L.ffAct[pos][u].toFixed(2)})`).join(", ")}
           </div>
         </div>
       );
@@ -564,7 +564,7 @@ export default function TransformerSim() {
           <ProbBars probs={probs} logits={lastLogits} vocab={model.vocab} actual={actualNext} />
           {actualNext !== undefined && (
             <p className="mt-1 text-[11px] text-muted">
-              The character that actually follows is <span className="font-mono text-gold">'{show(model.vocab[actualNext])}'</span> with probability {(probs[actualNext] * 100).toFixed(1)}% — cross-entropy loss −ln p = {(-Math.log(Math.max(probs[actualNext], 1e-12))).toFixed(3)} at this position.
+              The character that actually follows is <span className="font-mono text-gold">'{show(model.vocab[actualNext])}'</span> with probability {(probs[actualNext] * 100).toFixed(1)}% — so the cross-entropy loss is −ln p = {(-Math.log(Math.max(probs[actualNext], 1e-12))).toFixed(3)} at this position.
             </p>
           )}
         </div>
@@ -576,7 +576,7 @@ export default function TransformerSim() {
     <div className="flex flex-col gap-3">
       <Narration title={`${s.step + 1}. ${stageName(st)}`}>{narrate(st, trace, model, pos, head, probs)}</Narration>
       <div className="rounded-lg border border-border p-2.5 text-[11px] leading-snug text-muted">
-        <span className="font-medium text-accent">A real trained model.</span> {model.nParams.toLocaleString()} parameters (computed from the loaded weights): {cfg.n_layers} pre-LN decoder layers, d_model = {cfg.d_model}, {cfg.n_heads} heads of {model.dHead}, d_ff = {cfg.d_ff}, learned positions, {cfg.context}-character context, GELU, weight-tied output. Trained with PyTorch for {model.json.training.steps} steps on {model.json.training.train_chars.toLocaleString()} characters of Chapter I of Lewis Carroll&apos;s <i>Alice&apos;s Adventures in Wonderland</i> (public domain); train loss {model.json.training.final_train_loss}, held-out loss {model.json.training.final_val_loss} nats/char. It has memorised much of that text and knows little else.
+        <span className="font-medium text-accent">A real trained model.</span> {model.nParams.toLocaleString()} parameters (counted from the loaded weights): {cfg.n_layers} pre-LN decoder layers, d_model = {cfg.d_model}, {cfg.n_heads} heads of {model.dHead}, d_ff = {cfg.d_ff}, learned positions, {cfg.context}-character context, GELU, weight-tied output. Trained with PyTorch for {model.json.training.steps} steps on {model.json.training.train_chars.toLocaleString()} characters of Chapter I of Lewis Carroll&apos;s <i>Alice&apos;s Adventures in Wonderland</i> (public domain); train loss {model.json.training.final_train_loss}, held-out loss {model.json.training.final_val_loss} nats/char. It has memorised much of that text and knows little else.
       </div>
       {check && (
         <div className="rounded-lg border border-border p-2.5 font-mono text-[11px] leading-snug text-muted">
@@ -587,7 +587,7 @@ export default function TransformerSim() {
   );
 
   return (
-    <SimShell title="Transformer Explorer (trained model)" subtitle="Follow your prompt through a real, trained decoder-only Transformer — every number is computed live in your browser." controls={controls} aside={aside}>
+    <SimShell title="Transformer Explorer (trained model)" subtitle="Follow your prompt through a real, trained decoder-only Transformer (the GPT style). Every number is computed live in your browser." controls={controls} aside={aside}>
       {genPanel}
       <nav className="mb-4 flex flex-wrap gap-1" aria-label="Stages">
         {Array.from({ length: total }, (_, k) => {
@@ -619,34 +619,34 @@ function narrate(st: Stage, tr: ForwardTrace, model: CharModel, pos: number, hea
   const c = `'${show(tr.chars[pos])}'`;
   const d = model.d;
   if (st.kind === "tokens")
-    return `The text is split into ${n} characters and each is replaced by its index in a ${model.vocab.length}-character vocabulary. The model never sees letters — only these integers. Position ${pos} is ${c}, id ${tr.ids[pos]}.`;
+    return `The text is split into ${n} characters. Each one is swapped for its number in a ${model.vocab.length}-character vocabulary. The model never sees letters, only these numbers. Position ${pos} is ${c}, id ${tr.ids[pos]}.`;
   if (st.kind === "embed")
-    return `Each id selects a row of the ${model.vocab.length} × ${d} embedding table E, and position i adds row i of the learned ${model.context} × ${d} position table P. Without P, attention could not tell "ab" from "ba". Row ${pos}: ‖E‖ = ${rowNorm(tr.tokEmb[pos]).toFixed(2)}, ‖P‖ = ${rowNorm(tr.posEmb[pos]).toFixed(2)}, ‖x₀‖ = ${rowNorm(tr.x0[pos]).toFixed(2)}.`;
+    return `Each id picks a row of the ${model.vocab.length} × ${d} embedding table E (a learned list of numbers per character). Position i then adds row i of the learned ${model.context} × ${d} position table P. Without P, attention couldn't tell "ab" from "ba". Row ${pos}: ‖E‖ = ${rowNorm(tr.tokEmb[pos]).toFixed(2)}, ‖P‖ = ${rowNorm(tr.posEmb[pos]).toFixed(2)}, ‖x₀‖ = ${rowNorm(tr.x0[pos]).toFixed(2)}.`;
   if (st.kind === "output") {
     const best = topK(probs, 1)[0];
-    return `The final LayerNorm is applied, then every row is multiplied by Eᵀ (the output head shares the embedding matrix — weight tying), giving ${model.vocab.length} logits per position. Softmax turns them into probabilities. After ${c} the model's top choice is '${show(model.vocab[best])}' with p = ${probs[best].toFixed(3)}. Training made these predictions good at every position simultaneously (teacher forcing).`;
+    return `A final LayerNorm runs, then every row is multiplied by Eᵀ. The output reuses the embedding matrix (weight tying). That gives ${model.vocab.length} logits (raw scores) per position, and softmax turns them into probabilities. After ${c}, the model's top pick is '${show(model.vocab[best])}' with p = ${probs[best].toFixed(3)}. Training made it predict well at every position at once (teacher forcing).`;
   }
   const L = tr.layers[st.l];
   const hd = L.heads[head];
   switch (st.sub) {
     case 0:
-      return `Pre-LN: before attention, each position's vector is normalised on its own (no mixing across positions): subtract its mean ${fmt(L.ln1.mean[pos], 3)}, divide by its std ${fmt(L.ln1.std[pos], 3)}, then scale by γ and shift by β (${d} learned values each). The residual stream x itself is left untouched and carried around the sublayer.`;
+      return `Pre-LN: before attention, each position's vector is rescaled on its own (no mixing between positions). Subtract its mean ${fmt(L.ln1.mean[pos], 3)}, divide by its std ${fmt(L.ln1.std[pos], 3)}, then scale by γ and shift by β (${d} learned values each). The residual stream x itself is not changed; it goes around this block.`;
     case 1:
-      return `Three linear maps turn LN₁(x) into queries, keys and values (${d} → ${d} each, with biases). The ${d} columns are split into ${model.nHeads} heads of ${model.dHead}. Head ${head + 1}'s query for ${c} has length ‖q‖ = ${rowNorm(hd.Q[pos]).toFixed(2)}; its dot products with the keys decide where it looks.`;
+      return `Three linear maps turn LN₁(x) into queries (what am I looking for?), keys (what do I hold?) and values (what do I pass on?), ${d} → ${d} each, with biases. The ${d} columns are split into ${model.nHeads} heads of ${model.dHead}. Head ${head + 1}'s query for ${c} has length ‖q‖ = ${rowNorm(hd.Q[pos]).toFixed(2)}. Its dot products with the keys decide where it looks.`;
     case 2: {
       const row = hd.weights[pos];
       const j = topK(row, 1)[0];
-      return `Scores qᵢ·kⱼ/√${model.dHead} are computed for j ≤ i only (causal mask), and softmax turns each row into weights summing to 1. In layer ${st.l + 1}, head ${head + 1}, position ${pos} ${c} puts its largest weight ${row[j].toFixed(3)} on position ${j} '${show(tr.chars[j])}'${j === pos ? " (itself)" : j === pos - 1 ? " (the previous character)" : ""}. Click rows of the heatmap or switch heads to compare patterns.`;
+      return `Scores qᵢ·kⱼ/√${model.dHead} are computed only for j ≤ i, so no position sees the future (causal mask). Softmax turns each row into weights that add up to 1. In layer ${st.l + 1}, head ${head + 1}, position ${pos} ${c} puts its largest weight ${row[j].toFixed(3)} on position ${j} '${show(tr.chars[j])}'${j === pos ? " (itself)" : j === pos - 1 ? " (the previous character)" : ""}. Click heatmap rows or switch heads to compare patterns.`;
     }
     case 3:
-      return `Each head returns a ${model.dHead}-dimensional weighted average of its value vectors. The ${model.nHeads} results are concatenated back to ${d} dimensions and mixed by W_O (${d} × ${d}) — the only place where information from different heads is combined.`;
+      return `Each head returns a ${model.dHead}-number weighted average of its value vectors. The ${model.nHeads} results are joined side by side into ${d} numbers and mixed by W_O (${d} × ${d}). This is the only place where the heads' findings get combined.`;
     case 4:
-      return `Residual connection: the attention output is ADDED to the stream, x ← x + MHA(LN₁(x)). At position ${pos}: ‖x‖ = ${rowNorm(L.xIn[pos]).toFixed(2)}, ‖attention‖ = ${rowNorm(L.attnOut[pos]).toFixed(2)}, ‖sum‖ = ${rowNorm(L.xMid[pos]).toFixed(2)}. Sublayers write small updates into a shared "residual stream" rather than replacing it.`;
+      return `Residual connection: the attention output is ADDED to the stream, x ← x + MHA(LN₁(x)). At position ${pos}: ‖x‖ = ${rowNorm(L.xIn[pos]).toFixed(2)}, ‖attention‖ = ${rowNorm(L.attnOut[pos]).toFixed(2)}, ‖sum‖ = ${rowNorm(L.xMid[pos]).toFixed(2)}. Each block adds a small update to a shared "residual stream" instead of replacing it.`;
     case 5: {
       const act = L.ffPre[pos].filter((v) => v > 0).length;
-      return `The position-wise feed-forward network expands each vector ${d} → ${model.dFF}, applies GELU, and projects back. It acts on every position separately (no communication between positions) and holds two-thirds of each layer's parameters. At ${c}, ${act} of ${model.dFF} hidden units are positive.`;
+      return `The feed-forward network (FFN) widens each vector ${d} → ${model.dFF}, applies GELU, and shrinks it back. It works on every position separately (positions don't talk here). It holds two-thirds of each layer's parameters. At ${c}, ${act} of ${model.dFF} hidden units are positive.`;
     }
     default:
-      return `Second residual add: x ← x + FFN(LN₂(x)). At position ${pos}: ‖x‖ = ${rowNorm(L.xMid[pos]).toFixed(2)}, ‖FFN‖ = ${rowNorm(L.ffOut[pos]).toFixed(2)}, ‖sum‖ = ${rowNorm(L.xOut[pos]).toFixed(2)}. ${st.l + 1 < model.layers.length ? `This is the input to layer ${st.l + 2}.` : "This goes to the final LayerNorm and the output head."}`;
+      return `Second residual add: x ← x + FFN(LN₂(x)). At position ${pos}: ‖x‖ = ${rowNorm(L.xMid[pos]).toFixed(2)}, ‖FFN‖ = ${rowNorm(L.ffOut[pos]).toFixed(2)}, ‖sum‖ = ${rowNorm(L.xOut[pos]).toFixed(2)}. ${st.l + 1 < model.layers.length ? `This is the input to layer ${st.l + 2}.` : "This goes to the final LayerNorm and then the output."}`;
   }
 }

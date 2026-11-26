@@ -89,24 +89,24 @@ export default function RocPrSim() {
   let title: string;
   let text: string;
   if (m.predictedPos === 0) {
-    title = `t = ${t.toFixed(1)} — nothing is predicted positive`;
-    text = `The threshold is above every score, so TP = FP = 0. Recall = 0/${P} = 0 and FPR = 0/${Nn} = 0: the ROC curve starts at the corner (0, 0). Precision = 0/0 is undefined, so there is no PR point yet. Press Play to lower the threshold and sweep out both curves.`;
+    title = `t = ${t.toFixed(1)} — nothing is called positive`;
+    text = `The threshold is above every score, so TP = FP = 0. Recall = 0/${P} = 0 and FPR = 0/${Nn} = 0, so the ROC curve starts at the corner (0, 0). Precision = 0/0 has no value, so there is no PR point yet. Press Play to lower the threshold and trace out both curves.`;
   } else if (m.fn === 0 && m.tn === 0) {
-    title = `t = ${t.toFixed(1)} — everything is predicted positive`;
-    text = `Every example is flagged: recall = 1 and FPR = 1, the ROC corner (1, 1). Precision has fallen to the prevalence, ${P}/${N} = ${fmt(prevalence, 3)} — the dashed baseline of the PR plot, which is what a classifier with no skill achieves at any recall.`;
+    title = `t = ${t.toFixed(1)} — everything is called positive`;
+    text = `Every example is flagged: recall = 1 and FPR = 1, the ROC corner (1, 1). Precision has dropped to the prevalence (share of real positives), ${P}/${N} = ${fmt(prevalence, 3)}. That is the dashed line on the PR plot: what random guessing gets at any recall.`;
   } else {
     title = `t = ${t.toFixed(1)} — ${m.predictedPos} of ${N} flagged positive`;
     text = `Recall (TPR) = TP/(TP+FN) = ${m.tp}/${P} = ${fmt(m.tpr, 3)}; FPR = FP/(FP+TN) = ${m.fp}/${Nn} = ${fmt(m.fpr, 3)}; precision = TP/(TP+FP) = ${m.tp}/${m.predictedPos} = ${fmt(m.precision ?? 0, 3)}; F1 = ${fmt(m.f1, 3)}. `;
     if (posPct <= 10) {
-      text += `With only ${P} positives against ${Nn} negatives, even this FPR of ${fmt(m.fpr * 100, 1)}% means ${m.fp} false alarms next to ${m.tp} true hits. The ROC curve barely notices (AUC ${fmt(cur.auc, 3)}), but precision and AP (${fmt(cur.ap, 3)}) do — this is why PR curves are preferred for rare positives.`;
+      text += `With only ${P} positives against ${Nn} negatives, even this FPR of ${fmt(m.fpr * 100, 1)}% means ${m.fp} false alarms next to ${m.tp} true hits. The ROC curve barely notices (AUC ${fmt(cur.auc, 3)}), but precision and AP (${fmt(cur.ap, 3)}) do. That is why people prefer PR curves when positives are rare.`;
     } else if (sep < 0.25) {
-      text += `The two distributions almost coincide, so every threshold catches positives and negatives at the same rate: the ROC curve hugs the diagonal (AUC ${fmt(cur.auc, 3)} ≈ 0.5) and precision stays near the prevalence ${fmt(prevalence, 2)}.`;
+      text += `The two score piles almost overlap, so every threshold catches positives and negatives at the same rate. The ROC curve hugs the diagonal (AUC ${fmt(cur.auc, 3)} ≈ 0.5), and precision stays near the prevalence ${fmt(prevalence, 2)}.`;
     } else if (Math.abs(t - best.t) < 0.05 + 1e-9) {
-      text += `This is (to the 0.1 grid) the F1-maximising threshold ${fmt(best.t, 2)}, F1 = ${fmt(best.f1, 3)}. A different cost of false positives vs false negatives would move the best threshold.`;
+      text += `This is (to the nearest 0.1) the threshold with the best F1, ${fmt(best.t, 2)}, F1 = ${fmt(best.f1, 3)}. If false alarms and misses had different costs, the best threshold would move.`;
     } else if (t > best.t) {
-      text += `The threshold is strict: few false positives, but ${m.fn} positives are missed. Lowering t raises recall and FPR together — you move up and to the right along the ROC curve.`;
+      text += `The threshold is strict: few false alarms, but ${m.fn} positives are missed. Lowering t raises recall and FPR together, so you move up and right along the ROC curve.`;
     } else {
-      text += `The threshold is lenient: ${m.fp} negatives are flagged. Raising t trades recall for precision; the F1 optimum here is near t = ${fmt(best.t, 2)}.`;
+      text += `The threshold is loose: ${m.fp} negatives are flagged. Raising t swaps some recall for precision. The best F1 here is near t = ${fmt(best.t, 2)}.`;
     }
   }
 
@@ -117,7 +117,7 @@ export default function RocPrSim() {
   return (
     <SimShell
       title="Thresholds, ROC and PR Curves"
-      subtitle={`A classifier's scores for ${N} examples: positives ~ N(+d/2, 1), negatives ~ N(−d/2, 1). Predict positive when score ≥ t. Drag on the histogram to move t.`}
+      subtitle={`A classifier's scores for ${N} examples: positives ~ N(+d/2, 1), negatives ~ N(−d/2, 1). We say positive when score ≥ t. Drag on the histogram to move t.`}
       controls={
         <Controls
           s={s}
@@ -144,7 +144,7 @@ export default function RocPrSim() {
             }}
             fmt={() => t.toFixed(1)}
           />
-          <p className="text-[11px] text-muted">The threshold slider runs strict → lenient (left → right), the same direction as Play.</p>
+          <p className="text-[11px] text-muted">The threshold slider runs strict → loose (left → right), the same way as Play.</p>
 
           <div className="grid grid-cols-[auto_1fr_1fr] gap-1 text-center font-mono text-[11px]" role="table" aria-label="Confusion matrix">
             <div />
@@ -169,7 +169,7 @@ export default function RocPrSim() {
           <div className="rounded-md bg-surface-2 p-2 text-[11px]">
             <Stat label="recall = TPR" value={fmt(m.tpr, 3)} tone="text-accent" />
             <Stat label="FPR" value={fmt(m.fpr, 3)} tone="text-clay" />
-            <Stat label="precision" value={m.precision === null ? "undefined (0/0)" : fmt(m.precision, 3)} />
+            <Stat label="precision" value={m.precision === null ? "no value (0/0)" : fmt(m.precision, 3)} />
             <Stat label="F1" value={fmt(m.f1, 3)} />
             <Stat label="accuracy" value={fmt(m.accuracy, 3)} />
             <Stat label="ROC AUC" value={fmt(cur.auc, 3)} />
@@ -229,7 +229,7 @@ export default function RocPrSim() {
         <figcaption className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
           <span className="text-accent">■ positives ({P})</span>
           <span className="text-clay">■ negatives ({Nn})</span>
-          <span className="text-gold">| threshold — shaded side is predicted positive</span>
+          <span className="text-gold">| threshold — shaded side is called positive</span>
         </figcaption>
       </figure>
 
@@ -245,7 +245,7 @@ export default function RocPrSim() {
               AUC {fmt(cur.auc, 3)}
             </text>
           </svg>
-          <figcaption className="text-center text-[11px] text-muted">ROC · dashed = chance</figcaption>
+          <figcaption className="text-center text-[11px] text-muted">ROC · dashed = random guessing</figcaption>
         </figure>
         <figure className="min-w-0">
           <svg viewBox={`0 0 ${CW} ${CH}`} className="h-auto w-full" role="img" aria-label={`Precision-recall curve, average precision ${fmt(cur.ap, 3)}`}>

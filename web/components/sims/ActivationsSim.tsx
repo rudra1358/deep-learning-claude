@@ -122,13 +122,13 @@ export default function ActivationsSim() {
   const notes: string[] = [];
   for (const a of defs) {
     const d = a.df(x, p);
-    if (a.id === "step") notes.push(`Binary step has slope 0 at x = ${fmt(x, 2)} (and everywhere except the jump), so no gradient can flow through it.`);
-    else if (a.id === "relu" && x <= 0) notes.push(`ReLU is in its flat region: output 0 and slope 0. A unit whose input is negative for every example receives no gradient (a "dead ReLU").`);
-    else if ((a.id === "sigmoid" || a.id === "tanh") && Math.abs(d) < 0.05) notes.push(`${a.name} is saturated: slope ${fmt(d)}, so any gradient passing back through it is multiplied by ${fmt(d)} and nearly vanishes.`);
+    if (a.id === "step") notes.push(`Binary step is flat at x = ${fmt(x, 2)}: slope 0 (it is flat everywhere except the jump). So no gradient can flow back through it.`);
+    else if (a.id === "relu" && x <= 0) notes.push(`ReLU is in its flat part here: output 0, slope 0. If a unit's input is negative for every example, it never gets a gradient and stops learning (a "dead ReLU").`);
+    else if ((a.id === "sigmoid" || a.id === "tanh") && Math.abs(d) < 0.05) notes.push(`${a.name} is saturated (its curve has gone flat): slope ${fmt(d)}. Any gradient passing back gets multiplied by ${fmt(d)}, so it almost disappears.`);
   }
   if (notes.length === 0 && defs.length > 0) {
     const a = defs[0];
-    notes.push(`At x = ${fmt(x, 2)}, ${a.name} outputs ${fmt(a.f(x, p))} with slope ${fmt(a.df(x, p))}: during backpropagation the upstream gradient is multiplied by ${fmt(a.df(x, p))} when it passes through this unit.`);
+    notes.push(`At x = ${fmt(x, 2)}, ${a.name} outputs ${fmt(a.f(x, p))} and its slope is ${fmt(a.df(x, p))}. During backpropagation, the gradient coming back is multiplied by ${fmt(a.df(x, p))} as it passes through.`);
   }
 
   const sm = softmaxT(logits, temp);
@@ -147,7 +147,7 @@ export default function ActivationsSim() {
   return (
     <SimShell
       title="Activation Function Explorer"
-      subtitle="Solid: f(x). Dashed: f′(x). Hover the plot or drag the x slider; Play sweeps x from −5 to 5."
+      subtitle="Solid line: f(x). Dashed line: its slope f′(x). Hover the plot or drag x. Play sweeps x from −5 to 5."
       controls={<Controls s={s} />}
       aside={
         <div className="space-y-3">
@@ -155,7 +155,7 @@ export default function ActivationsSim() {
           <Slider label="α (Leaky, PReLU, ELU)" value={alpha} min={0} max={1} step={0.01} onChange={setAlpha} />
           <Slider label="β (Swish)" value={beta} min={0.1} max={5} step={0.1} onChange={setBeta} fmt={(v) => v.toFixed(1)} />
           <label className="flex items-center gap-2 text-xs text-muted">
-            <input type="checkbox" checked={showDeriv} onChange={(e) => setShowDeriv(e.target.checked)} aria-label="Show derivatives" /> Show derivatives (dashed)
+            <input type="checkbox" checked={showDeriv} onChange={(e) => setShowDeriv(e.target.checked)} aria-label="Show derivatives" /> Show slopes f′(x) (dashed)
           </label>
           <table className="w-full border-collapse font-mono text-xs">
             <thead>
@@ -233,12 +233,12 @@ export default function ActivationsSim() {
           x
         </text>
       </svg>
-      {defs.length === 0 && <p className="text-sm text-muted">Select at least one function above.</p>}
+      {defs.length === 0 && <p className="text-sm text-muted">Pick at least one function above.</p>}
 
       <div className="mt-5 border-t border-border pt-4">
         <div className="mb-2 font-serif font-semibold">Softmax with temperature</div>
         <p className="mb-3 text-sm text-muted">
-          pᵢ = exp((zᵢ − m)/T) / Σⱼ exp((zⱼ − m)/T), with m the largest zᵢ (subtracted so exp never overflows; it cancels in the ratio). Edit the logits and change T.
+          pᵢ = exp((zᵢ − m)/T) / Σⱼ exp((zⱼ − m)/T). Here m is the largest zᵢ. We subtract it so exp never overflows, and it cancels out anyway. Edit the logits (raw scores) and change T.
         </p>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
@@ -320,10 +320,10 @@ export default function ActivationsSim() {
             </svg>
             <p className="mt-1 text-xs text-muted">
               {temp < 0.5
-                ? "Low T sharpens the distribution towards a one-hot vector on the largest logit (argmax)."
+                ? "Low T makes it sharper: almost all probability goes to the largest logit (like argmax)."
                 : temp > 2
-                  ? "High T flattens the distribution towards uniform (1/4 each); the ranking of the logits never changes."
-                  : "At T = 1 this is the ordinary softmax. Adding the same constant to every logit leaves p unchanged."}
+                  ? "High T flattens it toward equal odds (1/4 each). The order of the logits never changes."
+                  : "At T = 1 this is plain softmax. Add the same number to every logit and p stays the same."}
             </p>
           </div>
         </div>

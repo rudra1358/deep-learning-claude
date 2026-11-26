@@ -96,13 +96,13 @@ export default async function LessonPage({ params }: { params: Promise<Params> }
             <div className="card mb-6 flex gap-3 p-5">
               <PenLine size={20} className="mt-0.5 shrink-0 text-gold" />
               <div className="text-sm">
-                <div className="font-medium">This lesson is being written.</div>
+                <div className="font-medium">This lesson is still being written.</div>
                 <p className="mt-1 text-muted">
-                  The full 16-part lesson (intuition, mechanism, derivations, simulator, NumPy and PyTorch code, exercises and interview questions) is not published yet. Below is its syllabus so you can see exactly what it will cover and study it from the references in the meantime.
+                  The full 16-part lesson (big idea, how it works, the math, a simulator, NumPy and PyTorch code, exercises and interview questions) isn&apos;t ready yet. Below is what it will cover, so you can start studying from other sources in the meantime.
                 </p>
               </div>
             </div>
-            <h2 className="mb-3 font-serif text-xl font-semibold">Syllabus</h2>
+            <h2 className="mb-3 font-serif text-xl font-semibold">What this lesson will cover</h2>
             <ul className="grid gap-2 sm:grid-cols-2">
               {tp.subtopics.map((s) => (
                 <li key={s} className="rounded-lg border border-border bg-surface px-3 py-2 text-sm capitalize">

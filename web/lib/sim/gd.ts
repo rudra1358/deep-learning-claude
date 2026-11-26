@@ -39,7 +39,7 @@ export const FUNCTIONS: Fn1D[] = [
     eta: 0.2,
     etaMax: 1.2,
     minima: [0],
-    note: "Curvature f''=2 everywhere, so the update is x ← (1 − 2η)x: converges for 0 < η < 1, oscillates forever at η = 1, diverges above.",
+    note: "Curvature (bend) f''=2 everywhere, so each step is x ← (1 − 2η)x. It settles for 0 < η < 1, bounces forever at η = 1, blows up above.",
   },
   {
     id: "quartic",
@@ -54,7 +54,7 @@ export const FUNCTIONS: Fn1D[] = [
     eta: 0.03,
     etaMax: 0.25,
     minima: [-1.3008, 1.1309],
-    note: "Global minimum near x = −1.30, local minimum near x = 1.13. Where you start (and how far η lets you jump) decides which one you reach.",
+    note: "Global (lowest) minimum near x = −1.30, local minimum near x = 1.13. Your start, and how far η lets you jump, decide which one you reach.",
   },
   {
     id: "plateau",
@@ -69,7 +69,7 @@ export const FUNCTIONS: Fn1D[] = [
     eta: 0.3,
     etaMax: 1.0,
     minima: [0],
-    note: "Left: an almost flat plateau where f'(x) ≈ 0, so steps are tiny. Right: a steep wall (curvature 8 near 0) where a large η overshoots back onto the plateau.",
+    note: "Left: a nearly flat plateau where f'(x) ≈ 0, so steps are tiny. Right: a steep wall (curvature 8 near 0). A large η jumps too far, back onto the plateau.",
   },
   {
     id: "flatbottom",
@@ -84,7 +84,7 @@ export const FUNCTIONS: Fn1D[] = [
     eta: 0.1,
     etaMax: 0.6,
     minima: [0],
-    note: "Curvature 3x² vanishes at the minimum: far away the walls are steep (large η diverges), near the bottom the gradient x³ shrinks so fast that progress becomes sub-linear.",
+    note: "Curvature 3x² is zero at the minimum. Far away the walls are steep (a large η blows up). Near the bottom the gradient x³ shrinks so fast that progress crawls (sub-linear).",
   },
 ];
 

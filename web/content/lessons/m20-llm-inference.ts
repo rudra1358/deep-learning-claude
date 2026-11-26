@@ -414,7 +414,7 @@ const lesson: Lesson = {
   id: "m20/llm-inference",
   title: "Efficient Inference: KV Cache, FlashAttention, MoE",
   summary:
-    "Why LLM generation is memory-bound and how serving systems make it fast: prefill vs decode, the KV cache and its memory formula, multi-query and grouped-query attention, FlashAttention's tiling with an online softmax, mixture-of-experts routing with a load-balancing loss, speculative decoding (which provably preserves the output distribution) and weight-only quantization — each implemented and verified.",
+    "Why LLM generation is limited by memory speed and how serving systems make it fast: prefill vs decode, the KV cache and its memory formula, multi-query and grouped-query attention, FlashAttention's tiling with an online softmax, mixture-of-experts routing with a load-balancing loss, speculative decoding (which provably keeps the output distribution) and weight-only quantization — each implemented and verified.",
   minutes: 75,
   level: "research",
   prerequisites: ["m11/training-inference", "m10/multi-head-attention", "m20/decoding", "m18/model-optimization"],
@@ -423,56 +423,64 @@ const lesson: Lesson = {
   sections: {
     // ------------------------------------------------------------------ intro
     intro: [
-      { t: "p", text: "Training a language model is a throughput problem: huge batches of tokens flow through dense matrix multiplications, and GPUs are kept busy. **Serving** one is different. Generation is sequential — token $t+1$ cannot be computed before token $t$ is chosen — and each step processes only one new token per sequence. Each step must still read **every weight** of the model and the **entire attention history** from GPU memory, while doing very little arithmetic per byte read. Generation is therefore **memory-bandwidth bound**, and almost every inference optimisation is a way to read fewer bytes, read them fewer times, or do more useful work per read." },
-      { t: "p", text: "This lesson covers the core techniques: the **KV cache** (never recompute the past; see the introduction in [Training, Autoregressive Generation and Complexity](/learn/m11/training-inference)), **multi-query / grouped-query attention** (shrink the cache), **FlashAttention** (compute exact attention without ever writing the $n\\times n$ score matrix to memory), **mixture of experts** (many parameters, few used per token), **speculative decoding** (several tokens per expensive forward pass, with the exact same output distribution) and **weight-only quantization** (fewer bytes per weight; the basics are in [Quantization, Pruning and Distillation](/learn/m18/model-optimization))." },
+      { t: "p", text: "Training is a throughput problem: huge batches of tokens flow through dense matrix multiplications and the GPUs stay busy. **Serving** is different. Generation is sequential — token $t+1$ needs token $t$ first — so each step handles one new token per sequence, yet must still read **every weight** and the **whole attention history** from GPU memory, doing very little arithmetic per byte." },
+      { t: "p", text: "So generation is **memory-bandwidth bound**: the bottleneck is how fast bytes arrive, not how fast the GPU computes. Almost every inference trick reads fewer bytes, reads them fewer times, or does more useful work per read." },
+      { t: "list", items: [
+        "**KV cache** — never recompute the past (introduced in [Training, Autoregressive Generation and Complexity](/learn/m11/training-inference)).",
+        "**Multi-query / grouped-query attention** — shrink the cache.",
+        "**FlashAttention** — exact attention without ever writing the $n\\times n$ score matrix to memory.",
+        "**Mixture of experts** — many parameters, few used per token.",
+        "**Speculative decoding** — several tokens per expensive forward pass, with exactly the same output distribution.",
+        "**Weight-only quantization** — fewer bytes per weight (basics in [Quantization, Pruning and Distillation](/learn/m18/model-optimization)).",
+      ] },
     ],
 
     // ------------------------------------------------------------------ prerequisites
     prerequisites: [
       { t: "list", items: [
         "[Training, Autoregressive Generation and Complexity](/learn/m11/training-inference) — the generation loop, prefill, the basic KV cache and the $O(n^2 d)$ attention cost.",
-        "[Multi-Head Attention](/learn/m10/multi-head-attention) — heads, $d_{\\text{head}}$, and the $Q, K, V$ projections that the cache stores.",
+        "[Multi-Head Attention](/learn/m10/multi-head-attention) — heads, $d_{\\text{head}}$, and the $Q, K, V$ projections the cache stores.",
         "[Decoding](/learn/m20/decoding) — sampling from $p(\\cdot\\mid\\text{context})$; speculative decoding must reproduce that distribution.",
         "[Quantization, Pruning and Distillation](/learn/m18/model-optimization) — integer formats, scales and the accuracy trade-off.",
-        "Softmax and its max-subtraction trick from [Optimization Math](/learn/m02/optimization-math) (numerical stability).",
+        "Softmax and its max-subtraction trick (for numerical stability) from [Optimization Math](/learn/m02/optimization-math).",
       ] },
     ],
 
     // ------------------------------------------------------------------ intuition
     intuition: [
-      { t: "callout", kind: "analogy", title: "A chef, a pantry and a notebook", text: "A chef (the GPU's compute units) is extremely fast, but every ingredient must be fetched from a pantry down the hall (GPU memory). Writing one word of a story requires fetching the whole recipe book (all weights) once. **Batching** means writing words for 64 stories per pantry trip. The **KV cache** is a notebook of what each earlier word contributed, so the chef never re-reads the story from the start. **GQA** makes the notebook smaller by letting several heads share notes. **FlashAttention** is cooking at the counter in small batches instead of spreading every intermediate dish across the pantry floor. **Mixture of experts** is a kitchen with eight specialist chefs where each dish visits only two. **Speculative decoding** is an apprentice who drafts the next few words; the master checks all of them in one glance and keeps the prefix he agrees with. **Quantization** is shrinking the recipe book so that a trip takes half the time." },
-      { t: "p", text: "The single most useful number is **arithmetic intensity**: FLOPs per byte moved. A matrix-vector product (one token, decode phase) does about 2 FLOPs per weight read (1 FLOP per byte in fp16), while a modern accelerator can do hundreds of FLOPs in the time it reads one byte. Prefill (many prompt tokens at once) is a matrix-matrix product with high intensity and is **compute-bound**; decode is **memory-bound**. Optimise them differently." },
+      { t: "callout", kind: "analogy", title: "A chef, a pantry and a notebook", text: "A chef (the GPU's compute units) is extremely fast, but every ingredient comes from a pantry down the hall (GPU memory), and writing one word of a story means fetching the whole recipe book (all weights). **Batching**: words for 64 stories per trip. **KV cache**: a notebook of what each earlier word contributed, so the story is never reread. **GQA**: heads share notes, so the notebook is smaller. **FlashAttention**: cook at the counter in small batches instead of spreading half-made dishes across the pantry floor. **Mixture of experts**: eight specialist chefs, each dish visits two. **Speculative decoding**: an apprentice drafts a few words; the master checks them in one glance and keeps the part he agrees with. **Quantization**: a smaller recipe book, so trips are faster." },
+      { t: "p", text: "The most useful number is **arithmetic intensity**: FLOPs per byte moved. A matrix-vector product (one token, decode) does about 2 FLOPs per weight read (1 FLOP per byte in fp16), while a modern accelerator can do hundreds of FLOPs in the time it reads one byte. Prefill (many prompt tokens at once) is a high-intensity matrix-matrix product, so it is **compute-bound**; decode is **memory-bound**. They need different optimisations." },
     ],
 
     // ------------------------------------------------------------------ mechanism
     mechanism: [
       { t: "h", text: "Prefill and decode" },
       { t: "steps", items: [
-        { title: "Prefill", text: "The whole prompt ($n_p$ tokens) goes through the model in one causally masked pass, exactly like training. Every layer's keys and values are written to the cache. Cost: $\\approx 2N n_p$ FLOPs for $N$ parameters — compute-bound. It determines the **time to first token**." },
-        { title: "Decode", text: "One new token per sequence per step: compute its $q, k, v$ in each layer, append $k, v$ to the cache, attend over the cache, produce logits, choose a token (see [Decoding](/learn/m20/decoding)). Cost per token: $\\approx 2N$ FLOPs plus reading all weights and the cache — memory-bound. It determines the **time per output token**." },
-        { title: "Batching", text: "Because decode is memory-bound, processing many sequences together is nearly free until compute becomes the limit: the weights are read once per step for the whole batch. **Continuous batching** inserts and removes requests at every step instead of waiting for a whole batch to finish." },
-        { title: "Paged KV cache", text: "Caches grow by one token per step and sequences finish at different times; allocating contiguous maximum-length buffers wastes memory. PagedAttention (Kwon et al., 2023, the vLLM system) stores the cache in fixed-size blocks with a page table, like virtual memory, and lets sequences share prefix blocks." },
+        { title: "Prefill", text: "The whole prompt ($n_p$ tokens) goes through the model in one causally masked pass, just like training, and every layer's keys and values are written to the cache. Cost: $\\approx 2N n_p$ FLOPs for $N$ parameters — compute-bound. It sets the **time to first token**." },
+        { title: "Decode", text: "One new token per sequence per step: compute its $q, k, v$ in each layer, append $k, v$ to the cache, attend over the cache, produce logits, choose a token (see [Decoding](/learn/m20/decoding)). Cost per token: $\\approx 2N$ FLOPs plus reading all weights and the cache — memory-bound. It sets the **time per output token**." },
+        { title: "Batching", text: "Decode is memory-bound, so running many sequences together is nearly free until compute becomes the limit: weights are read once per step for the whole batch. **Continuous batching** adds and removes requests at every step instead of waiting for a whole batch to finish." },
+        { title: "Paged KV cache", text: "Caches grow one token per step and sequences finish at different times, so reserving full-length buffers wastes memory. PagedAttention (Kwon et al., 2023, the vLLM system) stores the cache in fixed-size blocks with a page table, like virtual memory, and lets sequences share prefix blocks." },
       ] },
       { t: "h", text: "FlashAttention: tiling plus an online softmax" },
       { t: "steps", items: [
-        { title: "The problem", text: "Standard attention writes $S = QK^\\top/\\sqrt d$ ($n\\times n$) to GPU high-bandwidth memory (HBM), reads it back for the softmax, writes $P$, reads it again to multiply by $V$. For long sequences this traffic, not the FLOPs, dominates the run time." },
-        { title: "Tiling", text: "Load a block of queries into fast on-chip SRAM. Stream blocks of keys and values past it. Each block of scores exists only in SRAM." },
-        { title: "Online softmax", text: "The softmax needs the row maximum and row sum over **all** keys, which are not known until the last block. Keep a running max $m$, running sum $\\ell$ and an unnormalised output accumulator; when a new block raises the max, rescale what was accumulated by $e^{m_{\\text{old}}-m_{\\text{new}}}$ (Milakov and Gimelshein, 2018, *Online normalizer calculation for softmax*)." },
-        { title: "Finish", text: "Divide the accumulator by $\\ell$ once at the end. The result is **exact** attention, not an approximation (Dao et al., 2022, *FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness*). The backward pass recomputes the blocks instead of storing $P$." },
+        { title: "The problem", text: "Standard attention writes $S = QK^\\top/\\sqrt d$ ($n\\times n$) to the GPU's large but slow high-bandwidth memory (HBM), reads it back for the softmax, writes $P$, then reads it again to multiply by $V$. For long sequences this traffic, not the FLOPs, dominates run time." },
+        { title: "Tiling", text: "Load a block of queries into small, fast on-chip SRAM and stream blocks of keys and values past it. Each block of scores lives only in SRAM." },
+        { title: "Online softmax", text: "The softmax needs each row's maximum and sum over **all** keys, which aren't known until the last block. So keep a running max $m$, running sum $\\ell$ and an unnormalised output. When a new block raises the max, rescale what you have by $e^{m_{\\text{old}}-m_{\\text{new}}}$ (Milakov and Gimelshein, 2018, *Online normalizer calculation for softmax*)." },
+        { title: "Finish", text: "Divide by $\\ell$ once at the end. The result is **exact** attention, not an approximation (Dao et al., 2022, *FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness*). The backward pass recomputes the blocks instead of storing $P$." },
       ] },
       { t: "h", text: "Mixture of experts" },
       { t: "steps", items: [
-        { title: "Router", text: "Replace the feed-forward block with $E$ expert FFNs and a router $W_g$; for token $x$, router probabilities are $\\mathrm{softmax}(xW_g)$." },
-        { title: "Top-k dispatch", text: "Send the token to its $k$ highest-probability experts (Shazeer et al., 2017 used sparse top-k gating; Switch Transformers, Fedus et al., 2022, use $k=1$; Mixtral, Jiang et al., 2024, uses 8 experts with $k=2$)." },
-        { title: "Combine", text: "Output $= \\sum_{e \\in \\text{top-}k} g_e(x)\\,\\mathrm{FFN}_e(x)$ with the gate values renormalised over the chosen experts." },
-        { title: "Balance", text: "Without pressure, the router collapses onto a few experts. An auxiliary **load-balancing loss** pushes routing toward uniform; an expert **capacity** limit drops or reroutes overflow tokens." },
+        { title: "Router", text: "Replace the feed-forward block with $E$ expert FFNs and a router $W_g$. For token $x$, router probabilities are $\\mathrm{softmax}(xW_g)$." },
+        { title: "Top-k dispatch", text: "Send the token to its $k$ most likely experts (Shazeer et al., 2017 used sparse top-k gating; Switch Transformers, Fedus et al., 2022, use $k=1$; Mixtral, Jiang et al., 2024, uses 8 experts with $k=2$)." },
+        { title: "Combine", text: "Output $= \\sum_{e \\in \\text{top-}k} g_e(x)\\,\\mathrm{FFN}_e(x)$, with the gate values renormalised over the chosen experts." },
+        { title: "Balance", text: "Left alone, the router collapses onto a few experts. An extra **load-balancing loss** pushes routing toward uniform, and an expert **capacity** limit drops or reroutes overflow tokens." },
       ] },
       { t: "h", text: "Speculative decoding" },
       { t: "steps", items: [
-        { title: "Draft", text: "A small, cheap draft model proposes $\\gamma$ tokens autoregressively." },
-        { title: "Verify", text: "The large target model scores the prompt plus all $\\gamma$ drafts in **one** forward pass (it is a prefill-like, compute-efficient pass), giving its distributions at every draft position." },
-        { title: "Accept/reject", text: "Walk through the drafts: accept draft token $x$ with probability $\\min(1, p(x)/q(x))$. At the first rejection, sample a replacement from the normalised residual $\\max(0, p - q)$ and stop. If all are accepted, sample one bonus token from the target." },
-        { title: "Result", text: "Between 1 and $\\gamma+1$ tokens per target forward pass, and the output has **exactly** the target model's distribution (Leviathan et al., 2023; Chen et al., 2023)." },
+        { title: "Draft", text: "A small, cheap draft model proposes $\\gamma$ tokens, one after another." },
+        { title: "Verify", text: "The big target model scores the prompt plus all $\\gamma$ drafts in **one** forward pass (prefill-like, so compute-efficient), giving its distribution at every draft position." },
+        { title: "Accept/reject", text: "Walk through the drafts, accepting draft token $x$ with probability $\\min(1, p(x)/q(x))$. At the first rejection, sample a replacement from the normalised leftover $\\max(0, p - q)$ and stop. If all are accepted, sample one bonus token from the target." },
+        { title: "Result", text: "Between 1 and $\\gamma+1$ tokens per target forward pass, and the output follows **exactly** the target model's distribution (Leviathan et al., 2023; Chen et al., 2023)." },
       ] },
     ],
 
@@ -480,37 +488,39 @@ const lesson: Lesson = {
     math: [
       { t: "h", text: "KV-cache memory" },
       { t: "math", tex: String.raw`M_{\text{KV}} = 2 \cdot L \cdot H_{kv} \cdot d_{\text{head}} \cdot n \cdot b \cdot B`, caption: "2 = keys and values; $L$ = layers; $H_{kv}$ = key/value heads ($=H$ for standard multi-head attention); $d_{\\text{head}}$ = head dimension; $n$ = cached tokens; $b$ = bytes per number (2 for fp16/bf16); $B$ = batch size." },
-      { t: "p", text: String.raw`Worked example, a 7B-class shape with $L=32$, $H=32$, $d_{\text{head}}=128$, $n=4096$, fp16: $2\cdot32\cdot32\cdot128\cdot4096\cdot2 = 2{,}147{,}483{,}648$ bytes $= 2$ GiB **per sequence** (512 KiB per token). At batch 16 the cache alone needs 32 GiB — more than the 14 GB of fp16 weights. **Grouped-query attention** (Ainslie et al., 2023) with $H_{kv}=8$ cuts this to 0.5 GiB; **multi-query attention** (Shazeer, 2019, *Fast Transformer Decoding: One Write-Head is All You Need*) with $H_{kv}=1$ to 64 MiB. Query heads are unchanged; groups of $H/H_{kv}$ query heads share one key/value head.` },
+      { t: "p", text: String.raw`Worked example, a 7B-class shape with $L=32$, $H=32$, $d_{\text{head}}=128$, $n=4096$, fp16: $2\cdot32\cdot32\cdot128\cdot4096\cdot2 = 2{,}147{,}483{,}648$ bytes $= 2$ GiB **per sequence** (512 KiB per token). At batch 16 the cache alone needs 32 GiB — more than the 14 GB of fp16 weights.` },
+      { t: "p", text: String.raw`**Grouped-query attention** (Ainslie et al., 2023) with $H_{kv}=8$ cuts this to 0.5 GiB; **multi-query attention** (Shazeer, 2019, *Fast Transformer Decoding: One Write-Head is All You Need*) with $H_{kv}=1$, to 64 MiB. The query heads stay the same; each group of $H/H_{kv}$ query heads shares one key/value head.` },
       { t: "h", text: "Compute with and without the cache" },
-      { t: "p", text: String.raw`Without a cache, step $t$ reprocesses all $t$ tokens: generating $n$ tokens costs $\sum_{t=1}^{n} O(t\,d^2 + t^2 d) = O(n^2 d^2 + n^3 d)$ per layer. With a cache, step $t$ processes one token, with $O(d^2)$ projection work and $O(t\,d)$ attention work: $O(n d^2 + n^2 d)$ total. In the NumPy demo (8-token prompt, 24 new tokens), the uncached loop performs 13,415,936 multiply-accumulates and the cached loop 859,648 — 15.6× fewer — with identical logits.` },
+      { t: "p", text: String.raw`Without a cache, step $t$ reprocesses all $t$ tokens, so generating $n$ tokens costs $\sum_{t=1}^{n} O(t\,d^2 + t^2 d) = O(n^2 d^2 + n^3 d)$ per layer. With a cache, step $t$ handles one token: $O(d^2)$ projection work and $O(t\,d)$ attention work, $O(n d^2 + n^2 d)$ in total. In the NumPy demo (8-token prompt, 24 new tokens), the uncached loop does 13,415,936 multiply-accumulates and the cached loop 859,648 — 15.6× fewer — with identical logits.` },
       { t: "h", text: "Online softmax" },
-      { t: "math", tex: String.raw`m_j = \max(m_{j-1}, x_j), \qquad \ell_j = \ell_{j-1}\,e^{m_{j-1}-m_j} + e^{x_j - m_j}, \qquad \mathrm{softmax}(x)_i = \frac{e^{x_i - m_n}}{\ell_n}`, caption: "$m_j$ = running maximum after $j$ elements, $\\ell_j$ = running sum of exponentials relative to $m_j$; $m_0=-\\infty$, $\\ell_0=0$." },
+      { t: "math", tex: String.raw`m_j = \max(m_{j-1}, x_j), \qquad \ell_j = \ell_{j-1}\,e^{m_{j-1}-m_j} + e^{x_j - m_j}, \qquad \mathrm{softmax}(x)_i = \frac{e^{x_i - m_n}}{\ell_n}`, caption: "$m_j$ = running maximum after $j$ elements, $\\ell_j$ = running sum of exponentials measured from $m_j$; $m_0=-\\infty$, $\\ell_0=0$." },
       { t: "steps", items: [
         { title: "x = (1, 3, 2): first element", tex: String.raw`m_1 = 1,\quad \ell_1 = 0\cdot e^{-\infty} + e^{0} = 1` },
         { title: "Second element raises the max", tex: String.raw`m_2 = 3,\quad \ell_2 = 1\cdot e^{1-3} + e^{0} = 0.135335 + 1 = 1.135335` },
         { title: "Third element", tex: String.raw`m_3 = 3,\quad \ell_3 = 1.135335 + e^{2-3} = 1.135335 + 0.367879 = 1.503215` },
         { title: "Result", tex: String.raw`\mathrm{softmax} = (e^{-2}, e^{0}, e^{-1})/1.503215 = (0.090031,\ 0.665241,\ 0.244728)` },
       ] },
-      { t: "p", text: String.raw`For attention the same correction applies to the output accumulator: with $O_{j} = O_{j-1}\,e^{m_{j-1}-m_j} + \sum_{k \in \text{block } j} e^{s_k - m_j} v_k$, the final output is $O_n/\ell_n$. Peak memory per query block drops from $O(n)$ scores per row to $O(B_c)$, and HBM traffic drops because $S$ and $P$ are never written.` },
+      { t: "p", text: String.raw`For attention, the output accumulator gets the same correction: with $O_{j} = O_{j-1}\,e^{m_{j-1}-m_j} + \sum_{k \in \text{block } j} e^{s_k - m_j} v_k$, the final output is $O_n/\ell_n$. Peak memory per query block drops from $O(n)$ scores per row to $O(B_c)$, and HBM traffic drops because $S$ and $P$ are never written.` },
       { t: "h", text: "Load-balancing loss" },
-      { t: "math", tex: String.raw`\mathcal L_{\text{aux}} = \alpha \cdot E \sum_{e=1}^{E} f_e\,P_e, \qquad f_e = \frac{1}{T}\sum_{t} \mathbb 1[\arg\max_i p_i(x_t) = e], \qquad P_e = \frac{1}{T}\sum_t p_e(x_t)`, caption: "Switch Transformers (Fedus et al., 2022). $E$ = experts, $T$ = tokens in the batch, $f_e$ = fraction routed to expert $e$ (not differentiable), $P_e$ = mean router probability (differentiable), $\\alpha$ ≈ 0.01." },
-      { t: "p", text: String.raw`With uniform routing $f_e = P_e = 1/E$ and $E\sum_e f_eP_e = 1$. Example with $E=4$, $f = (0.5, 0.25, 0.25, 0)$ and $P = (0.4, 0.3, 0.2, 0.1)$: $4(0.2 + 0.075 + 0.05 + 0) = 1.3$. The gradient flows through $P_e$ only, weighted by $f_e$: over-used experts get their router probabilities pushed down.` },
+      { t: "math", tex: String.raw`\mathcal L_{\text{aux}} = \alpha \cdot E \sum_{e=1}^{E} f_e\,P_e, \qquad f_e = \frac{1}{T}\sum_{t} \mathbb 1[\arg\max_i p_i(x_t) = e], \qquad P_e = \frac{1}{T}\sum_t p_e(x_t)`, caption: "Switch Transformers (Fedus et al., 2022). $E$ = experts, $T$ = tokens in the batch, $f_e$ = share routed to expert $e$ (not differentiable), $P_e$ = mean router probability (differentiable), $\\alpha$ ≈ 0.01." },
+      { t: "p", text: String.raw`With uniform routing, $f_e = P_e = 1/E$ and $E\sum_e f_eP_e = 1$. Example with $E=4$, $f = (0.5, 0.25, 0.25, 0)$ and $P = (0.4, 0.3, 0.2, 0.1)$: $4(0.2 + 0.075 + 0.05 + 0) = 1.3$. The gradient flows only through $P_e$, weighted by $f_e$, so over-used experts get their router probabilities pushed down.` },
       { t: "h", text: "Speculative decoding preserves the distribution" },
-      { t: "p", text: String.raw`Let $p$ be the target distribution and $q$ the draft distribution at one position. The draft samples $x\sim q$ and keeps it with probability $\min(1, p(x)/q(x))$; on rejection, a token is drawn from $r(x) = \max(0, p(x)-q(x)) / \sum_u \max(0,p(u)-q(u))$. The probability of outputting $x$ is` },
+      { t: "p", text: String.raw`Let $p$ be the target distribution and $q$ the draft distribution at one position. The draft samples $x\sim q$ and keeps it with probability $\min(1, p(x)/q(x))$. On rejection, a token is drawn from $r(x) = \max(0, p(x)-q(x)) / \sum_u \max(0,p(u)-q(u))$. The probability of outputting $x$ is` },
       { t: "math", tex: String.raw`\Pr[x] = q(x)\min\!\Big(1,\tfrac{p(x)}{q(x)}\Big) + (1-\beta)\,r(x) = \min(p(x),q(x)) + \max(0, p(x)-q(x)) = p(x)`, caption: "$\\beta = \\sum_x \\min(p(x), q(x))$ is the acceptance probability, and $\\sum_u \\max(0, p(u)-q(u)) = 1-\\beta$, which cancels the normaliser of $r$." },
-      { t: "p", text: String.raw`Worked example: $p = (0.6, 0.3, 0.1)$, $q = (0.3, 0.5, 0.2)$. Acceptance probabilities $(1, 0.6, 0.5)$, $\beta = 0.3+0.3+0.1 = 0.7$, residual $r = (1, 0, 0)$. Output probability of token 1: $0.3\cdot1 + 0.3\cdot1 = 0.6$; token 2: $0.5\cdot0.6 = 0.3$; token 3: $0.2\cdot0.5 = 0.1$. Exactly $p$.` },
-      { t: "p", text: String.raw`If each draft token is accepted independently with probability $\beta$, the expected number of tokens per target call with $\gamma$ drafts is $(1-\beta^{\gamma+1})/(1-\beta)$ (Leviathan et al., 2023): for $\beta = 0.8$, 2.44 tokens at $\gamma=2$, 3.36 at $\gamma=4$, 4.33 at $\gamma=8$ — diminishing returns, while the draft cost grows linearly with $\gamma$.` },
+      { t: "p", text: String.raw`In plain words: rejections trim over-proposed tokens down to $p$, and the leftover tops up under-proposed ones. Worked example: $p = (0.6, 0.3, 0.1)$, $q = (0.3, 0.5, 0.2)$. Acceptance probabilities $(1, 0.6, 0.5)$, $\beta = 0.3+0.3+0.1 = 0.7$, leftover $r = (1, 0, 0)$. Token 1: $0.3\cdot1 + 0.3\cdot1 = 0.6$; token 2: $0.5\cdot0.6 = 0.3$; token 3: $0.2\cdot0.5 = 0.1$. Exactly $p$.` },
+      { t: "p", text: String.raw`If each draft token is accepted independently with probability $\beta$, the expected number of tokens per target call with $\gamma$ drafts is $(1-\beta^{\gamma+1})/(1-\beta)$ (Leviathan et al., 2023). For $\beta = 0.8$: 2.44 tokens at $\gamma=2$, 3.36 at $\gamma=4$, 4.33 at $\gamma=8$ — shrinking returns, while the draft cost grows linearly with $\gamma$.` },
       { t: "h", text: "Weight-only quantization" },
-      { t: "p", text: String.raw`Symmetric per-channel int8: for each output row, $s = \max_j |w_j| / 127$, store $q_j = \mathrm{round}(w_j/s)\in[-127,127]$, and compute with $\hat w_j = s\,q_j$. Example row $w = (0.12, -0.50, 0.03, 0.31)$: $s = 0.5/127 = 0.003937$, $q = (30, -127, 8, 79)$, $\hat w = (0.11811, -0.5, 0.031496, 0.311024)$, max error 0.00189 $\le s/2$. Int4 has only 15 levels, so a single outlier inflates $s$ for its whole row; **group-wise** scales (e.g. one per 64 or 128 weights) limit the damage at the cost of extra scale storage. Weights are dequantized on the fly inside the matmul kernel: decode reads half (int8) or a quarter (int4) of the bytes, which translates almost directly into speed because decode is memory-bound.` },
+      { t: "p", text: String.raw`Symmetric per-channel int8: for each output row, $s = \max_j |w_j| / 127$, store $q_j = \mathrm{round}(w_j/s)\in[-127,127]$, and compute with $\hat w_j = s\,q_j$. Example row $w = (0.12, -0.50, 0.03, 0.31)$: $s = 0.5/127 = 0.003937$, $q = (30, -127, 8, 79)$, $\hat w = (0.11811, -0.5, 0.031496, 0.311024)$, max error 0.00189 $\le s/2$.` },
+      { t: "p", text: "Int4 has only 15 levels, so one outlier inflates $s$ for its whole row; **group-wise** scales (e.g. one per 64 or 128 weights) limit the damage at the cost of extra scale storage. Weights are dequantized on the fly inside the matmul kernel, so decode reads half (int8) or a quarter (int4) of the bytes — almost directly a speed-up, since decode is memory-bound." },
     ],
 
     // ------------------------------------------------------------------ visual
     visual: [
-      { t: "sim", id: "transformer", caption: "The trained character Transformer: every generated character re-runs the full forward pass over the context — exactly the work a KV cache avoids." },
+      { t: "sim", id: "transformer", caption: "The trained character Transformer: every generated character reruns the full forward pass over the context — exactly the work a KV cache avoids." },
       { t: "list", items: [
-        "Press **+1 char** in the Generate panel a few times and open the **Attn** stage of layer 1. The keys and values of all earlier positions do not change when a character is appended (causal mask): they are what a KV cache stores. Only the new bottom row of the attention matrix is new work.",
-        "Count the cache for this model: 2 layers × 4 heads × 12 dims × 2 (K and V) = 192 numbers per character, so a full 64-character context holds 12,288 numbers.",
-        "In the attention heatmap, note that each row only needs its own query and the cached keys/values — this is why decode is a matrix–vector product per head.",
+        "Press **+1 char** in the Generate panel a few times and open the **Attn** stage of layer 1. Earlier positions' keys and values don't change when a character is added (causal mask) — that's what a KV cache stores; only the new bottom row is new work.",
+        "Size the cache for this model: 2 layers × 4 heads × 12 dims × 2 (K and V) = 192 numbers per character, so a full 64-character context holds 12,288 numbers.",
+        "In the attention heatmap, each row needs only its own query plus the cached keys/values — which is why decode is a matrix–vector product per head.",
       ] },
       { t: "sim", id: "decoding", caption: "Beam search multiplies the decode work: width B means B sequences and B KV caches per step." },
       { t: "p", text: "In the decoding simulator, switch to **Beam search** and watch the candidate count in the narration: B beams × 37 characters scored per step, one forward pass per beam." },
@@ -519,14 +529,18 @@ const lesson: Lesson = {
     // ------------------------------------------------------------------ scratch
     scratch: [
       { t: "h", text: "1. KV cache: cached decode equals uncached, with 15× fewer operations" },
-      { t: "p", text: "A tiny two-layer decoder with random weights. Both loops sample with the same pre-drawn uniform numbers, so any difference in logits would change the tokens. A counter tallies multiply-accumulates in the projections and attention." },
+      { t: "p", text: "A tiny two-layer decoder with random weights. Both loops sample with the same pre-drawn random numbers, so any difference in logits would change the tokens. A counter tallies multiply-accumulates in the projections and attention." },
       { t: "code", lang: "python", title: "kv_cache_numpy.py", code: KV, output: KV_OUT },
       { t: "h", text: "2. Online softmax and tiled (FlashAttention-style) attention" },
       { t: "code", lang: "python", title: "tiled_attention_numpy.py", code: FLASH, output: FLASH_OUT },
-      { t: "p", text: "The tiled loop never materialises more than a 16 × 16 block of scores (256 numbers instead of 40,000), skips blocks entirely in the future when causal, and still matches exact attention to $10^{-16}$. The last two lines use a crude count of numbers moved to and from slow memory: the advantage grows with $n$ because standard attention moves $O(n^2)$ score entries." },
+      { t: "p", text: "The tiled loop never holds more than a 16 × 16 block of scores (256 numbers instead of 40,000), skips fully-future blocks when causal, and still matches exact attention to $10^{-16}$. The last two lines use a rough count of numbers moved to and from slow memory: the advantage grows with $n$, because standard attention moves $O(n^2)$ score entries." },
       { t: "h", text: "3. Mixture of experts, speculative decoding and weight-only quantization" },
       { t: "code", lang: "python", title: "moe_speculative_quant_numpy.py", code: MOE, output: MOE_OUT },
-      { t: "p", text: "Three checks: gradient descent on the differentiable part of the balancing loss turns a skewed routing (34 to 93 tokens per expert) into a perfectly even one; the exact output distribution of the accept/reject rule equals $p$, and 200,000 simulated steps agree to sampling error; int4 is far lossier than int8, and group-wise scales help only modestly here because these weights are Gaussian — real LLM weights with outlier channels benefit much more." },
+      { t: "list", items: [
+        "Gradient descent on the differentiable part of the balancing loss turns a skewed routing (34 to 93 tokens per expert) into a perfectly even one.",
+        "The accept/reject rule's exact output distribution equals $p$, and 200,000 simulated steps agree to sampling error.",
+        "Int4 is far lossier than int8. Group-wise scales help only a little here because these weights are Gaussian; real LLM weights with outlier channels benefit much more.",
+      ] },
     ],
 
     // ------------------------------------------------------------------ framework
@@ -535,11 +549,11 @@ const lesson: Lesson = {
         { label: "PyTorch", blocks: [
           { t: "p", text: "The same ideas in PyTorch and Hugging Face, on randomly initialised models (no download): the library's KV cache (`past_key_values`), PyTorch's fused `scaled_dot_product_attention` with grouped-query attention, greedy speculative decoding with a layer-skipping draft, and weight-only int8." },
           { t: "code", lang: "python", title: "inference_torch.py", code: TORCH, output: TORCH_OUT },
-          { t: "p", text: "The greedy speculative variant accepts a draft token when it equals the target's arg-max; it reproduces target greedy decoding exactly and needed 8 target passes for 20 tokens. The draft is the first two of the target's four layers (a form of self-speculation), so it is half the cost and agrees often but not always. On a GPU, `scaled_dot_product_attention` dispatches to a FlashAttention kernel when shapes and dtypes allow." },
+          { t: "p", text: "The greedy speculative version accepts a draft token when it equals the target's arg-max; it reproduces target greedy decoding exactly with 8 target passes for 20 tokens. The draft is the target's first two of four layers (self-speculation): half the cost, agreeing often but not always. On a GPU, `scaled_dot_product_attention` uses a FlashAttention kernel when shapes and dtypes allow." },
         ] },
         { label: "TensorFlow / Keras", blocks: [
           { t: "code", lang: "python", title: "gqa_keras.py (not executed in CI)", code: KERAS, output: "Prints (2, 16, 8, 32): causal grouped-query attention output for 2 sequences, 16 positions, 8 query heads of size 32." },
-          { t: "p", text: "Keras' `MultiHeadAttention` does not expose GQA directly; the explicit einsum version shows exactly where the savings come from: only the 2 key/value heads would be cached." },
+          { t: "p", text: "Keras' `MultiHeadAttention` doesn't offer GQA directly. The explicit einsum version shows exactly where the savings come from: only the 2 key/value heads would be cached." },
         ] },
       ] },
     ],
@@ -547,7 +561,7 @@ const lesson: Lesson = {
     // ------------------------------------------------------------------ variations
     variations: [
       { t: "table", head: ["Technique", "What it reduces", "Advantages", "Disadvantages", "Use"], rows: [
-        ["KV cache", "Recomputation of past K, V", "Turns O(n²) per step into O(n); exact", "Memory grows with batch × length", "Every autoregressive server"],
+        ["KV cache", "Recomputing past K, V", "Turns O(n²) per step into O(n); exact", "Memory grows with batch × length", "Every autoregressive server"],
         ["MQA / GQA", "KV-cache size and bandwidth", "4–32× smaller cache, faster decode", "MQA can lose quality; must be trained (or up-trained) in", "Most recent open LLMs use GQA"],
         ["Paged KV cache", "Fragmentation, duplicate prefixes", "High batch sizes, prefix sharing", "Custom attention kernels", "vLLM and similar servers"],
         ["FlashAttention", "HBM traffic of attention", "Exact, faster, O(n) memory", "Kernel engineering per hardware", "Training and prefill everywhere"],
@@ -556,16 +570,16 @@ const lesson: Lesson = {
         ["Weight-only int8/int4", "Bytes of weights read", "~2–4× less memory and faster decode", "Accuracy loss at int4 without care (GPTQ, AWQ)", "Running models on smaller GPUs"],
         ["KV-cache quantization", "Bytes of cache", "Longer contexts / bigger batches", "Accuracy risk for keys with outliers", "Long-context serving"],
       ] },
-      { t: "p", text: "Named methods you will meet: **LLM.int8()** (Dettmers et al., 2022) keeps outlier features in fp16 during int8 matmuls; **GPTQ** (Frantar et al., 2023) quantizes weights layer by layer while compensating errors using second-order information; **AWQ** (Lin et al., 2024) protects the weights that matter for large activations. Sliding-window attention and attention sinks bound the cache for very long streams." },
+      { t: "p", text: "Named methods you'll meet: **LLM.int8()** (Dettmers et al., 2022) keeps outlier features in fp16 during int8 matmuls; **GPTQ** (Frantar et al., 2023) quantizes weights layer by layer, correcting errors with second-order information; **AWQ** (Lin et al., 2024) protects the weights that matter for large activations. Sliding-window attention and attention sinks cap the cache for very long streams." },
     ],
 
     // ------------------------------------------------------------------ applications
     applications: [
       { t: "list", items: [
         "**LLM serving engines** (vLLM, Hugging Face TGI, NVIDIA TensorRT-LLM) combine continuous batching, paged KV caches, FlashAttention kernels, quantization and speculative decoding.",
-        "**On-device and single-GPU inference**: llama.cpp-style runtimes rely on 4-bit group-wise weight quantization so that 7B-parameter models fit in a few GB.",
-        "**Long-context assistants** are limited by KV-cache memory far more than by weights; GQA and cache quantization are what make 100k-token contexts affordable.",
-        "**Mixture-of-experts models** such as Mixtral 8×7B (Jiang et al., 2024) activate 2 of 8 experts per token per layer, giving the per-token compute of a much smaller dense model.",
+        "**On-device and single-GPU inference**: llama.cpp-style runtimes use 4-bit group-wise weight quantization so 7B-parameter models fit in a few GB.",
+        "**Long-context assistants** are limited by KV-cache memory far more than weights; GQA and cache quantization make 100k-token contexts affordable.",
+        "**Mixture-of-experts models** such as Mixtral 8×7B (Jiang et al., 2024) use 2 of 8 experts per token per layer, giving the per-token compute of a much smaller dense model.",
         "**Prompt caching**: a shared system prompt's KV cache is computed once and reused across requests.",
       ] },
     ],
@@ -573,38 +587,38 @@ const lesson: Lesson = {
     // ------------------------------------------------------------------ tradeoffs
     tradeoffs: [
       { t: "list", items: [
-        "**Latency vs throughput**: larger batches raise tokens/second for the server but also raise per-request latency; the cache memory caps the batch size.",
+        "**Latency vs throughput**: bigger batches raise the server's tokens/second but also each request's latency; cache memory caps the batch size.",
         "**Memory vs compute**: the KV cache trades memory for compute; recomputation (or MQA) trades back. FlashAttention recomputes in the backward pass to save memory.",
         "**Quality vs speed**: GQA/MQA, int4 weights and cache quantization can cost accuracy; KV cache, FlashAttention and speculative decoding are exact.",
-        "**MoE**: compute per token is low but memory holds all experts, and expert parallelism needs all-to-all communication; small batches waste the sparsity.",
-        "**Speculative decoding** helps only when the draft agrees often and is much cheaper; for highly creative sampling (high temperature) acceptance drops, and at large batch sizes the GPU is no longer idle so the gain shrinks.",
+        "**MoE**: low compute per token, but memory holds all experts, expert parallelism needs all-to-all communication, and small batches waste the sparsity.",
+        "**Speculative decoding** helps only when the draft agrees often and is much cheaper; at high temperature acceptance drops, and at large batch sizes the GPU is no longer idle, so the gain shrinks.",
       ] },
     ],
 
     // ------------------------------------------------------------------ mistakes
     mistakes: [
       { t: "list", items: [
-        "**Wrong position for the new token** when decoding with a cache (e.g. position 0 instead of $t$, or RoPE applied with the wrong offset): outputs look fluent but differ from the uncached model. Always test cached vs uncached logits, as both code sections do.",
-        "**Forgetting to include the new token's own key** in its attention, or masking the cache: in the decode step every cached key is in the past and must be visible.",
+        "**Wrong position for the new token** when decoding with a cache (e.g. position 0 instead of $t$, or RoPE with the wrong offset): output looks fluent but differs from the uncached model. Always compare cached vs uncached logits, as both code sections do.",
+        "**Leaving out the new token's own key** from its attention, or masking the cache: in a decode step every cached key is in the past and must be visible.",
         "**Counting KV memory with $H$ instead of $H_{kv}$**, or forgetting the factor 2 (keys and values) or the batch size.",
-        "**Believing FlashAttention approximates attention.** It is exact up to floating-point rounding; its gains come from memory traffic, not fewer FLOPs.",
-        "**Speculative decoding with greedy acceptance under sampling.** Accepting a draft only when it equals the target's sample (or arg-max) does not give the target's sampling distribution; use the $\\min(1, p/q)$ rule and residual resampling.",
-        "**Dropping the residual renormalisation** after a rejection, which biases the output toward the draft model.",
-        "**Measuring MoE cost by total parameters** (memory) or by active parameters (FLOPs) alone: you need both.",
+        "**Thinking FlashAttention approximates attention.** It is exact up to floating-point rounding; its gains come from less memory traffic, not fewer FLOPs.",
+        "**Greedy acceptance in speculative decoding under sampling.** Accepting a draft only when it equals the target's sample (or arg-max) doesn't give the target's sampling distribution; use the $\\min(1, p/q)$ rule with leftover resampling.",
+        "**Skipping the leftover renormalisation** after a rejection, which biases the output toward the draft model.",
+        "**Judging MoE cost by total parameters** (memory) or by active parameters (FLOPs) alone: you need both.",
         "**Quantizing per tensor with outliers present**: one large weight sets the scale for millions of others. Use per-channel or group-wise scales.",
       ] },
     ],
 
     // ------------------------------------------------------------------ interview
     interview: [
-      { t: "qa", level: "beginner", q: "What is stored in a KV cache and why does it speed up generation?", a: "For every layer and every past token, the key and value vectors. Because of the causal mask, past tokens' keys and values never change when new tokens are appended, so each decode step only computes q, k, v for the new token and attends over the stored ones, instead of re-running the whole prefix." },
-      { t: "qa", level: "beginner", q: "Why is the decode phase memory-bound while prefill is compute-bound?", a: "Decode processes one token per sequence: each weight read from memory is used for only ~2 FLOPs (a matrix-vector product), so the GPU waits on memory. Prefill processes hundreds of prompt tokens per weight read (matrix-matrix products), giving enough arithmetic per byte to keep the compute units busy." },
+      { t: "qa", level: "beginner", q: "What is stored in a KV cache and why does it speed up generation?", a: "The key and value vectors for every layer and every past token. Thanks to the causal mask, past tokens' keys and values never change when new tokens are added. So each decode step computes q, k, v only for the new token and attends over the stored ones, instead of rerunning the whole prefix." },
+      { t: "qa", level: "beginner", q: "Why is the decode phase memory-bound while prefill is compute-bound?", a: "Decode handles one token per sequence: each weight read from memory is used for only ~2 FLOPs (a matrix-vector product), so the GPU waits on memory. Prefill handles hundreds of prompt tokens per weight read (matrix-matrix products), giving enough arithmetic per byte to keep the compute units busy." },
       { t: "qa", level: "beginner", q: "Write the KV-cache memory formula and evaluate it for 32 layers, 32 KV heads of size 128, 4096 tokens, fp16.", a: "M = 2 · L · H_kv · d_head · n · bytes = 2·32·32·128·4096·2 = 2,147,483,648 bytes = 2 GiB per sequence." },
-      { t: "qa", level: "intermediate", q: "How do MQA and GQA reduce inference cost, and what do they cost?", a: "They keep all query heads but share key/value heads: MQA uses one K/V head, GQA uses H_kv groups. The cache and the bytes read per decode step shrink by H/H_kv. The cost is reduced attention expressiveness; GQA with a moderate number of groups recovers almost all of MHA's quality, which is why it is the common choice. Existing MHA checkpoints can be converted by mean-pooling K/V heads and briefly up-training (Ainslie et al., 2023)." },
-      { t: "qa", level: "intermediate", q: "Explain how FlashAttention computes exact softmax attention without the full score matrix.", a: "It processes a block of queries against streamed blocks of keys and values in on-chip SRAM. For each query row it keeps a running max m, running sum ℓ and an unnormalised output. When a block brings a larger max, the old sum and output are rescaled by exp(m_old − m_new). After the last block it divides by ℓ. This is algebraically identical to softmax(QKᵀ/√d)V; it reduces HBM reads/writes, and the backward pass recomputes blocks instead of storing the n×n matrix." },
-      { t: "qa", level: "intermediate", q: "What is the load-balancing loss in a mixture-of-experts layer and why is it needed?", a: "Routers tend to collapse onto a few experts (which then train faster and get chosen more). The Switch Transformer loss α·E·Σ f_e P_e (f = fraction of tokens routed to e, P = mean router probability) is minimised by uniform routing; its gradient lowers router probabilities of over-used experts. Capacity limits additionally cap tokens per expert." },
-      { t: "qa", level: "advanced", q: "Prove that speculative sampling outputs tokens distributed exactly according to the target model.", a: "Draft x ~ q, accept with min(1, p(x)/q(x)), else sample from r = max(0, p − q)/(1 − β) with β = Σ min(p, q). Then Pr[x] = q(x)·min(1, p(x)/q(x)) + (1 − β)·r(x) = min(p(x), q(x)) + max(0, p(x) − q(x)) = p(x). Applied position by position (stopping at the first rejection, which conditions later positions correctly), the whole sequence has the target's distribution." },
-      { t: "qa", level: "advanced", q: "A 70B dense model and a mixture-of-experts model with 47B total and 13B active parameters: compare their decode cost.", a: "Per token, the MoE does roughly the FLOPs of a 13B dense model, but it must hold all 47B parameters in memory, and in the memory-bound decode regime the bytes read depend on which experts the batch touches: at batch size 1 only the active experts are read (~13B), while at large batch sizes nearly all experts are read every step. So MoE gives a large compute saving and a memory saving relative to 70B dense, but its advantage at large batch is mostly in FLOPs, and it adds routing/communication overheads." },
+      { t: "qa", level: "intermediate", q: "How do MQA and GQA reduce inference cost, and what do they cost?", a: "They keep all query heads but share key/value heads (MQA: one; GQA: H_kv groups), shrinking the cache and bytes read per decode step by H/H_kv. The price is less expressive attention; GQA with a moderate number of groups recovers almost all of MHA's quality, so it's the common choice. Existing MHA checkpoints can be converted by mean-pooling K/V heads and briefly up-training (Ainslie et al., 2023)." },
+      { t: "qa", level: "intermediate", q: "Explain how FlashAttention computes exact softmax attention without the full score matrix.", a: "It runs a block of queries against streamed key/value blocks in on-chip SRAM, keeping per query row a running max m, running sum ℓ and an unnormalised output. When a block brings a larger max, the old sum and output are rescaled by exp(m_old − m_new). After the last block it divides by ℓ. This equals softmax(QKᵀ/√d)V exactly; it cuts HBM reads/writes, and the backward pass recomputes blocks instead of storing the n×n matrix." },
+      { t: "qa", level: "intermediate", q: "What is the load-balancing loss in a mixture-of-experts layer and why is it needed?", a: "Routers tend to collapse onto a few experts, which train faster and get picked even more. The Switch Transformer loss α·E·Σ f_e P_e (f = share of tokens routed to e, P = mean router probability) is smallest under uniform routing; its gradient lowers the router probabilities of over-used experts. Capacity limits also cap tokens per expert." },
+      { t: "qa", level: "advanced", q: "Prove that speculative sampling outputs tokens distributed exactly according to the target model.", a: "Draft x ~ q, accept with min(1, p(x)/q(x)), else sample from r = max(0, p − q)/(1 − β) with β = Σ min(p, q). Then Pr[x] = q(x)·min(1, p(x)/q(x)) + (1 − β)·r(x) = min(p(x), q(x)) + max(0, p(x) − q(x)) = p(x). Applied position by position (stopping at the first rejection, which conditions later positions correctly), the whole sequence follows the target's distribution." },
+      { t: "qa", level: "advanced", q: "A 70B dense model and a mixture-of-experts model with 47B total and 13B active parameters: compare their decode cost.", a: "Per token, the MoE does roughly a 13B dense model's FLOPs but must hold all 47B parameters. In memory-bound decode, bytes read depend on which experts the batch touches: at batch 1 only the active experts (~13B); at large batches nearly all experts every step. So versus 70B dense, MoE saves much compute and some memory, but at large batch its edge is mostly FLOPs, plus routing/communication overhead." },
     ],
 
     // ------------------------------------------------------------------ practice
@@ -612,24 +626,24 @@ const lesson: Lesson = {
       { t: "quiz", questions: [
         { kind: "numeric", q: "KV-cache size in GiB for 40 layers, 8 KV heads of dimension 128, 8192 tokens, bf16, batch 1?", answer: 1.25, tolerance: 0.01, explain: "2·40·8·128·8192·2 = 1,342,177,280 bytes = 1.25 GiB." },
         { kind: "numeric", q: "A model has 32 query heads and uses GQA with 4 KV heads. By what factor is the KV cache smaller than with standard MHA?", answer: 8, tolerance: 0.01, explain: "H / H_kv = 32 / 4 = 8." },
-        { q: "FlashAttention is faster than standard attention mainly because it…", options: ["approximates softmax with a kernel", "uses fewer FLOPs by skipping small scores", "reduces reads and writes to GPU high-bandwidth memory by tiling and never materialising the n×n matrices", "uses int8 arithmetic"], answer: 2, explain: "It is exact and does about the same FLOPs (slightly more in the backward, due to recomputation); the win is IO." },
+        { q: "FlashAttention is faster than standard attention mainly because it…", options: ["approximates softmax with a kernel", "uses fewer FLOPs by skipping small scores", "reduces reads and writes to GPU high-bandwidth memory by tiling and never materialising the n×n matrices", "uses int8 arithmetic"], answer: 2, explain: "It is exact and does about the same FLOPs (slightly more in the backward pass, from recomputation); the win is memory traffic." },
         { kind: "numeric", q: "Online softmax: after processing x = (1, 3), the running sum is ℓ = 1.135335 with m = 3. A third element x = 4 arrives. What is the new ℓ? (4 decimals)", answer: 1.4177, tolerance: 0.0002, explain: "ℓ = 1.135335·e^{3−4} + e^0 = 0.417668 + 1 = 1.417668." },
         { kind: "numeric", q: "Target p = (0.5, 0.5), draft q = (0.8, 0.2). What is the acceptance probability β = Σ min(p, q)?", answer: 0.7, tolerance: 0.001, explain: "min(0.5, 0.8) + min(0.5, 0.2) = 0.5 + 0.2 = 0.7." },
-        { q: "Which statement about mixture-of-experts layers is FALSE?", options: ["Each token is processed by only k of the E experts", "All experts' parameters must be stored", "MoE reduces the memory needed for weights compared with a dense model of equal total parameters", "A load-balancing loss prevents routing collapse"], answer: 2, explain: "Memory depends on total parameters, which an MoE still stores; it reduces compute per token." },
+        { q: "Which statement about mixture-of-experts layers is FALSE?", options: ["Each token is processed by only k of the E experts", "All experts' parameters must be stored", "MoE reduces the memory needed for weights compared with a dense model of equal total parameters", "A load-balancing loss prevents routing collapse"], answer: 2, explain: "Memory depends on total parameters, which an MoE still stores; what it reduces is compute per token." },
         { kind: "numeric", q: "With acceptance rate β = 0.6 and γ = 3 draft tokens, how many tokens are produced per target forward pass on average? (3 decimals)", answer: 2.176, tolerance: 0.002, explain: "(1 − 0.6⁴)/(1 − 0.6) = (1 − 0.1296)/0.4 = 2.176." },
       ] },
-      { t: "exercise", title: "Size a serving deployment", prompt: "A model has 32 layers, 32 query heads, 8 KV heads, $d_{\\text{head}} = 128$, 8B parameters stored in bf16, and is served on an 80 GB GPU. Leaving 6 GB for activations and overhead, how many concurrent sequences of 8192 tokens fit? How many if the weights are quantized to int4 (ignore scale overhead)?", hint: "Weights: bytes = parameters × bytes per weight. Cache per sequence from the formula.", solution: [
+      { t: "exercise", title: "Size a serving deployment", prompt: "A model has 32 layers, 32 query heads, 8 KV heads, $d_{\\text{head}} = 128$ and 8B parameters stored in bf16, served on an 80 GB GPU. Keeping 6 GB for activations and overhead, how many concurrent 8192-token sequences fit? How many if the weights are quantized to int4 (ignore scale overhead)?", hint: "Weights: bytes = parameters × bytes per weight. Cache per sequence from the formula.", solution: [
         { t: "steps", items: [
           { title: "Weights", tex: String.raw`8\times10^9 \times 2 = 16\text{ GB (bf16)},\qquad 8\times10^9\times0.5 = 4\text{ GB (int4)}` },
           { title: "KV cache per sequence", tex: String.raw`2\cdot32\cdot8\cdot128\cdot8192\cdot2 = 1{,}073{,}741{,}824 \text{ bytes} \approx 1.074\text{ GB}` },
           { title: "bf16 weights", tex: String.raw`(80 - 16 - 6)/1.074 = 58/1.074 = 54.0 \Rightarrow 54 \text{ sequences}` },
           { title: "int4 weights", tex: String.raw`(80 - 4 - 6)/1.074 = 70/1.074 = 65.2 \Rightarrow 65 \text{ sequences}` },
         ] },
-        { t: "p", text: "Quantizing weights frees 12 GB, worth 11 more concurrent long sequences. With full multi-head attention (32 KV heads) the cache would be 4.3 GB per sequence and only 13 sequences would fit in bf16 — GQA matters more than weight quantization for long-context batch serving." },
+        { t: "p", text: "Quantizing weights frees 12 GB, worth 11 more long sequences. With full multi-head attention (32 KV heads) the cache would be 4.3 GB per sequence and only 13 sequences would fit in bf16 — for long-context batch serving, GQA matters more than weight quantization." },
       ] },
-      { t: "exercise", title: "Implement speculative sampling for one step", prompt: "Write `speculative_step(p_list, q_list, drafts, rng)` that, given the target distributions $p_1..p_{\\gamma+1}$, draft distributions $q_1..q_\\gamma$ and the draft tokens, returns the accepted tokens plus the correction or bonus token. Verify by Monte Carlo that the first output token has distribution $p_1$.", hint: "Loop over drafts; accept with probability min(1, p[x]/q[x]); on rejection sample from normalised max(0, p − q) and return; if all accepted, sample from p_{γ+1}.", solution: [
-        { t: "p", text: "The core of the solution is the single-position rule implemented in part 2 of the third scratch program (`accept`, `residual`, and the Monte Carlo check). Wrapping it in a loop over the γ positions, returning at the first rejection, and appending a sample from the target's distribution at position γ+1 when everything is accepted gives the full algorithm of Leviathan et al. (2023) and Chen et al. (2023). The Monte Carlo frequencies (0.5008, 0.2494, 0.1508, 0.069, 0.03) match $p = (0.5, 0.25, 0.15, 0.07, 0.03)$ to within sampling error." },
-        { t: "callout", kind: "warning", text: "The target distributions at positions 2..γ+1 must be computed conditioned on the draft tokens (which is what the single verification pass does). After a rejection, discard all later drafts: they were conditioned on a token that is no longer in the sequence." },
+      { t: "exercise", title: "Implement speculative sampling for one step", prompt: "Write `speculative_step(p_list, q_list, drafts, rng)` that takes the target distributions $p_1..p_{\\gamma+1}$, draft distributions $q_1..q_\\gamma$ and the draft tokens, and returns the accepted tokens plus the correction or bonus token. Check by Monte Carlo that the first output token follows $p_1$.", hint: "Loop over drafts; accept with probability min(1, p[x]/q[x]); on rejection sample from normalised max(0, p − q) and return; if all accepted, sample from p_{γ+1}.", solution: [
+        { t: "p", text: "The core is the single-position rule in part 2 of the third scratch program (`accept`, `residual`, and the Monte Carlo check). Wrap it in a loop over the γ positions, return at the first rejection, and append a sample from the target at position γ+1 when everything is accepted: that is the full algorithm of Leviathan et al. (2023) and Chen et al. (2023). The Monte Carlo frequencies (0.5008, 0.2494, 0.1508, 0.069, 0.03) match $p = (0.5, 0.25, 0.15, 0.07, 0.03)$ within sampling error." },
+        { t: "callout", kind: "warning", text: "The target distributions at positions 2..γ+1 must be conditioned on the draft tokens (which the single verification pass does). After a rejection, throw away all later drafts: they were conditioned on a token no longer in the sequence." },
       ] },
     ],
 
@@ -637,13 +651,13 @@ const lesson: Lesson = {
     summary: [
       { t: "list", items: [
         "Prefill: whole prompt at once, compute-bound (time to first token). Decode: one token per step, memory-bound (time per token).",
-        String.raw`KV cache: $M = 2\,L\,H_{kv}\,d_{\text{head}}\,n\,b\,B$ bytes; exact; turns per-step cost from $O(t)$ tokens of work into 1.`,
-        "MQA/GQA share key/value heads among query heads: cache shrinks by $H/H_{kv}$.",
+        String.raw`KV cache: $M = 2\,L\,H_{kv}\,d_{\text{head}}\,n\,b\,B$ bytes; exact; cuts per-step work from $O(t)$ tokens to 1.`,
+        "MQA/GQA share key/value heads among query heads: the cache shrinks by $H/H_{kv}$.",
         String.raw`Online softmax: $m_j=\max(m_{j-1},x_j)$, $\ell_j = \ell_{j-1}e^{m_{j-1}-m_j}+e^{x_j-m_j}$; FlashAttention = tiling + online softmax, exact, IO-efficient.`,
         String.raw`MoE: top-$k$ of $E$ experts per token; balance with $\alpha E\sum_e f_eP_e$.`,
         String.raw`Speculative decoding: accept with $\min(1,p/q)$, resample from $\max(0,p-q)$; output $\sim p$ exactly; expected tokens per call $(1-\beta^{\gamma+1})/(1-\beta)$.`,
-        "Weight-only quantization: int8 per-channel is nearly lossless; int4 needs group-wise scales and careful methods (GPTQ, AWQ).",
-        "Always verify optimisations against the unoptimised model's outputs.",
+        "Weight-only quantization: per-channel int8 is nearly lossless; int4 needs group-wise scales and careful methods (GPTQ, AWQ).",
+        "Always check optimisations against the unoptimised model's outputs.",
       ] },
     ],
 
@@ -652,7 +666,7 @@ const lesson: Lesson = {
       { t: "list", items: [
         "[Scaling Laws, LoRA, QLoRA and PEFT](/learn/m19/scaling-efficiency) — QLoRA fine-tunes on top of 4-bit weights; scaling laws tell you how big a model is worth serving.",
         "[Serialization, Inference Pipelines and APIs](/learn/m18/serving) — wrapping an optimised model in a production service.",
-        "[Instruction Tuning, RLHF and DPO](/learn/m20/alignment) — RLHF generates millions of rollouts, so fast inference is also a training concern.",
+        "[Instruction Tuning, RLHF and DPO](/learn/m20/alignment) — RLHF generates millions of rollouts, so fast inference matters for training too.",
       ] },
     ],
   },

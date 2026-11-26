@@ -25,10 +25,10 @@ export const DOMAIN = 3; // points and plot live in [−DOMAIN, DOMAIN]²
 export type PresetId = "separable" | "overlap" | "imbalanced" | "circles";
 
 export const PRESETS: { id: PresetId; label: string; note: string }[] = [
-  { id: "separable", label: "Separable blobs", note: "Two well-separated Gaussian clusters — a line can classify every point." },
-  { id: "overlap", label: "Overlapping blobs", note: "Two Gaussian clusters that overlap — no line can be perfect." },
-  { id: "imbalanced", label: "Imbalanced (9 : 1)", note: "45 points of class 0, 5 of class 1 — accuracy alone is misleading." },
-  { id: "circles", label: "Circles (not linear)", note: "Class 1 inside a ring of class 0 — no line can separate them." },
+  { id: "separable", label: "Separable blobs", note: "Two Gaussian clusters far apart. One straight line can get every point right." },
+  { id: "overlap", label: "Overlapping blobs", note: "Two Gaussian clusters that overlap, so no line can be perfect." },
+  { id: "imbalanced", label: "Imbalanced (9 : 1)", note: "45 points of class 0, only 5 of class 1. Accuracy alone can fool you." },
+  { id: "circles", label: "Circles (not linear)", note: "Class 1 sits inside a ring of class 0. No straight line can split them." },
 ];
 
 const clampD = (v: number) => Math.max(-DOMAIN + 0.1, Math.min(DOMAIN - 0.1, v));

@@ -69,36 +69,36 @@ export default function GnnSim() {
   let story: string;
   if (k === 0) {
     title = "Layer 0: the input features";
-    story = `${g.blurb} Press Step to run one round of message passing: every node replaces its value by a weighted average of its own value and its neighbours' values.`;
+    story = `${g.blurb} Press Step to run one round of message passing. Each node swaps its value for a weighted average of its own value and its neighbours' values.`;
   } else if (k <= 2) {
     title = `Layer ${k}: ${k}-hop neighbourhoods`;
     story =
       mode === "gcn"
-        ? `Each node now mixes information from up to ${k} hop${k > 1 ? "s" : ""} away. The weights 1/√(d̃ᵢd̃ⱼ) are fixed by the graph structure: a message from a high-degree node is damped, and a node with many neighbours averages over more of them.`
-        : `Each node now mixes information from up to ${k} hop${k > 1 ? "s" : ""} away. GAT recomputes its weights from the current features at every layer, so the weights on the edges change from layer to layer; each row still sums to 1.`;
-    if (g.group && k === 1) story += " Look at the noisy nodes 2 and 7: after one layer they have been pulled towards their community — this smoothing is exactly why shallow GNNs work on graphs where neighbours tend to share labels (homophily).";
-    if (g.key === "path") story += ` On the chain, node ${k} is now the farthest node with a non-zero value: the receptive field of a k-layer GNN is the k-hop neighbourhood.`;
+        ? `Each node now mixes in information from up to ${k} hop${k > 1 ? "s" : ""} away. The weights 1/√(d̃ᵢd̃ⱼ) are set by the graph's shape alone. A message from a node with many links (high degree) is turned down, and a node with many neighbours averages over more of them.`
+        : `Each node now mixes in information from up to ${k} hop${k > 1 ? "s" : ""} away. GAT recomputes its weights from the current features at every layer, so the edge weights change from layer to layer. Each node's weights still add up to 1.`;
+    if (g.group && k === 1) story += " Look at the noisy nodes 2 and 7: after one layer they were pulled toward their group. This smoothing is why shallow GNNs work well when neighbours tend to share labels (homophily).";
+    if (g.key === "path") story += ` On the chain, node ${k} is now the farthest node with a non-zero value. A k-layer GNN can only see k hops away (its receptive field).`;
   } else if (k < 10) {
     title = `Layer ${k}: smoothing continues`;
-    story = `The energy curve keeps falling: neighbouring values are becoming more alike. The spread of values is now ${fmt(spread, 3)} (it was ${fmt(Math.max(...x0) - Math.min(...x0), 3)}).`;
+    story = `The energy curve keeps falling, so neighbours are getting more alike. The spread of values is now ${fmt(spread, 3)} (it was ${fmt(Math.max(...x0) - Math.min(...x0), 3)}).`;
   } else {
     title = `Layer ${k}: over-smoothing`;
     story =
       mode === "gcn"
-        ? `After many layers the features approach the limit c·√d̃ᵢ (the dominant eigenvector of Â), which depends only on node degree and one number c = ⟨x, u⟩ — the information that distinguished the nodes is gone. Here the largest distance to that limit is ${fmt(Math.max(...h.map((v, i) => Math.abs(v - limit[i]))), 4)}.`
-        : `Repeated attention-weighted averaging drives every node to almost the same value (spread ${fmt(spread, 4)}): different weights change the speed, not the destination.`;
+        ? `After many layers the features approach the limit c·√d̃ᵢ (the top eigenvector of Â). It depends only on each node's degree and one number, c = ⟨x, u⟩. Whatever made the nodes different is gone. Here the largest distance to that limit is ${fmt(Math.max(...h.map((v, i) => Math.abs(v - limit[i]))), 4)}.`
+        : `Averaging again and again with attention weights pushes every node to almost the same value (spread ${fmt(spread, 4)}). Different weights change how fast, not where it ends up.`;
     if (g.group) {
       const signA = h.slice(0, 4).every((v) => v > 0) && h.slice(4).every((v) => v < 0);
       story += signA
-        ? " The communities are still separable by sign: the single bridge edge is a bottleneck, so the second eigenvalue of Â is close to 1 and smoothing between the communities is slow. Keep stepping."
-        : " The sign no longer separates the two communities — the reason most GCNs use only 2–3 layers.";
+        ? " The sign still splits the two groups. The single bridge edge is a bottleneck, so the second eigenvalue of Â is close to 1 and smoothing between the groups is slow. Keep stepping."
+        : " The sign no longer splits the two groups. That is why most GCNs use only 2–3 layers.";
     }
   }
 
   return (
     <SimShell
       title="Graph Message Passing"
-      subtitle="Scalar node features propagated layer by layer with GCN's normalised averaging or GAT's attention weights (W = 1, no non-linearity, so you see the aggregation alone)."
+      subtitle="One number per node, passed along layer by layer with GCN's averaging or GAT's attention weights. W = 1 and no non-linearity, so you see only the mixing."
       controls={
         <div className="space-y-2.5">
           <Controls
@@ -138,7 +138,7 @@ export default function GnnSim() {
               layer {k} · node {node} · d̃ = {dt[node]} (deg {dt[node] - 1} + self-loop)
             </div>
             {k === 0 ? (
-              <div className="text-muted">h{"⁽⁰⁾"} = {fmt(h[node], 3)} (input). Step to see how layer 1 is computed.</div>
+              <div className="text-muted">h{"⁽⁰⁾"} = {fmt(h[node], 3)} (input). Press Step to see how layer 1 is computed.</div>
             ) : (
               <>
                 <div className="mt-1 text-muted">h{`_${node}`}⁽{k}⁾ = Σⱼ {mode === "gcn" ? "Âᵢⱼ" : "αᵢⱼ"} · hⱼ⁽{k - 1}⁾</div>
@@ -159,7 +159,7 @@ export default function GnnSim() {
             </div>
           </div>
           <Narration title={title}>{story}</Narration>
-          <p className="text-xs text-muted">Click or tab to a node to inspect its aggregation.</p>
+          <p className="text-xs text-muted">Click (or tab to) a node to see how its value is mixed.</p>
         </div>
       }
     >
@@ -207,7 +207,7 @@ export default function GnnSim() {
         <figcaption className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
           <span className="text-accent">● positive</span>
           <span className="text-clay">● negative</span>
-          <span>colour scale fixed to the input range ±{fmt(maxAbs, 2)}</span>
+          <span>colours fixed to the input range ±{fmt(maxAbs, 2)}</span>
           <span className="text-gold">
             {mode === "gcn" ? "edge labels: Âᵢⱼ = 1/√(d̃ᵢd̃ⱼ)" : `edge labels: α from node ${node}'s softmax`}
             {k > 0 ? ` (layer ${k - 1}→${k})` : " (layer 0→1)"}
@@ -235,7 +235,7 @@ export default function GnnSim() {
           <circle cx={cx(k)} cy={cy(rel[k])} r={3} fill="var(--gold)" />
         </svg>
         <figcaption className="text-xs text-muted">
-          <span className="text-accent">{mode === "gcn" ? "normalised Dirichlet energy" : "Dirichlet energy"}</span> relative to layer 0 (log scale) vs number of layers: how different neighbouring nodes still are. It falls towards 0 — over-smoothing.
+          <span className="text-accent">{mode === "gcn" ? "normalised Dirichlet energy" : "Dirichlet energy"}</span> relative to layer 0 (log scale) vs number of layers. It measures how different neighbours still are. It falls toward 0: over-smoothing.
         </figcaption>
       </figure>
     </SimShell>

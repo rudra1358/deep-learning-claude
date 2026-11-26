@@ -102,7 +102,7 @@ export function schedulePhase(id: ScheduleId, t: number, p: ScheduleParams): str
   const pct = (x: number) => `${Math.round(100 * Math.min(1, Math.max(0, x)))}%`;
   switch (id) {
     case "constant":
-      return "constant — same rate on every step";
+      return "constant: the same rate on every step";
     case "step": {
       const k = Math.floor(t / p.stepSize);
       const next = (k + 1) * p.stepSize;
@@ -111,7 +111,7 @@ export function schedulePhase(id: ScheduleId, t: number, p: ScheduleParams): str
     case "exponential":
       return `smooth decay, ×${p.gamma} every ${p.stepSize} steps`;
     case "cosine":
-      return t < T / 2 ? `cosine, ${pct(t / T)} done — still near the peak half` : `cosine, ${pct(t / T)} done — annealing towards 0`;
+      return t < T / 2 ? `cosine, ${pct(t / T)} done, still in the high first half` : `cosine, ${pct(t / T)} done, slowly dropping to 0`;
     case "restarts": {
       const c = sgdrCycle(t, p.restartPeriod);
       return `cycle ${c.index + 1} (length ${c.period}), ${pct((t - c.start) / c.period)} through; restart at step ${c.start + c.period}`;
@@ -120,7 +120,7 @@ export function schedulePhase(id: ScheduleId, t: number, p: ScheduleParams): str
       return t < W ? `linear warm-up, ${t + 1}/${W}` : `cosine decay, ${pct((t - W) / Math.max(1, T - W))} done`;
     case "one-cycle": {
       const upEnd = ONE_CYCLE.pctStart * T - 1;
-      return t <= upEnd ? `rising from η0/25 towards the peak (${pct(t / upEnd)})` : `annealing towards η0/250000 (${pct((t - upEnd) / (T - 1 - upEnd))})`;
+      return t <= upEnd ? `rising from η0/25 towards the peak (${pct(t / upEnd)})` : `dropping towards η0/250000 (${pct((t - upEnd) / (T - 1 - upEnd))})`;
     }
     case "inv-sqrt":
       return t + 1 < W ? `linear warm-up, ${t + 1}/${W}` : `1/√t decay (rate = peak·√(W/t), ${(Math.sqrt(W / (t + 1)) * 100).toFixed(0)}% of peak)`;

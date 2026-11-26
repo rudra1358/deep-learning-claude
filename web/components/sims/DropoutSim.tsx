@@ -94,19 +94,19 @@ export default function DropoutSim() {
     title = "Eval mode: no units are dropped";
     body =
       scheme === "inverted"
-        ? `With inverted dropout nothing changes at test time: every unit passes h unchanged (scale 1), giving ${out === "linear" ? "y" : "z"} = ${fmt(evalPass.z)}. The 1/(1−p) = ${fmt(1 / (1 - p), 2)} factor was already applied during training.`
-        : `With classic dropout, training used unscaled survivors, so at test time every activation (equivalently every outgoing weight) must be multiplied by 1 − p = ${fmt(1 - p, 2)}: z = ${fmt(evalPass.z)}. Forgetting it would give ${fmt(forward(net, null, 0, "inverted", "linear").z)} — a systematic shift.`;
+        ? `With inverted dropout, nothing changes at test time. Every unit passes h through as is (scale 1), giving ${out === "linear" ? "y" : "z"} = ${fmt(evalPass.z)}. The 1/(1−p) = ${fmt(1 / (1 - p), 2)} boost was already applied during training.`
+        : `With classic dropout, training did not rescale the surviving units. So at test time every activation (or, the same thing, every outgoing weight) must be multiplied by 1 − p = ${fmt(1 - p, 2)}: z = ${fmt(evalPass.z)}. Forget this and you get ${fmt(forward(net, null, 0, "inverted", "linear").z)}, which is always off in the same direction.`;
   } else if (k === 0) {
     title = "Press Step to draw a dropout mask";
-    body = `Each Step draws a fresh Bernoulli mask: every hidden unit is kept with probability 1 − p = ${fmt(1 - p, 2)}. ${scheme === "inverted" ? `Survivors are multiplied by 1/(1 − p) = ${fmt(sT, 3)}.` : "Survivors are left unscaled (classic dropout)."}`;
+    body = `Each Step draws a new random mask (a coin flip per unit): each hidden unit stays with probability 1 − p = ${fmt(1 - p, 2)}. ${scheme === "inverted" ? `Units that stay are multiplied by 1/(1 − p) = ${fmt(sT, 3)}.` : "Units that stay are not rescaled (classic dropout)."}`;
   } else {
     title = `Mask ${k}: ${kept} of ${N_HID} units kept`;
-    body = `This sub-network outputs ${out === "linear" ? "y" : "y = σ(z)"} = ${fmt(pass.y)}. The running mean over ${k} masks is ${fmt(runMean)}; the eval-mode output is ${fmt(evalPass.y)}${
-      nonlinear ? ` and the exact average over all 1024 masks is ${fmt(exact)}` : ""
+    body = `This smaller network outputs ${out === "linear" ? "y" : "y = σ(z)"} = ${fmt(pass.y)}. The running mean over ${k} masks is ${fmt(runMean)}. The eval-mode output is ${fmt(evalPass.y)}${
+      nonlinear ? `, and the exact average over all 1024 masks is ${fmt(exact)}` : ""
     }. ${
       nonlinear
-        ? `Because σ is non-linear, E[σ(z)] ≠ σ(E[z]): the eval network is only an approximation of the ensemble average (gap ${fmt(exact - evalPass.y)}).`
-        : `Because z is linear in the dropped activations, E[z] equals the eval output exactly; the running mean wanders around it with per-sample std ${fmt(sd)} and its error shrinks like 1/√k.`
+        ? `Because σ is curved, E[σ(z)] ≠ σ(E[z]). So the eval network only comes close to the average over all masks (gap ${fmt(exact - evalPass.y)}).`
+        : `Because z is a straight-line (linear) sum of the activations, E[z] equals the eval output exactly. The running mean wobbles around it with per-sample std ${fmt(sd)}, and its error shrinks like 1/√k.`
     }`;
   }
 
@@ -119,7 +119,7 @@ export default function DropoutSim() {
   return (
     <SimShell
       title="Dropout"
-      subtitle="8 inputs → 10 ReLU hidden units (dropout here) → 1 output. Every Step samples a new mask; the plot compares random sub-network outputs with the deterministic eval-mode output."
+      subtitle="8 inputs → 10 ReLU hidden units (dropout here) → 1 output. Each Step draws a new mask. The plot compares these random smaller networks with the fixed eval-mode output."
       controls={
         <div className="space-y-2">
           <Controls
@@ -296,11 +296,11 @@ export default function DropoutSim() {
           {k > 0 && <path d={meanPath} fill="none" stroke="var(--accent)" strokeWidth={2} />}
         </svg>
         <figcaption className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
-          <span>● sampled train output (mask index on x-axis)</span>
+          <span>● train output for one mask (mask number on x-axis)</span>
           <span className="text-accent">— running mean</span>
           <span className="text-gold">– – eval-mode output</span>
           {nonlinear && <span>··· exact mask average</span>}
-          {scheme === "classic" && <span className="text-clay">– – eval without the (1−p) factor (bug)</span>}
+          {scheme === "classic" && <span className="text-clay">– – eval without the (1−p) factor (a bug)</span>}
         </figcaption>
       </figure>
 

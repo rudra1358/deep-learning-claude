@@ -43,11 +43,11 @@ export function ProgressPreview({ firstLesson }: { firstLesson: string }) {
           </Link>
         ) : (
           <Link href={`/learn/${firstLesson}`} className="sim-btn primary">
-            Begin the first lesson
+            Start the first lesson
           </Link>
         )}
         <Link href="/progress" className="sim-btn">
-          Open dashboard
+          See your progress
         </Link>
       </div>
       <p className="mt-3 text-xs text-faint">Progress is saved in this browser — no account needed.</p>

@@ -34,7 +34,7 @@ export function PracticeList({ items }: { items: Item[] }) {
                   Best score: {best.score}/{best.total}
                 </span>
               ) : (
-                <span className="text-faint">Not attempted</span>
+                <span className="text-faint">Not tried yet</span>
               )}
             </div>
           </Link>

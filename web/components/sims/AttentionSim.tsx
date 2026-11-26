@@ -235,7 +235,7 @@ function QueryBreakdown({ r, h, q }: { r: AttentionResult; h: number; q: number 
         </table>
       </div>
       <p className="mt-1 text-[11px] leading-snug text-muted">
-        α<sub>j</sub> = e<sup>s<sub>j</sub>−max</sup> / Σ. Subtracting the row maximum does not change the result but prevents overflow.
+        α<sub>j</sub> = e<sup>s<sub>j</sub>−max</sup> / Σ. Subtracting the row max keeps exp from overflowing. The result stays the same.
       </p>
     </div>
   );
@@ -291,7 +291,7 @@ export default function AttentionSim() {
           </select>
         </label>
         <label className="flex items-center gap-1.5">
-          <input type="checkbox" checked={usePE} onChange={(e) => setUsePE(e.target.checked)} /> Positional encoding
+          <input type="checkbox" checked={usePE} onChange={(e) => setUsePE(e.target.checked)} /> Position info (PE)
         </label>
         <label className="flex items-center gap-1.5">
           <input type="checkbox" checked={causal} onChange={(e) => setCausal(e.target.checked)} /> Causal mask
@@ -320,20 +320,20 @@ export default function AttentionSim() {
       <Narration title={`${stage + 1}. ${STAGES[stage]}`}>{narration}</Narration>
       {n > 0 && stage >= 3 && <QueryBreakdown r={r} h={h} q={q} />}
       <div className="rounded-lg border border-border p-2.5 text-[11px] leading-snug text-muted">
-        <span className="font-medium text-clay">Untrained weights.</span> E, W<sub>Q</sub>, W<sub>K</sub>, W<sub>V</sub> and W<sub>O</sub> are seeded random numbers, so the attention
-        pattern carries no linguistic meaning. What is exact is the computation: every number shown is the number computed.
+        <span className="font-medium text-clay">These weights are untrained.</span> E, W<sub>Q</sub>, W<sub>K</sub>, W<sub>V</sub> and W<sub>O</sub> are random numbers, so the attention
+        pattern means nothing about language. But the math is real: every number you see is exactly what was computed.
       </div>
     </div>
   );
 
   let body: ReactNode = null;
   if (n === 0) {
-    body = <p className="text-sm text-muted">Type a sentence to begin.</p>;
+    body = <p className="text-sm text-muted">Type a sentence to start.</p>;
   } else if (stage === 0) {
     body = (
       <div>
         <p className="mb-3 text-xs text-muted">
-          Whitespace tokenization, lower-cased, max {MAX_TOKENS} tokens. IDs come from a toy hashed vocabulary of 10,000 entries, so a repeated word gets the same ID.
+          We split on spaces and lower-case, up to {MAX_TOKENS} tokens. IDs come from a toy vocabulary of 10,000 entries, so a repeated word gets the same ID.
           Click a token to make it the query.
         </p>
         <div className="flex flex-wrap gap-2">
@@ -363,7 +363,7 @@ export default function AttentionSim() {
             <MatrixView title="Input X = E + PE" shape={`${n} × ${D_MODEL}`} M={r.X} rowLabels={tokLabels} colLabels={dimLabels(D_MODEL)} highlightRow={q} onRowClick={setQuerySel} />
           </>
         ) : (
-          <p className="text-xs text-clay">Positional encoding is off: X = E. Repeated words now have identical rows, and attention cannot tell positions apart.</p>
+          <p className="text-xs text-clay">Position info is off, so X = E. Repeated words now have identical rows, and attention cannot tell where words are.</p>
         )}
       </div>
     );
@@ -372,7 +372,7 @@ export default function AttentionSim() {
     body = (
       <div className="grid gap-4">
         <p className="text-xs text-muted">
-          Full projections Q = X·W<sub>Q</sub>, K = X·W<sub>K</sub>, V = X·W<sub>V</sub> are each {n} × {D_MODEL}. Head {h + 1} uses columns {a}…{a + dK - 1}, i.e. {n} × {dK} slices.
+          The full Q = X·W<sub>Q</sub>, K = X·W<sub>K</sub>, V = X·W<sub>V</sub> are each {n} × {D_MODEL}. Head {h + 1} takes columns {a}…{a + dK - 1}, so it gets {n} × {dK} slices.
         </p>
         <div className="grid gap-4 xl:grid-cols-3">
           <MatrixView title={`Q (head ${h + 1})`} shape={`${n} × ${dK}`} M={hr.Q} rowLabels={tokLabels} colLabels={dimLabels(dK, "q")} highlightRow={q} onRowClick={setQuerySel} />
@@ -383,7 +383,7 @@ export default function AttentionSim() {
     );
   } else if (stage >= 3 && stage <= 6) {
     const M = stage === 3 ? hr.scores : stage === 4 ? hr.scaled : stage === 5 ? hr.masked : hr.weights;
-    const title = stage === 3 ? "Raw scores S = Q Kᵀ" : stage === 4 ? `Scaled scores S / √${dK}` : stage === 5 ? (causal ? "Masked scores (j > i set to −∞)" : "Masked scores (no mask active)") : "Attention weights A = softmax(row-wise)";
+    const title = stage === 3 ? "Raw scores S = Q Kᵀ" : stage === 4 ? `Scaled scores S / √${dK}` : stage === 5 ? (causal ? "Masked scores (j > i set to −∞)" : "Masked scores (no mask active)") : "Attention weights A = softmax of each row";
     body = (
       <div className="grid gap-4">
         <MatrixView
@@ -400,7 +400,7 @@ export default function AttentionSim() {
         />
         {stage === 6 && heads > 1 && (
           <div>
-            <div className="mb-1 text-xs font-medium">Compare heads (click to select)</div>
+            <div className="mb-1 text-xs font-medium">Compare heads (click one)</div>
             <div className="flex flex-wrap gap-3">
               {r.heads.map((hh, k) => (
                 <button key={k} onClick={() => setHeadSel(k)} className="rounded-md border p-1.5" style={{ borderColor: k === h ? "var(--gold)" : "var(--border)" }} aria-label={`Show head ${k + 1}`}>
@@ -412,7 +412,7 @@ export default function AttentionSim() {
           </div>
         )}
         <div>
-          <div className="mb-1 text-xs text-muted">Connections from the selected query (thickness ∝ final softmax weight, head {h + 1}). Click a query token above the lines.</div>
+          <div className="mb-1 text-xs text-muted">Links from the chosen query (thicker line = bigger softmax weight, head {h + 1}). Click a query token above the lines to switch.</div>
           <ConnectionDiagram tokens={r.tokens} weights={hr.weights} masked={hr.masked} q={q} onPick={setQuerySel} />
         </div>
       </div>
@@ -453,7 +453,7 @@ export default function AttentionSim() {
             <li>
               weights: 4·d² = {4 * D_MODEL * D_MODEL}; with biases 4d² + 4d = {mhaParamCount(D_MODEL)} (independent of h)
             </li>
-            <li>score matrices: {heads} × ({n} × {n}) — memory grows as n²</li>
+            <li>score matrices: {heads} × ({n} × {n}), so memory grows as n²</li>
           </ul>
         </div>
       </div>
@@ -461,7 +461,7 @@ export default function AttentionSim() {
   }
 
   return (
-    <SimShell title="Attention & Transformer Explorer" subtitle="Scaled dot-product, multi-head self-attention on your own sentence, one exact step at a time." controls={controls} aside={aside}>
+    <SimShell title="Attention & Transformer Explorer" subtitle="Watch multi-head self-attention run on your own sentence, one exact step at a time." controls={controls} aside={aside}>
       <nav className="mb-4 flex flex-wrap gap-1" aria-label="Stages">
         {STAGES.map((name, k) => (
           <button
@@ -496,7 +496,7 @@ function MiniHeatmap({ M }: { M: Matrix }) {
 
 function stageNarration(stage: number, r: AttentionResult, h: number, q: number, o: { heads: number; usePE: boolean; causal: boolean }): ReactNode {
   const n = r.tokens.length;
-  if (n === 0) return "Enter at least one word.";
+  if (n === 0) return "Type at least one word.";
   const hr = r.heads[h];
   const dK = r.dK;
   const qt = `“${r.tokens[q]}”`;
@@ -504,26 +504,26 @@ function stageNarration(stage: number, r: AttentionResult, h: number, q: number,
   const best = row.indexOf(Math.max(...row));
   switch (stage) {
     case 0:
-      return `The sentence is split on whitespace into n = ${n} tokens. Each token is looked up in a vocabulary and replaced by an integer ID. Attention never sees the strings, only vectors derived from these IDs.`;
+      return `We split the sentence on spaces into n = ${n} tokens. Each token is looked up in a vocabulary and swapped for a number (its ID). Attention never sees the words, only vectors made from these IDs.`;
     case 1:
       return o.usePE
-        ? `Each ID indexes a row of the embedding table, giving E (${n} × ${D_MODEL}). Because attention ignores order, we add the sinusoidal positional encoding PE row by row: X = E + PE. Row ${q} of X is what ${qt} contributes.`
-        : `Each ID indexes a row of the embedding table, giving E (${n} × ${D_MODEL}). With PE switched off, X = E: the model would produce the same output for any permutation of the words (up to the same permutation of rows).`;
+        ? `Each ID picks a row of the embedding table, giving E (${n} × ${D_MODEL}). Attention has no sense of word order, so we add a positional encoding PE (sine waves that mark each position): X = E + PE. Row ${q} of X stands for ${qt}.`
+        : `Each ID picks a row of the embedding table, giving E (${n} × ${D_MODEL}). With PE off, X = E. Shuffle the words and the output rows just shuffle the same way. The model cannot see order.`;
     case 2:
-      return `Three learned matrices project every token: Q = XW_Q asks "what am I looking for?", K = XW_K says "what do I contain?", V = XW_V carries "what I pass on". With h = ${o.heads}, each head works in dₖ = ${D_MODEL}/${o.heads} = ${dK} dimensions.`;
+      return `Three learned matrices turn every token into three vectors. Q = XW_Q asks "what am I looking for?" K = XW_K says "what do I contain?" V = XW_V holds "what I pass on". With h = ${o.heads} heads, each works in dₖ = ${D_MODEL}/${o.heads} = ${dK} dimensions.`;
     case 3:
-      return `Every query is compared with every key by a dot product: S[i][j] = q_i · k_j. The row for ${qt} is ${hr.scores[q].map((v) => v.toFixed(2)).join(", ")}. This costs n² · dₖ = ${n * n * dK} multiply-adds for this head.`;
+      return `Every query is compared with every key using a dot product: S[i][j] = q_i · k_j. A bigger score means a better match. The row for ${qt} is ${hr.scores[q].map((v) => v.toFixed(2)).join(", ")}. That costs n² · dₖ = ${n * n * dK} multiply-adds for this head.`;
     case 4:
-      return `Divide by √dₖ = ${Math.sqrt(dK).toFixed(3)}. For random q, k with unit-variance entries, q·k has variance dₖ; scaling restores unit variance so softmax does not saturate as dₖ grows.`;
+      return `Divide by √dₖ = ${Math.sqrt(dK).toFixed(3)}. With random q, k whose entries have variance 1, q·k has variance dₖ. Scores that big make softmax saturate (almost all weight on one key). Scaling brings the variance back to 1.`;
     case 5:
       return o.causal
-        ? `Causal mask: position i may only attend to positions j ≤ i, so every cell above the diagonal is set to −∞. After softmax, e^(−∞) = 0, so future tokens receive exactly zero weight. ${qt} can see ${q + 1} key(s).`
-        : `No mask is active, so this matrix equals the scaled scores. Turn on "Causal mask" to see the upper triangle become −∞ (a decoder / GPT-style model). Padding masks work the same way, on padded key columns.`;
+        ? `Causal mask: position i may only look at positions j ≤ i, so every cell above the diagonal becomes −∞. After softmax, e^(−∞) = 0, so future tokens get exactly zero weight. ${qt} can see ${q + 1} key(s).`
+        : `No mask is on, so this matrix equals the scaled scores. Turn on "Causal mask" to see the upper triangle become −∞, as in a GPT-style decoder. Padding masks work the same way, on padded key columns.`;
     case 6:
-      return `Softmax is applied to each row separately, so each row becomes a probability distribution over keys (the Σ column is 1). In head ${h + 1}, ${qt} puts its largest weight, ${row[best].toFixed(3)}, on “${r.tokens[best]}”.`;
+      return `Softmax runs on each row on its own. It turns the row into probabilities over the keys, so each row adds up to 1 (see the Σ column). In head ${h + 1}, ${qt} puts its biggest weight, ${row[best].toFixed(3)}, on “${r.tokens[best]}”.`;
     case 7:
-      return `Each output row is a weighted average of the value rows: z_i = Σ_j α_ij v_j. Since the weights are non-negative and sum to 1, z_${q} lies inside the convex hull of the value vectors. Shape: (${n}×${n})·(${n}×${dK}) = ${n}×${dK}.`;
+      return `Each output row is a weighted average of the value rows: z_i = Σ_j α_ij v_j. The weights are never negative and add up to 1. So z_${q} is a blend that lies inside the convex hull (the "outline") of the value vectors. Shape: (${n}×${n})·(${n}×${dK}) = ${n}×${dK}.`;
     default:
-      return `The ${o.heads} head outputs (each ${n} × ${dK}) are concatenated back to ${n} × ${D_MODEL} and mixed by W_O. In a Transformer block this Y is added to X (residual connection), normalised, and passed to a feed-forward network.`;
+      return `The ${o.heads} head outputs (each ${n} × ${dK}) are glued side by side into ${n} × ${D_MODEL}, then mixed by W_O. In a Transformer block, this Y is added back to X (a residual connection), normalised, and sent to a feed-forward network.`;
   }
 }

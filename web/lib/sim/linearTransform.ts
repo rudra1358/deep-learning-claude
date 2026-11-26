@@ -248,13 +248,13 @@ export interface Preset {
 }
 
 export const PRESETS: Preset[] = [
-  { key: "general", label: "General (λ = 2.5, 1)", M: { a: 2, b: 1, c: 0.5, d: 1.5 }, note: "Two real eigen-directions that are not perpendicular." },
-  { key: "symmetric", label: "Symmetric", M: { a: 2, b: 1, c: 1, d: 2 }, note: "Symmetric: real eigenvalues, perpendicular eigenvectors, SVD = eigen-decomposition." },
-  { key: "rotation", label: "Rotation 45°", M: { a: Math.SQRT1_2, b: -Math.SQRT1_2, c: Math.SQRT1_2, d: Math.SQRT1_2 }, note: "Rotation: no real eigenvectors (eigenvalues e^{±iθ}); det = 1." },
-  { key: "scaling", label: "Scaling", M: { a: 2, b: 0, c: 0, d: 0.5 }, note: "Axis-aligned scaling: the axes are the eigenvectors; det = 1." },
-  { key: "shear", label: "Shear", M: { a: 1, b: 1, c: 0, d: 1 }, note: "Shear: λ = 1 twice but only one eigen-direction (defective); area preserved." },
-  { key: "reflection", label: "Reflection", M: { a: 1, b: 0, c: 0, d: -1 }, note: "Reflection across the x-axis: det = −1 flips orientation." },
-  { key: "projection", label: "Projection (singular)", M: { a: 1, b: 0, c: 0, d: 0 }, note: "Projection onto the x-axis: det = 0, rank 1 — the plane collapses to a line." },
-  { key: "lesson-eig", label: "Lesson: [[4,1],[2,3]]", M: { a: 4, b: 1, c: 2, d: 3 }, note: "The eigen worked example: λ = 5 along (1,1), λ = 2 along (1,−2)." },
-  { key: "lesson-svd", label: "Lesson: [[3,0],[4,5]]", M: { a: 3, b: 0, c: 4, d: 5 }, note: "The SVD worked example: σ = √45 ≈ 6.708 and √5 ≈ 2.236." },
+  { key: "general", label: "General (λ = 2.5, 1)", M: { a: 2, b: 1, c: 0.5, d: 1.5 }, note: "Two real eigen-directions (lines that only stretch), not at right angles." },
+  { key: "symmetric", label: "Symmetric", M: { a: 2, b: 1, c: 1, d: 2 }, note: "Symmetric: real eigenvalues, eigenvectors at right angles, SVD = eigen-decomposition." },
+  { key: "rotation", label: "Rotation 45°", M: { a: Math.SQRT1_2, b: -Math.SQRT1_2, c: Math.SQRT1_2, d: Math.SQRT1_2 }, note: "Rotation: every direction turns, so no real eigenvectors (eigenvalues e^{±iθ}); det = 1." },
+  { key: "scaling", label: "Scaling", M: { a: 2, b: 0, c: 0, d: 0.5 }, note: "Stretch along the axes: the axes are the eigenvectors; det = 1." },
+  { key: "shear", label: "Shear", M: { a: 1, b: 1, c: 0, d: 1 }, note: "Shear: λ = 1 twice, but only one eigen-direction (called defective). Area stays the same." },
+  { key: "reflection", label: "Reflection", M: { a: 1, b: 0, c: 0, d: -1 }, note: "Mirror across the x-axis: det = −1 means the plane is flipped over." },
+  { key: "projection", label: "Projection (singular)", M: { a: 1, b: 0, c: 0, d: 0 }, note: "Squash onto the x-axis: det = 0, rank 1. The whole plane collapses to a line." },
+  { key: "lesson-eig", label: "Lesson: [[4,1],[2,3]]", M: { a: 4, b: 1, c: 2, d: 3 }, note: "The lesson's eigen example: λ = 5 along (1,1), λ = 2 along (1,−2)." },
+  { key: "lesson-svd", label: "Lesson: [[3,0],[4,5]]", M: { a: 3, b: 0, c: 4, d: 5 }, note: "The lesson's SVD example: σ = √45 ≈ 6.708 and √5 ≈ 2.236." },
 ];

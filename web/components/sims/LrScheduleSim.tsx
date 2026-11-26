@@ -137,7 +137,7 @@ export default function LrScheduleSim() {
   return (
     <SimShell
       title="Learning-Rate Schedules"
-      subtitle="Each selected schedule drives its own real training run (logistic regression, mini-batch SGD + momentum) on the same data and the same mini-batches."
+      subtitle="A schedule decides how the learning rate changes during training. Each one you pick gets its own real training run (logistic regression, mini-batch SGD + momentum) on the same data and batches."
       controls={
         <div className="space-y-2.5">
           <Controls s={s} extra={<span className="font-mono text-xs text-faint">optimizer step {t}/{T}</span>} />
@@ -181,8 +181,8 @@ export default function LrScheduleSim() {
           <Narration title={t === 0 ? "Ready" : `After ${t} optimizer step${t > 1 ? "s" : ""}`}>
             {t === 0 ? (
               <p>
-                Every run starts from w = 0. Press Play or Step. The gold line on the upper plot marks the current step; the lower plot shows the training loss above its
-                minimum (log scale).
+                Every run starts from w = 0. Press Play or Step. The gold line on the top plot marks the current step. The bottom plot shows how far the training loss is above its
+                lowest possible value (log scale).
               </p>
             ) : (
               <>
@@ -196,9 +196,9 @@ export default function LrScheduleSim() {
                 </ul>
                 {best && (
                   <p>
-                    Lowest recent loss: <strong className="text-text">{best.sc.label}</strong> ({fmt(best.recent, 4)} above the optimum, averaged over the last 20 steps).
+                    Lowest recent loss: <strong className="text-text">{best.sc.label}</strong> ({fmt(best.recent, 4)} above the best possible, averaged over the last 20 steps).
                     {constRow && !constRow.diverged && best.sc.id !== "constant" && t > T / 2 && (
-                      <> The constant rate is stuck on its noise floor ({fmt(constRow.recent, 3)}): its steps never shrink, so the mini-batch noise keeps kicking it.</>
+                      <> The constant rate is stuck at its noise floor ({fmt(constRow.recent, 3)}). Its steps never get smaller, so the noise from each mini-batch keeps bumping it around.</>
                     )}
                   </p>
                 )}
@@ -228,9 +228,9 @@ export default function LrScheduleSim() {
             </table>
           </div>
           <p className="text-xs text-faint">
-            {PROBLEM.n} examples, 2 features scaled 1 and 3, {Math.round(PROBLEM.labelNoise * 100)}% flipped labels, {Math.round(PROBLEM.outlierFrac * 100)}% outliers with 8×
-            larger features. Batch {PROBLEM.batch}, momentum β = {PROBLEM.beta}. Minimum loss L* = {fmt(ds.lossStar, 4)} (Newton&apos;s method); curvature at w = 0 is{" "}
-            {fmt(ds.lambdaMax0, 2)}, so momentum SGD is stable there only for η below about 3.8/{fmt(ds.lambdaMax0, 1)} = {fmt(3.8 / ds.lambdaMax0, 2)}. Exponential decay
+            {PROBLEM.n} examples, 2 features on scales 1 and 3, {Math.round(PROBLEM.labelNoise * 100)}% flipped labels, {Math.round(PROBLEM.outlierFrac * 100)}% outliers with 8×
+            larger features. Batch {PROBLEM.batch}, momentum β = {PROBLEM.beta}. Lowest loss L* = {fmt(ds.lossStar, 4)} (found with Newton&apos;s method). Curvature (how sharply the loss bends) at w = 0 is{" "}
+            {fmt(ds.lambdaMax0, 2)}, so momentum SGD stays stable there only for η below about 3.8/{fmt(ds.lambdaMax0, 1)} = {fmt(3.8 / ds.lambdaMax0, 2)}. Exponential decay
             uses η₀·γ^(t/s).
           </p>
         </div>
@@ -268,7 +268,7 @@ export default function LrScheduleSim() {
 
         {/* ---------------- loss plot ---------------- */}
         <figure className="m-0">
-          <figcaption className="mb-1 text-xs text-muted">Training loss above its minimum, L(w_t) − L* (log scale, {SMOOTH}-step moving average)</figcaption>
+          <figcaption className="mb-1 text-xs text-muted">Training loss above its lowest value, L(w_t) − L* (log scale, averaged over {SMOOTH} steps)</figcaption>
           <svg viewBox={`0 0 ${PW} ${PH}`} className="h-auto w-full" role="img" aria-label={`Excess training loss on a log scale for each selected schedule up to step ${t}`}>
             {lossTicks.map((e) => (
               <g key={e}>

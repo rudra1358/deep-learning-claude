@@ -139,14 +139,14 @@ export default function Seq2SeqAttentionSim() {
   };
 
   const subtitle =
-    "A real model: a bidirectional-GRU encoder and GRU decoder with additive (Bahdanau) attention, trained in PyTorch to reverse lowercase strings of 1–20 letters. Every number below is computed live in your browser from the trained weights.";
+    "A real trained model. It learned (in PyTorch) to reverse lowercase strings of 1–20 letters. A two-way GRU encoder reads the input; a GRU decoder writes the output, using additive (Bahdanau) attention to look back. Every number below is computed live in your browser.";
 
   if (!model || !trace) {
     return (
       <SimShell title="Seq2Seq with Additive Attention (trained model)" subtitle={subtitle}>
         {error ? (
           <div className="text-sm text-clay" role="alert">
-            Could not load the trained model ({MODEL_URL}): {error}. The measured accuracy results are still shown below.
+            Couldn&apos;t load the trained model ({MODEL_URL}): {error}. You can still see the measured accuracy results below.
           </div>
         ) : (
           <div className="text-sm text-muted" role="status">
@@ -154,7 +154,7 @@ export default function Seq2SeqAttentionSim() {
           </div>
         )}
         <div className="mt-4 rounded-lg border border-border p-3">
-          <div className="text-xs font-medium">Measured: exact-match accuracy vs input length</div>
+          <div className="text-xs font-medium">Measured: share of strings reversed perfectly, by input length</div>
           <AccuracyChart />
         </div>
       </SimShell>
@@ -196,7 +196,7 @@ export default function Seq2SeqAttentionSim() {
     nBody = (
       <>
         <p className="mb-2">
-          The forward GRU reads the {T} letters left→right, the backward GRU right→left. Each position j gets an annotation h_j = [→h_j ; ←h_j] of {D} numbers (the columns of the heatmap). W_h h_j is computed once per input and reused at every decoding step.
+          One GRU reads the {T} letters left→right, another reads right→left. Each position j gets a summary h_j = [→h_j ; ←h_j] of {D} numbers (the columns of the heatmap). W_h h_j is worked out once per input and reused at every output step.
         </p>
         <div className="font-mono text-[11px] text-text">s₀ = tanh(W_init ←h₁ + b) = {vecStr(trace.enc.s0)}</div>
       </>
@@ -208,8 +208,8 @@ export default function Seq2SeqAttentionSim() {
     nBody = (
       <>
         <p className="mb-2">
-          The decoder scores every input position with e_j = vᵀtanh(W_s s_{cur.i - 1} + W_h h_j). The largest weight, α = {fmt(cur.alpha[argmaxJ], 3)}, falls on position {argmaxJ + 1} (“{chars[argmaxJ]}”)
-          {cur.i <= T ? `; for reversal, output ${cur.i} should copy input ${T + 1 - cur.i} (“${chars[T - cur.i]}”).` : "; all letters have been emitted, so the model should now output ⟨eos⟩."}
+          The decoder gives every input position a score, e_j = vᵀtanh(W_s s_{cur.i - 1} + W_h h_j). Softmax turns scores into weights α. The largest weight, α = {fmt(cur.alpha[argmaxJ], 3)}, falls on position {argmaxJ + 1} (“{chars[argmaxJ]}”)
+          {cur.i <= T ? `. To reverse the string, output ${cur.i} should copy input ${T + 1 - cur.i} (“${chars[T - cur.i]}”).` : ". All letters are out, so the model should now output ⟨eos⟩ (end)."}
         </p>
         <div className="space-y-0.5 font-mono text-[11px] leading-relaxed text-text">
           <div>e = [{cur.e.slice(0, 6).map((x) => fmt(x, 2)).join(", ")}{T > 6 ? ", …" : ""}]</div>
@@ -275,19 +275,19 @@ export default function Seq2SeqAttentionSim() {
             </div>
             {step === total - 1 && (
               <div className={trace.correct ? "mt-1 text-accent" : "mt-1 text-clay"}>
-                {trace.correct ? "✓ exact reversal" : `✗ not the exact reversal (expected ${[...trace.input].reverse().join("")})`}
+                {trace.correct ? "✓ perfectly reversed" : `✗ not quite reversed (expected ${[...trace.input].reverse().join("")})`}
               </div>
             )}
           </div>
           <div className="text-xs text-muted">
-            Try: a 20-letter string (the longest the model was trained on), a string with repeated letters such as “aaaabaaaa”, or a 21+ letter string (rejected: outside the training range — see the accuracy chart for what happens there).
+            Try this: a 20-letter string (the longest it trained on), or one with repeated letters like “aaaabaaaa”. A 21+ letter string is rejected because it is longer than anything in training. The accuracy chart shows what happens there.
           </div>
         </div>
       }
     >
       {/* ---------- input positions: α bars, letters, e_j, encoder heatmap ---------- */}
       <div className="text-xs text-muted">
-        {cur ? `Attention of output step ${cur.i} over the ${T} input positions (bars = α_j, numbers below letters = scores e_j), and the encoder annotations h_j (heatmap, ${D} rows).` : `Encoder annotations h_j for the ${T} input positions (heatmap: rows = ${D} dimensions, accent positive / clay negative).`}
+        {cur ? `Where output step ${cur.i} looks among the ${T} input positions (bars = weights α_j, numbers under letters = scores e_j), plus the encoder summaries h_j (heatmap, ${D} rows).` : `Encoder summaries h_j for the ${T} input positions (heatmap: rows = ${D} dimensions, accent positive / clay negative).`}
       </div>
       <svg viewBox={`0 0 ${inW} ${inH}`} className="h-auto w-full" style={{ maxWidth: inW * 1.4 }} role="img" aria-label="Attention weights over input letters and encoder hidden-state heatmap">
         <text x={lx - 6} y={barTop + 10} textAnchor="end" fontSize={10} fill="var(--text-muted)">α_j</text>
@@ -330,7 +330,7 @@ export default function Seq2SeqAttentionSim() {
       </svg>
       {cur && (
         <div className="mt-1 font-mono text-[11px] text-muted">
-          max |e_j| = {fmt(maxE, 2)} · {cur.i <= T ? `α at the correct position (${T + 1 - cur.i}) = ${fmt(cur.alpha[T - cur.i], 3)}` : "⟨eos⟩ step: no position to copy"}
+          max |e_j| = {fmt(maxE, 2)} · {cur.i <= T ? `α at the correct position (${T + 1 - cur.i}) = ${fmt(cur.alpha[T - cur.i], 3)}` : "⟨eos⟩ step: nothing to copy"}
         </div>
       )}
 
@@ -347,7 +347,7 @@ export default function Seq2SeqAttentionSim() {
         ) : (
           <>
             <Strip label="s_0" v={trace.enc.s0} y={4} x0={sx0} cw={scw} active />
-            <text x={sx0} y={50} fontSize={11} fill="var(--text-muted)">Press Step to run the first decoding step.</text>
+            <text x={sx0} y={50} fontSize={11} fill="var(--text-muted)">Press Step to make the first output.</text>
           </>
         )}
       </svg>
@@ -355,7 +355,7 @@ export default function Seq2SeqAttentionSim() {
       {/* ---------- output distribution ---------- */}
       {cur && (
         <div className="mt-3">
-          <div className="text-xs text-muted">Output distribution p_i = softmax(W_o[s_i ; c_i] + b_o), top 5 of {model.vocab.length} symbols — the argmax is emitted.</div>
+          <div className="text-xs text-muted">Output distribution p_i = softmax(W_o[s_i ; c_i] + b_o), top 5 of {model.vocab.length} symbols. The most likely one is output.</div>
           <svg viewBox="0 0 360 112" className="h-auto w-full" style={{ maxWidth: 520 }} role="img" aria-label="Top five output probabilities">
             {cur.top.map((t, k) => (
               <g key={t.id}>
@@ -373,7 +373,7 @@ export default function Seq2SeqAttentionSim() {
       )}
 
       {/* ---------- alignment matrix ---------- */}
-      <div className="mt-4 text-xs text-muted">Alignment matrix α (rows = output steps, columns = input letters), filled row by row. Click a row to jump to that step. Perfect reversal = anti-diagonal.</div>
+      <div className="mt-4 text-xs text-muted">Alignment matrix α (rows = output steps, columns = input letters), filled row by row. Click a row to jump to that step. A perfect reversal is the diagonal from top-right to bottom-left.</div>
       <div className="overflow-x-auto">
         <svg viewBox={`0 0 ${amW} ${amH}`} className="h-auto w-full" style={{ maxWidth: amW * 1.3 }} role="img" aria-label="Alignment matrix of attention weights, outputs by inputs">
           {chars.map((c, j) => (
@@ -402,9 +402,9 @@ export default function Seq2SeqAttentionSim() {
 
       {/* ---------- measured bottleneck result ---------- */}
       <div className="mt-4 rounded-lg border border-border p-3">
-        <div className="text-xs font-medium">Measured: exact-match accuracy vs input length (from our training runs)</div>
+        <div className="text-xs font-medium">Measured: share reversed perfectly, by input length (from our training runs)</div>
         <div className="mb-1 text-xs text-muted">
-          Same encoder, decoder, seed and training budget; the only difference is whether the decoder gets a new context c_i each step (attention, solid) or one fixed vector c = [→h_T ; ←h_1] (dashed). {MEASURED.samplesPerLength} random strings per length; trained on lengths 1–{MEASURED.trainMaxLen}.
+          Same encoder, decoder, seed and training time. The only difference: does the decoder get a fresh context c_i at each step (attention, solid), or one fixed vector c = [→h_T ; ←h_1] for the whole output (dashed)? {MEASURED.samplesPerLength} random strings per length; trained on lengths 1–{MEASURED.trainMaxLen}.
         </div>
         <AccuracyChart />
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">

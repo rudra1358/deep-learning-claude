@@ -5,13 +5,13 @@ import { SimEmbed } from "@/components/sims/SimEmbed";
 export const metadata: Metadata = { title: "Neural Network Visualizer" };
 
 const HOW = [
-  ["Design", "Add or remove hidden layers (up to four) and neurons, and choose each layer's activation and the loss."],
+  ["Design", "Add or remove hidden layers (up to four) and neurons. Pick each layer's activation and the loss."],
   ["Set data", "Type input values x and the target y, or click an input neuron and drag its slider."],
-  ["Forward", "Press Step: each neuron computes its weighted sum z and activation a. The narration shows the arithmetic with the actual numbers."],
-  ["Loss", "The output is compared to the target; ∂L/∂a starts the backward pass."],
-  ["Backward", "Gradients δ = ∂L/∂z flow from output to input. Each step shows the chain-rule product and the weight gradients on the incoming edges."],
-  ["Update", "Every parameter moves by −η·gradient. The panel lists old → new values and the loss before and after. Apply it, or tick “keep training”."],
-  ["Verify", "Click any connection: the inspector compares the backprop gradient with a numerical central-difference gradient."],
+  ["Forward", "Press Step: each neuron works out its weighted sum z and its output a. The notes show the math with the real numbers."],
+  ["Loss", "The output is compared with the target. That error, ∂L/∂a, starts the backward pass."],
+  ["Backward", "Gradients δ = ∂L/∂z flow back from output to input. Each step shows the chain-rule multiplication and the gradient for each incoming weight."],
+  ["Update", "Every parameter moves by −η·gradient. The panel shows old → new values and the loss before and after. Apply it, or tick “keep training”."],
+  ["Verify", "Click any connection to check it: its backprop gradient is compared with one estimated numerically (central difference)."],
 ];
 
 export default function VisualizerPage() {
@@ -19,7 +19,7 @@ export default function VisualizerPage() {
     <div className="mx-auto max-w-[1300px] px-4 py-8">
       <h1 className="font-serif text-3xl font-semibold">Neural Network Visualizer</h1>
       <p className="mt-2 max-w-3xl text-muted">
-        A genuine simulation, not an animation: forward propagation, loss, backpropagation and gradient descent computed exactly, one neuron at a time. The full theory is in{" "}
+        A real simulation, not an animation: the forward pass, loss, backpropagation and gradient descent are computed exactly, one neuron at a time. The full explanation is in{" "}
         <Link href="/learn/m04/forward-propagation" className="text-accent underline underline-offset-2">
           Forward Propagation
         </Link>{" "}

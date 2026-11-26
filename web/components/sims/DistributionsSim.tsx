@@ -159,20 +159,20 @@ function DistributionsPanel({ switcher }: { switcher: ReactNode }) {
   if (N === 0) {
     story = (
       <p>
-        No samples yet. The gold {discrete ? "markers show the PMF" : "curve is the PDF"} — the distribution we will sample from. Press <b>Play</b> or <b>Step</b>: each step draws {batch === 1 ? "one sample" : `${batch} samples`} from a seeded random generator and adds {batch === 1 ? "it" : "them"} to the histogram.
+        No samples yet. The gold {discrete ? "markers show the PMF" : "curve is the PDF"}: the distribution we will draw from. Press <b>Play</b> or <b>Step</b>. Each step draws {batch === 1 ? "one sample" : `${batch} samples`} from a seeded random generator and adds {batch === 1 ? "it" : "them"} to the histogram.
       </p>
     );
   } else {
     story = (
       <>
         <p>
-          Sample #{N}: x = {discrete ? latest : fmt(latest ?? NaN)}. The bars show the fraction of the {N} samples in each {discrete ? "value" : "bin (scaled to a density)"}.
+          Sample #{N}: x = {discrete ? latest : fmt(latest ?? NaN)}. The bars show what share of the {N} samples landed in each {discrete ? "value" : "bin (scaled to a density)"}.
         </p>
         <p className="mt-1">
-          Sample mean {fmt(stats.mean)} vs true mean {fmt(mu)}: error {fmt(err)}. The law of large numbers says this error shrinks like σ/√N = {fmt(se)}
-          {err <= 2 * se ? " — it is within two standard errors, as expected about 95% of the time." : " — currently outside two standard errors, which happens about 5% of the time; keep sampling."}
+          Sample mean {fmt(stats.mean)} vs true mean {fmt(mu)}: error {fmt(err)}. By the law of large numbers this error shrinks as you sample more, roughly like σ/√N = {fmt(se)}
+          {err <= 2 * se ? ". It is within two standard errors, which we expect about 95% of the time." : ". Right now it is outside two standard errors. That happens about 5% of the time, so keep sampling."}
         </p>
-        {N < 30 && <p className="mt-1">With so few samples the histogram is still ragged; it only resembles the {discrete ? "PMF" : "PDF"} after hundreds of draws.</p>}
+        {N < 30 && <p className="mt-1">With so few samples the histogram is still bumpy. It only looks like the {discrete ? "PMF" : "PDF"} after hundreds of draws.</p>}
       </>
     );
   }
@@ -187,7 +187,7 @@ function DistributionsPanel({ switcher }: { switcher: ReactNode }) {
   return (
     <SimShell
       title="Probability Distributions & Sampling"
-      subtitle="Draw seeded samples and watch the histogram converge to the true distribution."
+      subtitle="Draw random samples and watch the histogram settle into the true distribution."
       controls={
         <div className="space-y-2.5">
           {switcher}
@@ -313,7 +313,7 @@ function DistributionsPanel({ switcher }: { switcher: ReactNode }) {
         </g>
       </svg>
 
-      <div className="mt-2 text-xs text-muted">Running sample mean (accent) vs true mean (dashed); shaded band = true mean ± 2σ/√n.</div>
+      <div className="mt-2 text-xs text-muted">Running sample mean (accent) vs true mean (dashed). Shaded band = true mean ± 2σ/√n.</div>
       <svg viewBox={`0 0 ${AW} ${RH}`} className="h-auto w-full" role="img" aria-label="Running sample mean as more samples are drawn, approaching the true mean">
         <rect x={RM.l} y={RM.t} width={RPW} height={RPH} fill="none" stroke="var(--border)" />
         {band && <polygon points={band} fill="color-mix(in srgb, var(--accent) 12%, transparent)" stroke="none" />}
@@ -440,13 +440,13 @@ function MlePanel({ switcher }: { switcher: ReactNode }) {
     story = (
       <>
         <p>
-          Step {k + 1}: at {paramName} = {fmt(pending.theta, 4)} the {useMap ? "log-posterior" : "log-likelihood"} is {fmt(pending.obj, 3)} and its derivative is {fmt(pending.grad, 4)} ({pending.grad > 0 ? `uphill to the right, so ${paramName} increases` : pending.grad < 0 ? `uphill to the left, so ${paramName} decreases` : "zero: a stationary point"}).
+          Step {k + 1}: at {paramName} = {fmt(pending.theta, 4)} the {useMap ? "log-posterior" : "log-likelihood"} is {fmt(pending.obj, 3)} and its derivative is {fmt(pending.grad, 4)} ({pending.grad > 0 ? `uphill is to the right, so ${paramName} goes up` : pending.grad < 0 ? `uphill is to the left, so ${paramName} goes down` : "zero: a flat spot"}).
         </p>
         <p className="mt-1 font-mono text-xs text-text">
           {paramName} ← {fmt(pending.theta, 4)} + {fmt(eta)} × ({fmt(pending.grad, 4)} / {n}) = {fmt(pending.thetaNext, 4)}
         </p>
         <p className="mt-1">
-          Gradient <b>ascent</b>: we move with the gradient because we maximise. Dividing by n = {n} uses the average log-likelihood, just as a mean loss does in training.
+          This is gradient <b>ascent</b>: we step along the gradient because we want the maximum. Dividing by n = {n} uses the average log-likelihood, just like a mean loss in training.
         </p>
       </>
     );
@@ -454,8 +454,8 @@ function MlePanel({ switcher }: { switcher: ReactNode }) {
     const gap = Math.abs(thCur - goal);
     story = (
       <p>
-        After {N_ASCENT} steps {paramName} = {fmt(thCur, 4)}. The closed-form {useMap ? "MAP" : "maximum-likelihood"} estimate is {fmt(goal, 4)} (gap {fmt(gap, 5)}).{" "}
-        {gap < 1e-3 ? "Gradient ascent found the same answer as the formula." : eta >= etaStable ? "The step size is above the stability limit, so the iterates oscillate or diverge — reduce η." : "Not converged yet — increase η or the number of steps would be needed."}
+        After {N_ASCENT} steps, {paramName} = {fmt(thCur, 4)}. The exact formula gives the {useMap ? "MAP" : "maximum-likelihood"} estimate {fmt(goal, 4)} (gap {fmt(gap, 5)}).{" "}
+        {gap < 1e-3 ? "Gradient ascent found the same answer as the formula." : eta >= etaStable ? "The step size is above the safe limit, so the steps bounce around or blow up. Lower η." : "Not there yet. It would need a bigger η or more steps."}
       </p>
     );
   }
@@ -463,7 +463,7 @@ function MlePanel({ switcher }: { switcher: ReactNode }) {
   return (
     <SimShell
       title="Maximum Likelihood & MAP"
-      subtitle={gaussianModel ? `Data xᵢ ~ N(μ_true, σ²) with σ = ${SIGMA_KNOWN} known; estimate μ.` : "Coin flips xᵢ ~ Bernoulli(p_true); estimate p."}
+      subtitle={gaussianModel ? `Data xᵢ ~ N(μ_true, σ²), with σ = ${SIGMA_KNOWN} known. Estimate μ.` : "Coin flips xᵢ ~ Bernoulli(p_true). Estimate p."}
       controls={
         <div className="space-y-2.5">
           {switcher}
@@ -497,9 +497,9 @@ function MlePanel({ switcher }: { switcher: ReactNode }) {
       }
       aside={
         <div className="space-y-3">
-          <Narration title={pending ? `Ascent step ${k + 1}` : "Converged?"}>{story}</Narration>
+          <Narration title={pending ? `Ascent step ${k + 1}` : "Did it converge?"}>{story}</Narration>
           <div className="rounded-lg border border-border p-3 text-xs">
-            <div className="mb-1 font-medium">Closed-form answers</div>
+            <div className="mb-1 font-medium">Exact formula answers</div>
             {gaussianModel ? (
               <p className="text-muted">
                 MLE μ̂ = x̄ = <span className="font-mono text-text">{fmt(mle, 4)}</span>
@@ -517,10 +517,10 @@ function MlePanel({ switcher }: { switcher: ReactNode }) {
               Current {paramName} = <span className="font-mono text-text">{fmt(thCur, 4)}</span>, objective = <span className="font-mono text-text">{fmt(objCur, 3)}</span>, gradient = <span className="font-mono text-text">{fmt(gCur, 4)}</span>
             </p>
             <p className="mt-1.5 text-muted">
-              Curvature of the averaged objective at the optimum ≈ {fmt(curv)}; ascent is stable for η &lt; 2/curvature = {fmt(etaStable)}. Your η = {fmt(eta)} is{" "}
+              Curvature (how sharply the averaged objective bends) at the peak ≈ {fmt(curv)}. Ascent is stable for η &lt; 2/curvature = {fmt(etaStable)}. Your η = {fmt(eta)} is{" "}
               <span className={eta < etaStable ? "text-accent" : "text-clay"}>{eta < etaStable ? "below" : "above"}</span> it.
             </p>
-            {useMap && <p className="mt-1.5 text-muted">With small n the prior pulls the estimate toward {gaussianModel ? "μ₀" : "the prior mode"}; raise n and the MAP estimate approaches the MLE.</p>}
+            {useMap && <p className="mt-1.5 text-muted">With small n, the prior pulls the estimate toward {gaussianModel ? "μ₀" : "the prior mode"}. Raise n and the MAP estimate moves toward the MLE.</p>}
           </div>
         </div>
       }
@@ -581,13 +581,13 @@ function MlePanel({ switcher }: { switcher: ReactNode }) {
             <span key={i} className="inline-block h-2.5 w-2.5 rounded-full border border-border" style={{ background: x ? "var(--accent)" : "transparent" }} />
           ))}
           <span className="ml-1 text-xs text-muted">
-            {heads} heads (filled) / {n} flips{n > 100 ? " — first 100 shown" : ""}
+            {heads} heads (filled) / {n} flips{n > 100 ? " (first 100 shown)" : ""}
           </span>
         </div>
       )}
-      {gaussianModel && <div className="mt-1 text-xs text-muted">Ticks along the bottom of the plot are the {n} data points (same axis as μ).</div>}
+      {gaussianModel && <div className="mt-1 text-xs text-muted">The ticks along the bottom are the {n} data points (same axis as μ).</div>}
 
-      <div className="mt-3 text-xs text-muted">Normalised densities over {paramName}: likelihood{useMap ? ", prior and posterior" : ""}. Vertical lines: MLE (dashed){useMap ? ", MAP (solid accent)" : ""}, current iterate (gold).</div>
+      <div className="mt-3 text-xs text-muted">Normalised densities over {paramName}: likelihood{useMap ? ", prior and posterior" : ""}. Vertical lines: MLE (dashed){useMap ? ", MAP (solid accent)" : ""}, current guess (gold).</div>
       <svg viewBox={`0 0 ${BW} ${DH}`} className="h-auto w-full" role="img" aria-label={`Likelihood${useMap ? ", prior and posterior" : ""} as normalised densities over ${paramName}`}>
         <line x1={DM.l} x2={BW - DM.r} y1={DM.t + DPH} y2={DM.t + DPH} stroke="var(--text-muted)" />
         {niceTicks(ta, tb, 8).map((t) => (

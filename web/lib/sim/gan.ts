@@ -589,31 +589,31 @@ export const PRESETS: Preset[] = [
     id: "converge",
     label: "Converges (non-saturating)",
     cfg: { ...DEFAULT_CONFIG, loss: "nonsat", lrG: 1e-3, lrD: 1e-3, dSteps: 1, seed: 1 },
-    note: "Non-saturating loss, equal learning rates 1e-3. All 8 modes are covered after about 5000 iterations.",
+    note: "Non-saturating loss, both learning rates 1e-3. After about 5000 steps, all 8 modes (clusters) are covered.",
   },
   {
     id: "wgangp",
     label: "Converges (WGAN-GP)",
     cfg: { ...DEFAULT_CONFIG, loss: "wgangp", lrG: 1e-3, lrD: 1e-3, dSteps: 5, gpLambda: 0.1, seed: 2 },
-    note: "Critic updated 5× per generator step with a gradient penalty. All 8 modes are covered after about 4000 iterations.",
+    note: "The critic trains 5× per generator step, with a gradient penalty. All 8 modes are covered after about 4000 steps.",
   },
   {
     id: "hop",
     label: "Collapse + mode hopping (minimax)",
     cfg: { ...DEFAULT_CONFIG, loss: "minimax", lrG: 1e-2, lrD: 1e-4, dSteps: 1, seed: 1 },
-    note: "Original loss with a generator 100× faster than the discriminator: G squeezes its samples onto a thin curve that jumps around the plane.",
+    note: "Original loss, with G learning 100× faster than D. G squeezes its samples onto a thin curve that keeps jumping around.",
   },
   {
     id: "saturate",
     label: "D too strong (minimax)",
     cfg: { ...DEFAULT_CONFIG, loss: "minimax", lrG: 3e-4, lrD: 3e-3, dSteps: 1, seed: 1 },
-    note: "Original loss with a discriminator 10× faster: D rejects the fakes confidently, log(1 − D) saturates for the worst samples and G never reaches the modes.",
+    note: "Original loss, with D learning 10× faster. D rejects the fakes with confidence, log(1 − D) goes flat for the worst samples, and G never reaches the modes.",
   },
   {
     id: "collapse",
     label: "D too strong (non-saturating)",
     cfg: { ...DEFAULT_CONFIG, loss: "nonsat", lrG: 3e-4, lrD: 3e-3, dSteps: 1, seed: 1 },
-    note: "The same learning rates with the non-saturating loss: G does get a gradient, but piles almost all its samples onto one mode.",
+    note: "Same learning rates, non-saturating loss. Now G does get a gradient, but it piles almost all its samples onto one mode.",
   },
 ];
 

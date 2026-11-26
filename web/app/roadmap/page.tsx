@@ -8,20 +8,20 @@ import { Container, PageHeader } from "@/components/pages/PageHeader";
 export const metadata: Metadata = { title: "Learning Roadmap" };
 
 const PHASE_GOAL: Record<string, string> = {
-  Foundations: "Read and write the mathematics of deep learning fluently, and compute it in NumPy.",
-  "Neural Networks": "Derive and implement a complete neural network — forward pass, loss, backpropagation, optimizer — from scratch.",
-  "Core Architectures": "Understand CNNs, RNNs/LSTMs and attention-based Transformers well enough to implement each one.",
-  "Applied Deep Learning": "Apply those architectures to real vision and language problems with transfer learning.",
-  "Generative AI": "Understand and build autoencoders, GANs, diffusion models and the training of large language models.",
-  "Advanced & Research": "Read, reproduce and extend research; understand self-supervision, RL, interpretability and robustness.",
-  "Engineering & Deployment": "Implement in PyTorch/Keras, evaluate honestly, and ship models to production.",
+  Foundations: "Get comfortable reading and writing the math of deep learning, and computing it in NumPy.",
+  "Neural Networks": "Work out and build a full neural network from scratch — forward pass, loss, backpropagation and optimizer.",
+  "Core Architectures": "Understand CNNs, RNNs/LSTMs and Transformers well enough to build each one yourself.",
+  "Applied Deep Learning": "Use those models on real image and language problems, reusing pretrained models (transfer learning).",
+  "Generative AI": "Understand and build autoencoders, GANs and diffusion models, and see how large language models are trained.",
+  "Advanced & Research": "Read, reproduce and build on research. Learn self-supervised learning, RL, interpretability and robustness.",
+  "Engineering & Deployment": "Build in PyTorch/Keras, measure your models honestly, and put them into real use.",
 };
 
 export default function RoadmapPage() {
   return (
     <Container>
-      <PageHeader eyebrow="Learning roadmap" title="Beginner to deep learning engineer">
-        Follow the phases in order. Within each phase, modules are ordered by dependency — nothing assumes knowledge that hasn&apos;t been taught.
+      <PageHeader eyebrow="Learning roadmap" title="From beginner to deep learning engineer">
+        Follow the phases in order. Inside each phase, modules are ordered so that nothing expects something you haven&apos;t learned yet.
       </PageHeader>
       <ol className="relative mt-10 border-l border-border pl-8">
         {PHASES.map((ph, i) => {
@@ -42,7 +42,7 @@ export default function RoadmapPage() {
                           {m.title}
                         </span>
                         <span className="shrink-0 font-mono text-xs text-faint">
-                          {full}/{m.topics.length} published
+                          {full}/{m.topics.length} ready
                         </span>
                       </div>
                       <p className="mt-1 text-sm text-muted">{m.tagline}</p>
@@ -56,7 +56,7 @@ export default function RoadmapPage() {
         <li>
           <span className="absolute -left-[13px] flex h-6 w-6 items-center justify-center rounded-full border border-accent bg-accent-soft font-mono text-xs">★</span>
           <h2 className="font-serif text-2xl font-semibold">Capstone projects</h2>
-          <p className="mt-1 text-muted">Bring everything together in three end-to-end systems.</p>
+          <p className="mt-1 text-muted">Put everything together in three complete, real-world systems.</p>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             {PROJECTS.map((p) => (
               <Link key={p.id} href={`/projects#${p.id}`} className="card p-4 hover:border-border-strong">

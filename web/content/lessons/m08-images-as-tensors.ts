@@ -4,7 +4,7 @@ const lesson: Lesson = {
   id: "m08/images-as-tensors",
   title: "Images as Tensors and Why CNNs",
   summary:
-    "How a photograph becomes numbers: pixels, bit depth, channels and colour spaces, H×W×C vs C×H×W and NCHW vs NHWC layouts, strides and channels_last memory format, conversion and per-channel normalisation, resizing and interpolation — and a real experiment showing why fully connected networks ignore image structure while CNNs exploit it.",
+    "How a photo becomes numbers: pixels, bit depth, channels and colour spaces, H×W×C vs C×H×W and NCHW vs NHWC layouts, strides and channels_last memory format, conversion and per-channel normalisation, resizing and interpolation — and a real experiment showing why fully connected networks ignore image structure while CNNs use it.",
   minutes: 55,
   level: "beginner",
   prerequisites: ["m02/vectors-matrices", "m03/multilayer-networks", "m02/probability"],
@@ -15,19 +15,15 @@ const lesson: Lesson = {
     intro: [
       {
         t: "p",
-        text: "To a neural network an image is not a picture; it is a **tensor** — a rectangular array of numbers. A digital photograph is a grid of **pixels** (picture elements), each storing one brightness value (grayscale) or several (for example red, green and blue). A 640×427 colour photo is therefore an array of 427 rows × 640 columns × 3 colour values = 819,840 numbers, usually stored as unsigned 8-bit integers between 0 and 255.",
+        text: "To a neural network an image is not a picture. It is a **tensor**: a rectangular block of numbers. A digital photo is a grid of **pixels** (picture elements). Each pixel stores one brightness value (grayscale) or several, such as red, green and blue. So a 640×427 colour photo is 427 rows × 640 columns × 3 colour values = 819,840 numbers, usually stored as 8-bit integers from 0 to 255.",
       },
       {
         t: "p",
-        text: "This lesson covers the practical and conceptual ground every computer-vision model stands on: how pixels are encoded (bit depth, channels, colour spaces), how image tensors are laid out in memory (H×W×C vs C×H×W, batches as N×C×H×W in PyTorch or N×H×W×C in TensorFlow), how raw bytes are converted and normalised before they reach a network (dividing by 255, subtracting per-channel means, dividing by per-channel standard deviations), and how images are resized without distorting them. Getting any of these wrong does not crash a program — it silently ruins accuracy, which is why they deserve a lesson of their own.",
+        text: "First we cover the ground every vision model stands on: how pixels are encoded, how image tensors sit in memory, how raw bytes are scaled and normalised, and how images are resized without distortion. Getting these wrong does not crash your program — it quietly ruins accuracy.",
       },
       {
         t: "p",
-        text: "The second half answers the question that motivates the whole module: **why not just flatten the image and use a multilayer perceptron?** We do the arithmetic of the parameter explosion, and then run a real experiment on handwritten digits that shuffles the pixels of every image with one fixed permutation. The fully connected network does not notice at all — its accuracy is identical to four decimal places — while convolutional networks get worse. That single result shows what an MLP throws away (the spatial arrangement of pixels) and what a CNN builds in (locality, weight sharing, translation equivariance). Those built-in assumptions, called **inductive biases**, are the reason convolution exists; the next lesson, [The Convolution Operation](/learn/m08/convolution), builds the operation itself.",
-      },
-      {
-        t: "p",
-        text: "Everything here is used daily: the preprocessing pipelines of every pretrained vision model, data loaders for medical scans and satellite imagery, the memory-format choices that decide whether a GPU runs at full speed, and the input layer of every CNN, Vision Transformer and multimodal model.",
+        text: "Then we answer the question behind this whole module: **why not just flatten the image and use a multilayer perceptron?** We count the parameter explosion, then run a real experiment: shuffle the pixels of every digit image with one fixed permutation. The fully connected network does not notice — its accuracy is identical to four decimal places — while convolutional networks get worse. That shows what an MLP throws away (where pixels sit relative to each other) and what a CNN builds in (locality, weight sharing, translation equivariance). These built-in assumptions are called **inductive biases**, and they are why convolution exists. [The Convolution Operation](/learn/m08/convolution) builds the operation itself.",
       },
     ],
 
@@ -36,10 +32,10 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "[Scalars, Vectors, Matrices and Tensors](/learn/m02/vectors-matrices) — what a tensor's **shape** is, indexing, transposition and broadcasting. Image tensors are 3-D (one image) or 4-D (a batch), and normalisation is a broadcasting operation.",
-          "[Multilayer Networks](/learn/m03/multilayer-networks) — a dense (fully connected) layer computes $W\\mathbf{x} + \\mathbf{b}$ on a vector. We count its parameters for image inputs and show why it ignores pixel arrangement.",
-          "[Probability, Random Variables and Distributions](/learn/m02/probability) — mean and standard deviation; per-channel normalisation is standardisation $(x - \\mu)/\\sigma$ applied channel by channel.",
-          "Basic NumPy: array shapes, `astype`, slicing and `transpose`. Optional but helpful: having opened an image file in Python before.",
+          "[Scalars, Vectors, Matrices and Tensors](/learn/m02/vectors-matrices) — a tensor's **shape**, indexing, transposition and broadcasting. Image tensors are 3-D (one image) or 4-D (a batch), and normalisation is a broadcasting operation.",
+          String.raw`[Multilayer Networks](/learn/m03/multilayer-networks) — a dense (fully connected) layer computes $W\mathbf{x} + \mathbf{b}$ on a vector. We count its parameters for image inputs and show why it ignores pixel arrangement.`,
+          String.raw`[Probability, Random Variables and Distributions](/learn/m02/probability) — mean and standard deviation. Per-channel normalisation is standardisation $(x - \mu)/\sigma$, done channel by channel.`,
+          "Basic NumPy: array shapes, `astype`, slicing and `transpose`. Helpful but optional: having opened an image file in Python before.",
         ],
       },
     ],
@@ -50,19 +46,19 @@ const lesson: Lesson = {
         t: "callout",
         kind: "analogy",
         title: "A mosaic and a bag of tiles",
-        text: "A digital image is a mosaic: a grid of small coloured tiles, each tile painted by mixing three paints — red, green and blue — in amounts from 0 to 255. Write down the three amounts for every tile, row by row, and you have the image tensor. Now imagine tipping the mosaic tiles into a bag. Every tile is still there, with exactly the same colour, but the picture is gone: what made it a face or a digit was the **arrangement**. A fully connected network receives the tiles as a numbered list and treats tile #2,250 and tile #2,251 as unrelated, exactly as if they had come out of the bag. A convolutional network looks at small neighbourhoods of tiles — it reads the mosaic, not the bag.",
+        text: "A digital image is a mosaic: a grid of small tiles, each painted by mixing red, green and blue paint in amounts from 0 to 255. Write down the three amounts for every tile, row by row, and you have the image tensor. Now tip the tiles into a bag. Every tile is still there with the same colour, but the picture is gone: what made it a face or a digit was the **arrangement**. A fully connected network gets the tiles as a numbered list and treats tile #2,250 and tile #2,251 as unrelated, just as if they came out of the bag. A convolutional network looks at small neighbourhoods of tiles — it reads the mosaic, not the bag.",
       },
       {
         t: "p",
-        text: "Three numbers per pixel, laid out on a grid, gives a 3-D block of numbers: height × width × channels. There are two equally valid ways to stack it. You can keep the three colour values of each pixel together (H×W×C, “channels-last”, how image files and NumPy store it), or keep each colour plane together, like three transparent sheets — a red sheet, a green sheet and a blue sheet — laid on top of each other (C×H×W, “channels-first”, what PyTorch layers expect). Same numbers, different order.",
+        text: "Three numbers per pixel on a grid gives a 3-D block: height × width × channels. There are two equally valid ways to stack it. Keep each pixel's three colour values together (H×W×C, “channels-last”, how image files and NumPy store it). Or keep each colour plane together, like three transparent sheets — red, green, blue — laid on top of each other (C×H×W, “channels-first”, what PyTorch layers expect). Same numbers, different order.",
       },
       {
         t: "p",
-        text: "Before a network sees the numbers we rescale them. Bytes from 0 to 255 are divided by 255 to land in [0, 1]; then each channel is shifted and scaled so that, over the training data, it has roughly mean 0 and standard deviation 1. This is the same reason you standardise any input feature: gradient descent behaves best when inputs are centred and of similar scale.",
+        text: "Before the network sees the numbers we rescale them. Bytes 0–255 are divided by 255 to land in [0, 1]. Then each channel is shifted and scaled so that, over the training data, it has roughly mean 0 and standard deviation 1. It is the same reason you standardise any input: gradient descent works best when inputs are centred and on a similar scale.",
       },
       {
         t: "p",
-        text: "Finally, the network needs a fixed-size input for a batch, so images are resized. Squashing a 640×427 photo into 224×224 distorts circles into ellipses; the standard recipe instead scales the shorter side to 256 and cuts out the central 224×224 square, keeping the aspect ratio.",
+        text: "Finally, a batch needs one fixed input size, so images are resized. Squashing a 640×427 photo into 224×224 turns circles into ellipses. The standard recipe instead scales the shorter side to 256 and cuts out the central 224×224 square, keeping the aspect ratio.",
       },
     ],
 
@@ -71,80 +67,80 @@ const lesson: Lesson = {
       { t: "h", text: "Pixels and bit depth" },
       {
         t: "p",
-        text: "A sensor measures light intensity at each pixel location and the camera **quantises** it to an integer. With **bit depth** b there are 2^b possible levels: 8 bits gives 256 levels (0 = black, 255 = full intensity), the standard for JPEG and PNG photos and stored as `uint8`. Medical images (CT, MRI in DICOM files) typically use 12 or 16 bits (up to 65,536 levels); camera RAW files 12–14 bits; HDR formats use floating point. A network does not care about the integer range, only about consistent scaling — which is why the first preprocessing step converts integers to floats with a known scale.",
+        text: "A sensor measures light at each pixel, and the camera **quantises** it (rounds to a whole number). With **bit depth** b there are 2^b levels. 8 bits gives 256 levels (0 = black, 255 = full intensity), the standard for JPEG and PNG, stored as `uint8`. Medical images (CT, MRI in DICOM files) usually use 12 or 16 bits (up to 65,536 levels), camera RAW 12–14 bits, HDR floating point. A network only cares about consistent scaling, so the first step converts integers to floats with a known scale.",
       },
       { t: "h", text: "Grayscale and colour channels" },
       {
         t: "list",
         items: [
           "**Grayscale**: one value per pixel — an H×W matrix. MNIST digits, X-rays and many industrial images are grayscale.",
-          "**RGB**: three values per pixel — the intensities of red, green and blue light — so an H×W×3 array. Each 2-D slice (all red values, all green values, all blue values) is called a **channel**. Displays mix the three lights additively; (255, 255, 255) is white, (255, 0, 0) pure red.",
-          "**RGBA**: a fourth **alpha** channel stores opacity (PNG files often have it). Most models expect 3 channels, so alpha is dropped or composited onto a background (`img.convert(\"RGB\")` in Pillow).",
-          "**Grayscale from RGB** is a weighted sum, not a plain average, because the eye is most sensitive to green: the ITU-R BT.601 luma weights 0.299 R + 0.587 G + 0.114 B are what Pillow's `convert(\"L\")` uses.",
-          "**Beyond three channels**: satellite images carry many spectral bands (e.g. near-infrared), depth cameras add a D channel (RGB-D), and inside a CNN the hidden tensors have 64, 256 or 2,048 “channels” that are learned feature maps, not colours. The tensor machinery is identical.",
+          "**RGB**: three values per pixel — how much red, green and blue light — so an H×W×3 array. Each 2-D slice (all red values, all green, all blue) is a **channel**. Screens add the three lights together; (255, 255, 255) is white, (255, 0, 0) pure red.",
+          "**RGBA**: a fourth **alpha** channel stores opacity (common in PNG files). Most models expect 3 channels, so alpha is dropped or blended onto a background (`img.convert(\"RGB\")` in Pillow).",
+          "**Grayscale from RGB** is a weighted sum, not a plain average, because our eyes are most sensitive to green. Pillow's `convert(\"L\")` uses the ITU-R BT.601 luma weights 0.299 R + 0.587 G + 0.114 B.",
+          "**Beyond three channels**: satellite images have many spectral bands (e.g. near-infrared), depth cameras add a D channel (RGB-D), and inside a CNN the hidden tensors have 64, 256 or 2,048 “channels” that are learned feature maps, not colours. The tensor machinery is the same.",
         ],
       },
       { t: "h", text: "Other colour spaces (briefly)" },
       {
         t: "p",
-        text: "RGB is not the only way to encode colour. **HSV/HSL** separate hue (which colour), saturation and value/lightness — convenient for colour-based augmentation (“jitter the hue by ±0.05”). **YCbCr** splits luma (brightness) from two chroma channels; JPEG compresses in this space, storing chroma at lower resolution because the eye is less sensitive to it. **CIE Lab** is designed so that Euclidean distances roughly match perceived colour differences. **BGR** is RGB with the channel order reversed — OpenCV's `cv2.imread` returns BGR, a classic source of bugs. Networks are almost always trained on RGB; the important rule is to feed a pretrained model images in the same colour space and channel order it was trained with.",
+        text: "**HSV/HSL** separate hue (which colour), saturation and value/lightness — handy for colour augmentation (“jitter the hue by ±0.05”). **YCbCr** splits brightness (luma) from two colour (chroma) channels; JPEG compresses in this space, storing chroma at lower resolution since the eye is less sensitive to it. **CIE Lab** makes straight-line distances roughly match how different colours look. **BGR** is RGB reversed — OpenCV's `cv2.imread` returns it, a classic bug source. Networks are almost always trained on RGB; the key rule is to feed a pretrained model the colour space and channel order it was trained with.",
       },
       { t: "h", text: "Image tensors: H×W×C vs C×H×W" },
       {
         t: "p",
-        text: "One image is a rank-3 tensor. Image libraries (Pillow, NumPy, OpenCV, matplotlib) and TensorFlow/Keras use **channels-last** H×W×C: `img[r, c]` is the RGB triple of one pixel. PyTorch convolution layers use **channels-first** C×H×W: `x[0]` is the whole red plane. Converting between them is a pure reordering of axes — `transpose(2, 0, 1)` in NumPy or `permute(2, 0, 1)` in PyTorch — and never changes a single value. Beware one more convention: Pillow reports `img.size` as (width, height), whereas array shapes are (height, width, …).",
+        text: "One image is a rank-3 tensor (three axes). Image libraries (Pillow, NumPy, OpenCV, matplotlib) and TensorFlow/Keras use **channels-last** H×W×C: `img[r, c]` is one pixel's RGB triple. PyTorch convolution layers use **channels-first** C×H×W: `x[0]` is the whole red plane. Switching between them only reorders axes — `transpose(2, 0, 1)` in NumPy or `permute(2, 0, 1)` in PyTorch — and never changes a value. One more trap: Pillow reports `img.size` as (width, height), while array shapes are (height, width, …).",
       },
       { t: "h", text: "Batches: NCHW vs NHWC" },
       {
         t: "p",
-        text: "Networks process **mini-batches**, so a fourth axis N (the batch index) is added in front. PyTorch's `nn.Conv2d` expects **N×C×H×W** (NCHW); TensorFlow/Keras defaults to **N×H×W×C** (NHWC). A batch of 32 RGB images of 224×224 pixels is a tensor of shape (32, 3, 224, 224) in PyTorch: 4,816,896 numbers, 18.4 MiB in float32. Video adds a time axis (N×C×T×H×W for PyTorch's 3-D convolutions).",
+        text: "Networks process **mini-batches**, so a fourth axis N (the image index) goes in front. PyTorch's `nn.Conv2d` expects **N×C×H×W** (NCHW); TensorFlow/Keras defaults to **N×H×W×C** (NHWC). A batch of 32 RGB images of 224×224 is a tensor of shape (32, 3, 224, 224) in PyTorch: 4,816,896 numbers, 18.4 MiB in float32. Video adds a time axis (N×C×T×H×W for PyTorch's 3-D convolutions).",
       },
       { t: "h", text: "Memory layout, strides, permute and channels_last" },
       {
         t: "p",
-        text: "A tensor's shape says how to *index* it; its **strides** say how far apart in memory consecutive elements along each axis are. A contiguous NCHW tensor of shape (2, 3, 224, 224) has strides (150528, 50176, 224, 1) elements: moving one column advances 1 element, one row 224, one channel 50,176 (a whole plane). `permute(0, 2, 3, 1)` returns an NHWC-shaped **view** with permuted strides (150528, 224, 1, 50176) — no data moves, and the result is not contiguous. Calling `.contiguous()` would copy it into a new buffer. `view`/`reshape` reinterpret memory in order, so using them instead of `permute` to “change the layout” scrambles the image.",
+        text: "A tensor's shape says how to *index* it. Its **strides** say how far apart in memory neighbouring elements along each axis are. A contiguous NCHW tensor of shape (2, 3, 224, 224) has strides (150528, 50176, 224, 1) elements: one column over is 1 element, one row down is 224, one channel over is 50,176 (a whole plane). `permute(0, 2, 3, 1)` returns an NHWC-shaped **view** with permuted strides (150528, 224, 1, 50176). No data moves, and the result is not contiguous; `.contiguous()` would copy it into a new buffer. `view`/`reshape` read memory in order, so using them instead of `permute` to “change the layout” scrambles the image.",
       },
       {
         t: "p",
-        text: "PyTorch also supports a **channels_last memory format**: `x.contiguous(memory_format=torch.channels_last)` keeps the logical shape N×C×H×W (so all code keeps working) but stores the data in NHWC order — strides (150528, 1, 672, 3), so the C values of one pixel are adjacent. Convolution kernels on modern NVIDIA GPUs (Tensor Cores, especially with mixed precision) and many CPU libraries are faster in this layout; converting both the model (`model.to(memory_format=torch.channels_last)`) and the inputs is a standard optimisation. It changes speed, never results.",
+        text: "PyTorch's **channels_last memory format**, `x.contiguous(memory_format=torch.channels_last)`, keeps the logical shape N×C×H×W (so code still works) but stores data in NHWC order — strides (150528, 1, 672, 3), a pixel's C values side by side. Convolutions on modern NVIDIA GPUs (Tensor Cores, especially with mixed precision) and many CPU libraries run faster this way, so converting the model (`model.to(memory_format=torch.channels_last)`) and inputs is a standard optimisation. It changes speed, never results.",
       },
       { t: "h", text: "From file to network input: the preprocessing pipeline" },
       {
         t: "steps",
         items: [
-          { title: "Decode", text: "Read the compressed file (JPEG/PNG) into a uint8 array of shape H×W×3, e.g. `np.asarray(Image.open(path).convert(\"RGB\"))`. The `convert(\"RGB\")` handles grayscale, palette and RGBA files uniformly." },
-          { title: "Resize (and crop)", text: "Bring every image to the size the model expects, preserving aspect ratio: resize the shorter side, then centre-crop (evaluation) or random-crop (training)." },
+          { title: "Decode", text: "Read the compressed file (JPEG/PNG) into a uint8 array of shape H×W×3, e.g. `np.asarray(Image.open(path).convert(\"RGB\"))`. `convert(\"RGB\")` handles grayscale, palette and RGBA files the same way." },
+          { title: "Resize (and crop)", text: "Bring every image to the model's size while keeping the aspect ratio: resize the shorter side, then centre-crop (evaluation) or random-crop (training)." },
           { title: "Convert to float in [0, 1]", text: "Divide by 255 (by 2^b − 1 for other bit depths). torchvision's `ToTensor` does this and the HWC → CHW permutation in one step." },
-          { title: "Normalise per channel", text: "Subtract each channel's mean and divide by its standard deviation, computed over the training set. For models pretrained on ImageNet the conventional values are mean (0.485, 0.456, 0.406) and std (0.229, 0.224, 0.225) for (R, G, B)." },
+          { title: "Normalise per channel", text: "Subtract each channel's mean and divide by its standard deviation, both computed on the training set. For ImageNet-pretrained models the usual values are mean (0.485, 0.456, 0.406) and std (0.229, 0.224, 0.225) for (R, G, B)." },
           { title: "Batch", text: "Stack N preprocessed images along a new first axis to get N×C×H×W. A DataLoader does this for you." },
-          { title: "(Training only) augment", text: "Apply random transformations — flips, crops, colour jitter — before conversion, so every epoch sees slightly different images." },
+          { title: "(Training only) augment", text: "Apply random changes — flips, crops, colour jitter — before conversion, so every epoch sees slightly different images." },
         ],
       },
       { t: "h", text: "Normalisation: what and why" },
       {
         t: "p",
-        text: "Dividing by 255 puts inputs in [0, 1], but every pixel is still positive with a mean around 0.4–0.5. Per-channel standardisation centres each channel near 0 with unit spread over the dataset, which keeps first-layer pre-activations well scaled at initialisation (He/Xavier initialisation assume roughly zero-mean, unit-variance inputs) and makes gradient descent better conditioned. The statistics are **dataset-level constants**, not computed per image: for the sample photo in the code below, the ImageNet-normalised channel means are 0.36, 0.51 and 0.65 rather than 0, because that photo is brighter and bluer than the average ImageNet image — this is expected and correct. If you fine-tune a pretrained model you must use the statistics it was trained with; for a model trained from scratch, compute them on your own training set (one of the exercises does this).",
+        text: "After ÷255 every pixel is still positive, with a mean around 0.4–0.5. Per-channel standardisation centres each channel near 0 with unit spread over the dataset. That keeps first-layer pre-activations well scaled at initialisation (He/Xavier assume roughly zero-mean, unit-variance inputs) and helps gradient descent. The statistics are **dataset-level constants**, not per image: the sample photo below has ImageNet-normalised channel means 0.36, 0.51 and 0.65, not 0, because it is brighter and bluer than the average ImageNet image — expected and correct. Fine-tuning? Use the pretrained model's statistics. Training from scratch? Compute them on your training set (an exercise does this).",
       },
       { t: "h", text: "Resizing, interpolation and aspect ratio" },
       {
         t: "list",
         items: [
-          "**Nearest neighbour** copies the value of the closest source pixel: fast, keeps exact values (essential for segmentation label masks, where averaging class ids 3 and 7 into 5 would be nonsense), but blocky when upsampling and aliased when downsampling.",
-          "**Bilinear** blends the four surrounding source pixels with weights proportional to proximity (worked example in the math section). The default for photos.",
-          "**Bicubic** fits a cubic through 4×4 neighbours: sharper, slightly slower, can overshoot (values slightly outside the original range).",
-          "**Area / antialiased** resampling averages all source pixels covered by an output pixel. When shrinking a lot (e.g. 4000 px → 224 px), plain bilinear samples only a few source pixels per output pixel and produces aliasing; Pillow's resize and torchvision's `Resize(antialias=True)` filter properly.",
-          "**Aspect ratio**: forcing a 640×427 image into 224×224 stretches it by a factor 1.5 vertically relative to horizontally. Three standard alternatives: resize the shorter side and centre-crop (ImageNet classification), resize the longer side and pad (“letterboxing”, common in detection so no object is cut off), or train at the native aspect ratio with a fully convolutional network.",
+          "**Nearest neighbour** copies the closest source pixel. Fast, and keeps exact values — essential for segmentation label masks, where averaging class ids 3 and 7 into 5 would be nonsense. But blocky when enlarging and aliased (jagged, with false patterns) when shrinking.",
+          "**Bilinear** blends the four surrounding source pixels, weighted by closeness (worked example in the math section). The default for photos.",
+          "**Bicubic** fits a cubic curve through 4×4 neighbours: sharper, a bit slower, and can overshoot (values slightly outside the original range).",
+          "**Area / antialiased** resampling averages all source pixels covered by an output pixel. When shrinking a lot (e.g. 4000 px → 224 px), plain bilinear samples only a few source pixels per output pixel and causes aliasing; Pillow's resize and torchvision's `Resize(antialias=True)` filter properly.",
+          "**Aspect ratio**: forcing a 640×427 image into 224×224 stretches it 1.5× more vertically than horizontally. Three standard alternatives: resize the shorter side and centre-crop (ImageNet classification); resize the longer side and pad (“letterboxing”, common in detection so no object is cut off); or train at the native aspect ratio with a fully convolutional network.",
         ],
       },
       { t: "h", text: "Data augmentation (pointer)" },
       {
         t: "p",
-        text: "Because image tensors are just arrays, label-preserving transformations — horizontal flips, random crops and rescaling, small rotations, colour jitter, blur, Cutout/Mixup-style mixing — can create unlimited plausible new training images. Augmentation is one of the most effective regularisers in vision; it is treated with the other regularisers in [Regularization](/learn/m07/regularization). Two practical rules: apply augmentation only to the training set (evaluation uses a deterministic resize/crop), and make sure the transformation really preserves the label (a horizontal flip turns a “b” into a “d”).",
+        text: "Image tensors are just arrays, so changes that keep the label — horizontal flips, random crops and rescaling, small rotations, colour jitter, blur, Cutout/Mixup-style mixing — can make endless believable new training images. Augmentation is one of the strongest regularisers in vision; see [Regularization](/learn/m07/regularization). Two rules: augment only the training set (evaluation uses a fixed resize/crop), and make sure the change really keeps the label (a horizontal flip turns a “b” into a “d”).",
       },
       { t: "h", text: "Why fully connected layers fail on images" },
       {
         t: "p",
-        text: "An MLP needs a vector, so the image is flattened: (C, H, W) → C·H·W numbers. Three problems follow.",
+        text: "An MLP needs a vector, so the image is flattened: (C, H, W) → C·H·W numbers. Problems follow.",
       },
       {
         t: "table",
@@ -159,16 +155,16 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "**Parameter explosion.** The first layer's weight count is (inputs × units). At ImageNet resolution one 1,000-unit layer has over 150 million parameters — more than an entire ResNet-50 (25.6 million) — and would need enormous amounts of data not to overfit. A 3×3 convolution with 64 output channels on the same image has 64·3·9 + 64 = 1,792 parameters, independent of image size.",
-          "**Loss of spatial structure.** A dense layer computes $\\sum_i w_i x_i$: the sum is the same whatever order the inputs come in, as long as the weights are reordered with them. Neighbouring pixels get no special treatment, so the network must learn from data that pixel (10, 10) and (10, 11) are related. The experiment below makes this concrete.",
-          "**No sharing across positions.** A detector for a vertical stroke learned at the left of the image is a separate set of weights from the same detector at the right. Every position must be learned independently, from examples where the pattern appeared there.",
-          "**Fixed input size.** The weight matrix fixes the number of inputs: a model trained on 224×224 cannot even be applied to a 256×256 image.",
+          "**Parameter explosion.** The first layer has (inputs × units) weights. At ImageNet size one 1,000-unit layer has over 150 million parameters — more than all of ResNet-50 (25.6 million) — and would need huge amounts of data not to overfit. A 3×3 convolution with 64 output channels on the same image has 64·3·9 + 64 = 1,792 parameters, whatever the image size.",
+          String.raw`**Loss of spatial structure.** A dense layer computes $\sum_i w_i x_i$. The sum is the same in any input order, as long as the weights are reordered too. Neighbouring pixels get no special treatment, so the network must learn from data that pixels (10, 10) and (10, 11) are related. The experiment below makes this concrete.`,
+          "**No sharing across positions.** A vertical-stroke detector learned at the left of the image is separate weights from the same detector at the right. Each position must be learned on its own, from examples where the pattern appeared there.",
+          "**Fixed input size.** The weight matrix fixes the number of inputs: a model trained on 224×224 cannot even run on a 256×256 image.",
         ],
       },
       { t: "h", text: "The shuffled-pixels experiment" },
       {
         t: "p",
-        text: "Take scikit-learn's 8×8 digits. Draw one random permutation of the 64 pixel positions and apply it to every image, training and test alike. The images become unrecognisable to a human, but no information is lost — the permutation is invertible. Then train three models on original and permuted data with the same seeds (full code in the PyTorch tab):",
+        text: "Take scikit-learn's 8×8 digits. Draw one random permutation of the 64 pixel positions and apply it to every image, training and test alike. A human can no longer read the images, but no information is lost — the shuffle can be undone. Then train three models on original and shuffled data with the same seeds (full code in the PyTorch tab):",
       },
       {
         t: "table",
@@ -181,25 +177,25 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: "The MLP's accuracy does not change at all: permuting the inputs and permuting the columns of the first weight matrix in the same way gives exactly the same function, so (with matching initialisation) training follows exactly the same path. The MLP is **invariant to any fixed pixel permutation**, which is another way of saying it makes no use of which pixels are neighbours. The CNNs get worse because their kernels assume neighbouring inputs belong together; on shuffled pixels, a 3×3 window contains 9 unrelated pixels. The drop is small for the CNN with a flatten + linear head (its final dense layer can still memorise position-specific evidence on a tiny 8×8 image) and large for the purely convolutional network that ends in global average pooling, which relies entirely on local structure. On real photographs, where local structure is everything, the gap between architectures that exploit it and those that do not is far larger.",
+        text: "The MLP's accuracy does not change at all. Shuffling the inputs and the columns of the first weight matrix the same way gives the same function, so (with matching initialisation) training follows the same path. The MLP is **invariant to any fixed pixel permutation**: it makes no use of which pixels are neighbours. The CNNs get worse because their kernels assume neighbouring inputs belong together; on shuffled pixels a 3×3 window holds 9 unrelated pixels. The drop is small for the flatten + linear CNN (on a tiny 8×8 image its dense layer can still memorise position-specific evidence) and large for the all-convolutional network with global average pooling, which relies entirely on local structure. On real photos the gap is far larger.",
       },
       { t: "h", text: "What CNNs build in: inductive biases" },
       {
         t: "p",
-        text: "An **inductive bias** is an assumption built into a model's architecture that favours some solutions over others before any data is seen. Convolutional layers encode three assumptions about natural images:",
+        text: "An **inductive bias** is an assumption built into a model's architecture that favours some solutions before any data is seen. Convolutional layers encode these assumptions about natural images:",
       },
       {
         t: "list",
         items: [
-          "**Locality** — useful features are formed from nearby pixels, so each output looks only at a small window (3×3, 5×5). Distant interactions are built up gradually by stacking layers.",
-          "**Weight sharing (stationarity)** — the same pattern means the same thing anywhere in the image, so one small kernel is reused at every position. This is what makes the parameter count independent of image size.",
-          "**Translation equivariance** — a consequence of the first two: shifting the input shifts the feature map by the same amount. Pooling and global averaging later add a degree of translation *invariance*; see [Pooling, Receptive Fields and CNN Architecture](/learn/m08/pooling-receptive-field).",
-          "**Hierarchy** — stacking local layers builds features of increasing size and abstraction (edges → textures → parts → objects), as the receptive field grows layer by layer.",
+          "**Locality** — useful features come from nearby pixels, so each output looks only at a small window (3×3, 5×5). Long-range interactions are built up by stacking layers.",
+          "**Weight sharing (stationarity)** — a pattern means the same thing anywhere in the image, so one small kernel is reused at every position. This makes the parameter count independent of image size.",
+          "**Translation equivariance** — follows from the first two: shift the input and the feature map shifts by the same amount. Pooling and global averaging later add some translation *invariance*; see [Pooling, Receptive Fields and CNN Architecture](/learn/m08/pooling-receptive-field).",
+          "**Hierarchy** — stacking local layers builds larger, more abstract features (edges → textures → parts → objects) as the receptive field grows layer by layer.",
         ],
       },
       {
         t: "p",
-        text: "When the assumptions match the data, a strong bias lets a model learn from less data with far fewer parameters. When they do not — the shuffled pixels above — the bias hurts. [The Convolution Operation](/learn/m08/convolution) now builds the operation that implements these assumptions.",
+        text: "When the assumptions match the data, a strong bias lets a model learn from less data with far fewer parameters. When they do not — the shuffled pixels above — the bias hurts. [The Convolution Operation](/learn/m08/convolution) builds the operation that implements these assumptions.",
       },
     ],
 
@@ -208,7 +204,7 @@ const lesson: Lesson = {
       { t: "h", text: "Notation" },
       {
         t: "p",
-        text: String.raw`An RGB image is a tensor $X \in \{0,\dots,255\}^{H \times W \times 3}$ (channels-last) with entries $X[r, c, k]$: row $r \in \{0,\dots,H-1\}$, column $c \in \{0,\dots,W-1\}$ and channel $k \in \{0,1,2\}$ (R, G, B). A batch is $\mathcal{X} \in \mathbb{R}^{N \times C \times H \times W}$ (NCHW). With bit depth $b$, an integer level $q \in \{0, \dots, 2^b - 1\}$ is mapped to a float in $[0, 1]$ by`,
+        text: String.raw`An RGB image is a tensor $X \in \{0,\dots,255\}^{H \times W \times 3}$ (channels-last) with entries $X[r, c, k]$: row $r \in \{0,\dots,H-1\}$, column $c \in \{0,\dots,W-1\}$, channel $k \in \{0,1,2\}$ (R, G, B). A batch is $\mathcal{X} \in \mathbb{R}^{N \times C \times H \times W}$ (NCHW). With bit depth $b$, an integer level $q \in \{0, \dots, 2^b - 1\}$ maps to a float in $[0, 1]$ by`,
       },
       {
         t: "math",
@@ -222,12 +218,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The top-left pixel of the sample photo has $(R, G, B) = (174, 201, 231)$, so $Y = 0.299 \cdot 174 + 0.587 \cdot 201 + 0.114 \cdot 231 = 52.026 + 117.987 + 26.334 = 196.347$ — the value the NumPy code prints.`,
+        text: String.raw`The sample photo's top-left pixel is $(R, G, B) = (174, 201, 231)$, so $Y = 0.299 \cdot 174 + 0.587 \cdot 201 + 0.114 \cdot 231 = 52.026 + 117.987 + 26.334 = 196.347$ — the value the NumPy code prints.`,
       },
       { t: "h", text: "Per-channel normalisation" },
       {
         t: "p",
-        text: String.raw`For channel $k$ with dataset mean $\mu_k$ and standard deviation $\sigma_k$ (computed on $[0,1]$-scaled values over all training images and all pixels), each value is standardised:`,
+        text: String.raw`For channel $k$ with dataset mean $\mu_k$ and standard deviation $\sigma_k$ (computed on $[0,1]$-scaled values over all training images and pixels), each value is standardised:`,
       },
       {
         t: "math",
@@ -244,12 +240,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`These are exactly the three numbers the NumPy program prints for pixel (0, 0). Normalisation is an affine map per channel, so it is undone by $x = \sigma_k z + \mu_k$ (needed to display a normalised image). It can also be folded into the first convolution: since $\sum w\,(x-\mu)/\sigma = \sum (w/\sigma)\,x - \sum w\mu/\sigma$, scaling the weights by $1/\sigma_k$ and adjusting the bias gives the same outputs.`,
+        text: String.raw`These are exactly the three numbers the NumPy program prints for pixel (0, 0). Normalisation is a scale-and-shift per channel, so $x = \sigma_k z + \mu_k$ undoes it (needed to display a normalised image). It can also be folded into the first convolution: since $\sum w\,(x-\mu)/\sigma = \sum (w/\sigma)\,x - \sum w\mu/\sigma$, scaling the weights by $1/\sigma_k$ and adjusting the bias gives the same outputs.`,
       },
       { t: "h", text: "Memory layout and strides" },
       {
         t: "p",
-        text: String.raw`In a contiguous array, element $(n, c, h, w)$ lives at a linear offset that depends on the layout:`,
+        text: String.raw`In a contiguous array, element $(n, c, h, w)$ sits at a position (offset) that depends on the layout:`,
       },
       {
         t: "math",
@@ -257,12 +253,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Reading off the coefficients gives the strides: NCHW has strides $(CHW, HW, W, 1)$, NHWC has $(HWC, 1, WC, C)$ when listed in N, C, H, W order. For $C = 3, H = W = 224$: NCHW $(150528, 50176, 224, 1)$ and channels-last $(150528, 1, 672, 3)$ — the numbers PyTorch prints in the framework section. A permutation of axes permutes the strides without moving data.`,
+        text: String.raw`The coefficients are the strides: NCHW has $(CHW, HW, W, 1)$, NHWC has $(HWC, 1, WC, C)$ when listed in N, C, H, W order. For $C = 3, H = W = 224$: NCHW $(150528, 50176, 224, 1)$ and channels-last $(150528, 1, 672, 3)$ — the numbers PyTorch prints in the framework section. Permuting axes permutes the strides without moving data.`,
       },
       { t: "h", text: "Bilinear interpolation" },
       {
         t: "p",
-        text: String.raw`To resize an $H \times W$ image to $H' \times W'$, output pixel $(i, j)$ is mapped back to source coordinates using pixel centres (the “half-pixel” convention of PyTorch's align_corners=False and of OpenCV):`,
+        text: String.raw`To resize an $H \times W$ image to $H' \times W'$, output pixel $(i, j)$ is mapped back to source coordinates using pixel centres (the “half-pixel” rule of PyTorch's align_corners=False and of OpenCV):`,
       },
       {
         t: "math",
@@ -270,7 +266,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`With $y_0 = \lfloor y \rfloor$, $x_0 = \lfloor x \rfloor$, $\alpha = y - y_0$, $\beta = x - x_0$, the value is a weighted average of the four neighbours:`,
+        text: String.raw`With $y_0 = \lfloor y \rfloor$, $x_0 = \lfloor x \rfloor$, $\alpha = y - y_0$, $\beta = x - x_0$, the value is a weighted average of the four neighbours — closer neighbours get more weight:`,
       },
       {
         t: "math",
@@ -278,7 +274,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**Worked example.** Upsample $I = \begin{bmatrix}0&1\\1&0\end{bmatrix}$ to $4\times4$, so $H/H' = 0.5$. Output $(1,1)$: $y = x = 1.5 \cdot 0.5 - 0.5 = 0.25$, so $y_0 = x_0 = 0$, $\alpha = \beta = 0.25$, and $I'(1,1) = 0.5625\cdot 0 + 0.1875\cdot 1 + 0.1875 \cdot 1 + 0.0625\cdot 0 = 0.375$. Output $(0,1)$: $y = 0.5\cdot0.5 - 0.5 = -0.25 \to 0$ (clamped), $x = 0.25$, so $I'(0,1) = 0.75\cdot 0 + 0.25 \cdot 1 = 0.25$. The full result, printed by the NumPy code, is`,
+        text: String.raw`**Worked example.** Enlarge $I = \begin{bmatrix}0&1\\1&0\end{bmatrix}$ to $4\times4$, so $H/H' = 0.5$. Output $(1,1)$: $y = x = 1.5 \cdot 0.5 - 0.5 = 0.25$, so $y_0 = x_0 = 0$, $\alpha = \beta = 0.25$, and $I'(1,1) = 0.5625\cdot 0 + 0.1875\cdot 1 + 0.1875 \cdot 1 + 0.0625\cdot 0 = 0.375$. Output $(0,1)$: $y = 0.5\cdot0.5 - 0.5 = -0.25 \to 0$ (clamped), $x = 0.25$, so $I'(0,1) = 0.75\cdot 0 + 0.25 \cdot 1 = 0.25$. The full result, printed by the NumPy code, is`,
       },
       {
         t: "math",
@@ -292,12 +288,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`For $224\times224\times3$ and $m = 1000$: $150{,}528 \cdot 1000 + 1000 = 150{,}529{,}000$. For $m = 4096$ (the width of VGG's dense layers): $616{,}566{,}784$. For a 3×3 convolution with $C_{\text{out}} = 64$: $64\cdot 3 \cdot 9 + 64 = 1{,}792$, a factor of about 84,000 fewer than the 1,000-unit dense layer.`,
+        text: String.raw`For $224\times224\times3$ and $m = 1000$: $150{,}528 \cdot 1000 + 1000 = 150{,}529{,}000$. For $m = 4096$ (VGG's dense-layer width): $616{,}566{,}784$. For a 3×3 convolution with $C_{\text{out}} = 64$: $64\cdot 3 \cdot 9 + 64 = 1{,}792$ — about 84,000 times fewer than the 1,000-unit dense layer.`,
       },
       { t: "h", text: "Why an MLP is permutation invariant" },
       {
         t: "p",
-        text: String.raw`Let $P$ be a permutation matrix (each row and column contains a single 1), so $P\mathbf{x}$ reorders the pixels of a flattened image $\mathbf{x}$, and $P^\top P = I$. For a first layer with weights $W$, define $W' = W P^\top$ (the same permutation applied to the columns). Then`,
+        text: String.raw`Let $P$ be a permutation matrix (one 1 in each row and column), so $P\mathbf{x}$ reorders the pixels of a flattened image $\mathbf{x}$, and $P^\top P = I$. For a first layer with weights $W$, define $W' = W P^\top$ (the same shuffle applied to the columns). Then`,
       },
       {
         t: "math",
@@ -306,31 +302,31 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`If the initial weights are related by $W'_0 = W_0 P^\top$, the gradients are related the same way at every step ($\partial L / \partial W' = (\partial L/\partial W)P^\top$), and element-wise optimisers like SGD and Adam preserve the relation — so the two training runs are the same run, which is why the experiment's MLP accuracies agree to every printed digit. A convolution has no such freedom: its kernel $K$ is applied to every window of neighbours, and there is in general no kernel $K'$ with $K' \star (P\mathbf{x}) = P(K \star \mathbf{x})$ for an arbitrary pixel permutation $P$. Its only symmetries are the translations: $K \star (T\mathbf{x}) = T(K \star \mathbf{x})$ (equivariance). The architecture “knows” which pixels are neighbours.`,
+        text: String.raw`If the starting weights are related by $W'_0 = W_0 P^\top$, the gradients stay related the same way at every step ($\partial L / \partial W' = (\partial L/\partial W)P^\top$), and element-wise optimisers like SGD and Adam keep the relation. So the two training runs are the same run, which is why the MLP accuracies match to every printed digit. A convolution has no such freedom. Its kernel $K$ is applied to every window of neighbours, and for an arbitrary pixel permutation $P$ there is in general no kernel $K'$ with $K' \star (P\mathbf{x}) = P(K \star \mathbf{x})$. Its only symmetries are shifts: $K \star (T\mathbf{x}) = T(K \star \mathbf{x})$ (equivariance). The architecture “knows” which pixels are neighbours.`,
       },
       { t: "h", text: "Memory of a batch" },
       {
         t: "p",
-        text: String.raw`A batch of $N = 32$ images of $3\times224\times224$ holds $32 \cdot 150{,}528 = 4{,}816{,}896$ values: $4{,}816{,}896$ bytes ($4.59$ MiB) as uint8, $19{,}267{,}584$ bytes ($18.375$ MiB) as float32. This is why datasets are stored as compressed uint8 files and converted to float only on the fly, batch by batch.`,
+        text: String.raw`A batch of $N = 32$ images of $3\times224\times224$ holds $32 \cdot 150{,}528 = 4{,}816{,}896$ values: $4{,}816{,}896$ bytes ($4.59$ MiB) as uint8, $19{,}267{,}584$ bytes ($18.375$ MiB) as float32. That is why datasets are stored as compressed uint8 files and converted to float on the fly, batch by batch.`,
       },
     ],
 
     // ----------------------------------------------------------------- visual
     visual: [
-      { t: "sim", id: "cnn-pipeline", caption: "A real image goes through the preprocessing of this lesson (centre-crop, resize to 64×64, BT.601 grayscale, scale to [0, 1]) and then through two convolution layers." },
+      { t: "sim", id: "cnn-pipeline", caption: "A real image goes through this lesson's preprocessing (centre-crop, resize to 64×64, BT.601 grayscale, scale to [0, 1]) and then through two convolution layers." },
       {
         t: "list",
         items: [
-          "Look at the first stage (the input): the narration states its shape, 1 × 64 × 64 = 4,096 numbers. The pipeline did exactly the steps from the mechanism section: centre-crop to a square (aspect ratio preserved, no stretching), resize, grayscale with 0.299R + 0.587G + 0.114B, and divide by 255.",
-          "Upload a photo of your own. Whatever its original size and aspect ratio, it becomes a 1×64×64 tensor; a wide panorama loses its left and right edges to the centre crop. Count what a fully connected layer with 1,000 units would need for this input: 4,096,000 weights. The first convolution in the simulator uses a handful of 3×3 kernels — a few dozen weights.",
+          "Look at the first stage (the input): its shape is 1 × 64 × 64 = 4,096 numbers. The pipeline did exactly the mechanism-section steps: centre-crop to a square (no stretching), resize, grayscale with 0.299R + 0.587G + 0.114B, and divide by 255.",
+          "Upload your own photo. Any size or aspect ratio becomes a 1×64×64 tensor; a wide panorama loses its edges to the centre crop. A 1,000-unit dense layer on this input would need 4,096,000 weights; the simulator's first convolution uses a few 3×3 kernels — a few dozen weights.",
           "Step to the first feature maps (6 channels). The tensor is now 6×62×62: the “channels” are no longer colours but the responses of 6 kernels. This is the C axis of NCHW inside a network.",
-          "Change the layer-1 stride and padding and watch the shapes in the stage labels change; the formula behind them is the subject of the next lesson.",
+          "Change the layer-1 stride and padding and watch the shapes in the stage labels change; the formula behind them is the next lesson's topic.",
         ],
       },
       { t: "sim", id: "convolution", caption: "Preview of the next lesson: one 3×3 kernel sliding over a small grid of pixel values." },
       {
         t: "p",
-        text: "In the convolution simulator, choose the **Digit “3”** input. It is literally a small grayscale image tensor: a grid of intensities. Apply the vertical-edge kernel and notice that each output depends only on a 3×3 neighbourhood — the locality bias in action. If you shuffled the input cells randomly, the kernel would be combining unrelated pixels, which is what happens to the CNNs in the shuffled-pixels experiment.",
+        text: "In the convolution simulator, choose the **Digit “3”** input. It really is a small grayscale image tensor: a grid of intensities. Apply the vertical-edge kernel and notice that each output depends only on a 3×3 neighbourhood — locality in action. Shuffle the input cells and the kernel would combine unrelated pixels, which is what happens to the CNNs in the shuffled-pixels experiment.",
       },
     ],
 
@@ -338,7 +334,7 @@ const lesson: Lesson = {
     scratch: [
       {
         t: "p",
-        text: "Everything in this lesson with NumPy only: load a real JPEG (scikit-learn ships two sample photos, decoded with Pillow), inspect shape, dtype and memory, convert to grayscale, convert uint8 → float, reorder HWC → CHW and inspect the strides, normalise with the ImageNet statistics, form a batch, implement nearest-neighbour and bilinear resizing from scratch, and tabulate the parameter explosion of dense layers.",
+        text: "The whole lesson in NumPy: load a real JPEG (one of scikit-learn's two sample photos, decoded with Pillow), check shape, dtype and memory, make grayscale, convert uint8 → float, reorder HWC → CHW and inspect strides, normalise with ImageNet statistics, form a batch, write nearest-neighbour and bilinear resizing from scratch, and tabulate the dense-layer parameter explosion.",
       },
       {
         t: "code",
@@ -437,8 +433,8 @@ nearest: (107, 160, 3)  bilinear: (107, 160, 3)
         t: "list",
         items: [
           "`img.nbytes` = 427·640·3 = 819,840: one byte per value in uint8. The float32 copy `x` is four times larger.",
-          "The CHW array is a **view**: its strides (4, 7680, 12) bytes show that stepping along C moves 4 bytes (one float32) while stepping along W moves 12 bytes (a whole pixel). It is not C-contiguous; `np.ascontiguousarray` would copy it into true CHW order.",
-          "After ImageNet normalisation the channel means of this single image are 0.36–0.65, not 0: the statistics belong to the dataset, not to each image.",
+          "The CHW array is a **view**: its strides (4, 7680, 12) bytes show a step along C moves 4 bytes (one float32) while a step along W moves 12 (a whole pixel). It is not C-contiguous; `np.ascontiguousarray` would copy it into true CHW order.",
+          "After ImageNet normalisation this one image's channel means are 0.36–0.65, not 0: the statistics belong to the dataset, not each image.",
           "The resized images keep the 427:640 ≈ 2:3 aspect ratio (107×160).",
           "`resize_bilinear` reproduces PyTorch's `F.interpolate(..., mode=\"bilinear\", align_corners=False)` to within 1e-13 — the coding exercise checks this.",
         ],
@@ -455,7 +451,7 @@ nearest: (107, 160, 3)  bilinear: (107, 160, 3)
             blocks: [
               {
                 t: "p",
-                text: "**1. Loading and preprocessing with Pillow and torchvision.** `ToTensor` converts a Pillow image or HWC uint8 array into a CHW float tensor in [0, 1]; `Normalize` applies the per-channel standardisation; `Resize(256)` scales the shorter side to 256 keeping the aspect ratio; `CenterCrop(224)` cuts the central square. The script also shows NCHW vs NHWC strides and the channels_last memory format.",
+                text: "**1. Loading and preprocessing with Pillow and torchvision.** `ToTensor` turns a Pillow image or HWC uint8 array into a CHW float tensor in [0, 1]; `Normalize` standardises per channel; `Resize(256)` scales the shorter side to 256, keeping the aspect ratio; `CenterCrop(224)` cuts the central square. The script also shows NCHW vs NHWC strides and channels_last.",
               },
               {
                 t: "code",
@@ -518,13 +514,13 @@ channels_last: shape (2, 3, 224, 224) strides (150528, 1, 672, 3) same values: T
                 items: [
                   "`ToTensor()(img)` equals `torch.from_numpy(arr).permute(2, 0, 1).float() / 255` exactly.",
                   "`Resize(256)` with an int resizes the **shorter** side (427 → 256, 640 → 383); `Resize((256, 256))` with a tuple would ignore the aspect ratio.",
-                  "In current torchvision you can equivalently use the `torchvision.transforms.v2` API, which also handles boxes and masks; for pretrained models, `weights.transforms()` returns the exact preprocessing they were trained with.",
-                  "The channels_last tensor compares equal to the NCHW tensor: same logical values, different memory order (strides).",
+                  "Current torchvision also offers the `torchvision.transforms.v2` API, which handles boxes and masks too; for pretrained models, `weights.transforms()` returns their exact training preprocessing.",
+                  "The channels_last tensor equals the NCHW tensor: same values, different memory order (strides).",
                 ],
               },
               {
                 t: "p",
-                text: "**2. The shuffled-pixels experiment.** Three architectures, each trained on the original digits and on digits whose 64 pixels were reordered by one fixed permutation, with 3 seeds each. For the MLP, the permuted run starts from the identically permuted initial weights, so both runs compute the same function from the first step. Runs in about 25 seconds on a CPU.",
+                text: "**2. The shuffled-pixels experiment.** Three architectures, each trained on original digits and on digits with one fixed pixel shuffle, 3 seeds each. The permuted MLP starts from identically permuted initial weights, so both runs compute the same function from step one. About 25 seconds on a CPU.",
               },
               {
                 t: "code",
@@ -614,8 +610,8 @@ CNN+GAP: test accuracy permuted [0.94   0.6733 0.8756]  mean 0.8296`,
               {
                 t: "list",
                 items: [
-                  "The MLP rows are identical seed by seed: permuting the pixels changes nothing for a network that has no notion of neighbourhood.",
-                  "The CNN with a flatten + linear head drops by 1.5 points on average; the all-convolutional CNN with global average pooling drops by 13.9 points and becomes unstable across seeds (0.94, 0.67, 0.88).",
+                  "The MLP rows match seed by seed: shuffling pixels changes nothing for a network with no idea of neighbourhood.",
+                  "The flatten + linear CNN drops 1.5 points on average; the all-convolutional CNN with global average pooling drops 13.9 points and varies wildly across seeds (0.94, 0.67, 0.88).",
                   "Without the weight-permutation trick, the two MLP runs would start from different random weights and differ slightly by chance — but not systematically.",
                 ],
               },
@@ -626,7 +622,7 @@ CNN+GAP: test accuracy permuted [0.94   0.6733 0.8756]  mean 0.8296`,
             blocks: [
               {
                 t: "p",
-                text: "Keras works channels-last (NHWC) throughout. Preprocessing can be done with Keras layers so that it is saved inside the model: `Resizing`, `CenterCrop`, `Rescaling(1/255)` and `Normalization(mean=…, variance=…)`. Note that `Normalization` takes the **variance** (std²), not the standard deviation.",
+                text: "Keras is channels-last (NHWC) throughout. Preprocessing can live inside the model as Keras layers: `Resizing`, `CenterCrop`, `Rescaling(1/255)` and `Normalization(mean=…, variance=…)`. Note that `Normalization` takes the **variance** (std²), not the standard deviation.",
               },
               {
                 t: "code",
@@ -675,11 +671,11 @@ print("NCHW:", nchw.shape)
           ["Grayscale", "1", "uint8 0–255", "Digits, documents, X-rays", "Smallest; no colour cues"],
           ["RGB", "3", "uint8 0–255", "Photos (JPEG, PNG), most datasets", "Default for pretrained models"],
           ["BGR", "3", "uint8 0–255", "OpenCV (`cv2.imread`), old Caffe models", "Same data, reversed channel order"],
-          ["RGBA", "4", "uint8 0–255", "PNG with transparency", "Drop or composite alpha before a 3-channel model"],
-          ["YCbCr", "3", "uint8", "Inside JPEG and video codecs", "Separates brightness from colour"],
-          ["HSV / Lab", "3", "float", "Colour augmentation, colour analysis", "Perceptually motivated axes"],
-          ["16-bit / float", "1+", "uint16, float32", "Medical (DICOM), scientific, HDR, RAW", "Normalise with windowing or dataset statistics, not ÷255"],
-          ["Multispectral", "4–13+", "uint16/float", "Satellite imagery", "First conv layer must accept C channels"],
+          ["RGBA", "4", "uint8 0–255", "PNG with transparency", "Drop the alpha (see-through) channel, or paste onto a background, before a 3-channel model"],
+          ["YCbCr", "3", "uint8", "Inside JPEG and video files", "Keeps brightness apart from colour"],
+          ["HSV / Lab", "3", "float", "Colour augmentation, colour analysis", "Axes closer to how people see colour"],
+          ["16-bit / float", "1+", "uint16, float32", "Medical (DICOM), scientific, HDR, RAW", "Don't ÷255; use windowing or dataset statistics"],
+          ["Multispectral", "4–13+", "uint16/float", "Satellite images", "The first conv layer must take C input channels"],
         ],
       },
       { t: "h", text: "Tensor layouts" },
@@ -687,11 +683,11 @@ print("NCHW:", nchw.shape)
         t: "table",
         head: ["Layout", "Shape order", "Used by", "Advantages", "Disadvantages"],
         rows: [
-          ["HWC", "H, W, C", "Pillow/NumPy/OpenCV/matplotlib", "Natural for files and display", "Not what PyTorch layers expect"],
-          ["CHW / NCHW", "N, C, H, W", "PyTorch (default), cuDNN classic kernels", "Each channel plane contiguous", "Can be slower for Tensor-Core convolutions"],
-          ["NHWC", "N, H, W, C", "TensorFlow/Keras (default), TFLite", "All channels of a pixel adjacent; fast on modern GPUs/CPUs", "Must transpose for PyTorch code"],
-          ["channels_last (PyTorch)", "logical NCHW, stored NHWC", "PyTorch performance mode", "NHWC speed without changing code", "Must convert both model and inputs"],
-          ["NCTHW", "N, C, T, H, W", "Video / 3-D medical in PyTorch", "Works with Conv3d", "Large memory"],
+          ["HWC", "H, W, C", "Pillow/NumPy/OpenCV/matplotlib", "Natural for files and showing images", "Not what PyTorch layers expect"],
+          ["CHW / NCHW", "N, C, H, W", "PyTorch (default), older cuDNN kernels", "Each channel's plane sits in one block of memory", "Can be slower on Tensor-Core GPUs"],
+          ["NHWC", "N, H, W, C", "TensorFlow/Keras (default), TFLite", "A pixel's channels sit side by side; fast on modern GPUs/CPUs", "Needs a transpose for PyTorch code"],
+          ["channels_last (PyTorch)", "shape NCHW, stored NHWC", "PyTorch speed mode", "NHWC speed with no code changes", "Convert both the model and the inputs"],
+          ["NCTHW", "N, C, T, H, W", "Video / 3-D medical scans in PyTorch", "Works with Conv3d", "Uses a lot of memory"],
         ],
       },
       { t: "h", text: "Normalisation schemes" },
@@ -699,11 +695,11 @@ print("NCHW:", nchw.shape)
         t: "table",
         head: ["Scheme", "Formula", "Advantages", "Disadvantages", "Typical use"],
         rows: [
-          ["Scale to [0, 1]", "x / 255", "Simple, no statistics needed", "Not centred", "Small models trained from scratch, toy data"],
-          ["Scale to [−1, 1]", "x / 127.5 − 1", "Centred, bounded", "Ignores per-channel differences", "GANs, diffusion models (tanh outputs)"],
-          ["Dataset mean/std per channel", "(x − μ_k)/σ_k", "Standardised, well-conditioned", "Must store and reuse the statistics", "Most classifiers; ImageNet-pretrained models"],
-          ["Per-image standardisation", "(x − mean(x))/std(x)", "Robust to exposure changes", "Discards absolute brightness information", "Some medical and remote-sensing pipelines"],
-          ["Learned (BatchNorm on input)", "BN layer first", "Statistics learned and tracked automatically", "Extra layer; batch-size dependent", "Occasionally in custom architectures"],
+          ["Scale to [0, 1]", "x / 255", "Simple, no statistics needed", "Not centred on 0", "Small models trained from scratch, toy data"],
+          ["Scale to [−1, 1]", "x / 127.5 − 1", "Centred on 0, bounded", "Treats all channels the same", "GANs, diffusion models (tanh outputs)"],
+          ["Dataset mean/std per channel", "(x − μ_k)/σ_k", "Mean 0, std 1: easy for training", "You must save and reuse the statistics", "Most classifiers; ImageNet-pretrained models"],
+          ["Per-image standardisation", "(x − mean(x))/std(x)", "Not fooled by too-bright or too-dark photos", "Throws away how bright the image really was", "Some medical and satellite pipelines"],
+          ["Learned (BatchNorm on input)", "BN layer first", "Statistics are tracked for you", "Extra layer; depends on batch size", "Now and then in custom models"],
         ],
       },
       { t: "h", text: "Resizing strategies" },
@@ -711,7 +707,7 @@ print("NCHW:", nchw.shape)
         t: "table",
         head: ["Strategy", "Aspect ratio", "Information loss", "Typical use"],
         rows: [
-          ["Direct resize to H×W", "Distorted", "None cropped, but shapes stretched", "When distortion is harmless (some textures, medical patches)"],
+          ["Direct resize to H×W", "Distorted", "Nothing cut off, but shapes get stretched", "When stretching does no harm (some textures, medical patches)"],
           ["Shorter side + centre crop", "Preserved", "Edges cropped", "Classification evaluation (Resize 256, CenterCrop 224)"],
           ["Random resized crop", "Varied on purpose", "Random region", "Classification training (augmentation)"],
           ["Longer side + pad (letterbox)", "Preserved", "None; padding added", "Object detection"],
@@ -725,12 +721,12 @@ print("NCHW:", nchw.shape)
       {
         t: "list",
         items: [
-          "**Transfer learning with pretrained models** — every torchvision, timm or Keras Applications model documents its expected input (RGB, size, mean/std). Feeding the wrong normalisation or BGR images is one of the most common reasons a fine-tuned model underperforms.",
-          "**Medical imaging** — CT scans store Hounsfield units in 12–16 bits; pipelines apply “windowing” (clip to a range such as soft tissue and rescale) instead of ÷255, and stack slices into 3-D tensors (N×C×D×H×W).",
-          "**Remote sensing** — satellite products such as Sentinel-2 provide 13 spectral bands; models simply use C = 13 input channels, with per-band statistics.",
-          "**Object detection and segmentation** — letterbox resizing preserves geometry; segmentation masks are resized with nearest-neighbour interpolation so class ids stay valid.",
-          "**Video understanding** — frames are stacked along a time axis; memory grows linearly with frame count, so careful layout and dtype choices matter.",
-          "**High-throughput training and inference** — storing datasets as uint8, decoding on the CPU, normalising on the GPU, and using channels_last with mixed precision are routine optimisations in production vision pipelines.",
+          "**Transfer learning with pretrained models** — every torchvision, timm or Keras Applications model documents its expected input (RGB, size, mean/std). Wrong normalisation or BGR images is one of the commonest reasons a fine-tuned model underperforms.",
+          "**Medical imaging** — CT scans store Hounsfield units in 12–16 bits. Pipelines use “windowing” (clip to a range such as soft tissue, then rescale) instead of ÷255, and stack slices into 3-D tensors (N×C×D×H×W).",
+          "**Remote sensing** — Sentinel-2 satellite products have 13 spectral bands; models use C = 13 input channels with per-band statistics.",
+          "**Object detection and segmentation** — letterboxing keeps geometry; masks are resized with nearest neighbour so class ids stay valid.",
+          "**Video understanding** — frames stack along a time axis; memory grows with frame count, so layout and dtype choices matter.",
+          "**High-throughput pipelines** — store uint8, decode on the CPU, normalise on the GPU, and use channels_last with mixed precision: routine production optimisations.",
         ],
       },
     ],
@@ -741,11 +737,11 @@ print("NCHW:", nchw.shape)
       {
         t: "list",
         items: [
-          "**uint8 vs float32 storage**: uint8 is 4× smaller and is what files contain; float32 is needed for arithmetic. Convert as late as possible (per batch, ideally on the GPU).",
-          "**NCHW vs NHWC**: semantically identical; performance depends on hardware and kernels. Benchmark channels_last on your GPU before adopting it.",
-          "**Resolution**: higher resolution preserves small details but compute grows with H·W (and a dense layer's parameters would too). Classification commonly uses 224–384 px; detection and segmentation often more.",
-          "**Interpolation**: bilinear/area for images, nearest for labels; antialiasing when shrinking by large factors avoids aliasing at a small cost.",
-          "**Normalisation statistics**: reuse the pretrained model's statistics when fine-tuning; compute your own when training from scratch on data that differs from ImageNet (medical, satellite, grayscale).",
+          "**uint8 vs float32 storage**: uint8 is 4× smaller and is what files hold; float32 is needed for arithmetic. Convert as late as possible (per batch, ideally on the GPU).",
+          "**NCHW vs NHWC**: same meaning; speed depends on hardware and kernels. Benchmark channels_last on your GPU first.",
+          "**Resolution**: higher keeps small details, but compute grows with H·W (a dense layer's parameters would too). Classification often uses 224–384 px; detection and segmentation more.",
+          "**Interpolation**: bilinear/area for images, nearest for labels; antialias when shrinking a lot.",
+          "**Normalisation statistics**: reuse the pretrained model's when fine-tuning; compute your own when training from scratch on non-ImageNet-like data (medical, satellite, grayscale).",
         ],
       },
       { t: "h", text: "MLPs vs CNNs on images" },
@@ -753,16 +749,16 @@ print("NCHW:", nchw.shape)
         t: "table",
         head: ["Aspect", "Fully connected (MLP)", "Convolutional (CNN)"],
         rows: [
-          ["Parameters vs image size", "Grow linearly with H·W·C", "Independent of H·W"],
-          ["Uses pixel neighbourhoods", "No — invariant to any fixed permutation", "Yes — locality built in"],
-          ["Position handling", "Separate weights per position", "Shared kernel, translation equivariant"],
+          ["Parameters vs image size", "Grow in step with H·W·C", "Do not depend on H·W"],
+          ["Uses pixel neighbourhoods", "No — any fixed shuffle of pixels changes nothing", "Yes — looks at nearby pixels by design"],
+          ["Position handling", "Separate weights for every position", "One shared kernel; a shifted input gives a shifted output"],
           ["Input size", "Fixed", "Any (fully convolutional)"],
-          ["When it can be preferable", "Tiny inputs, non-image vectors, data with no spatial order", "Any data on a grid: images, spectrograms, volumes"],
+          ["When to pick it", "Tiny inputs, plain feature vectors, data with no spatial order", "Any data on a grid: images, spectrograms, 3-D volumes"],
         ],
       },
       {
         t: "p",
-        text: "Strong inductive biases are a trade-off, not a free lunch: they help most when data is limited. With very large datasets, architectures with weaker spatial biases (Vision Transformers, which see the image as a set of patches plus position information) can match or exceed CNNs — though they too begin by cutting the image into local patches.",
+        text: "Strong inductive biases are a trade-off, not a free lunch: they help most when data is limited. With very large datasets, models with weaker spatial biases (Vision Transformers, which see the image as a set of patches plus position information) can match or beat CNNs — though they too start by cutting the image into local patches.",
       },
     ],
 
@@ -771,33 +767,33 @@ print("NCHW:", nchw.shape)
       {
         t: "list",
         items: [
-          "**Passing HWC data to PyTorch.** A (N, H, W, 3) batch fed to `nn.Conv2d(3, …)` either raises an error (PyTorch reports that it expected 3 channels but got 224) or, worse, runs with the wrong axis as channels when the sizes happen to match. Fix: `x.permute(0, 3, 1, 2)`; assert `x.shape[1] == in_channels`.",
-          "**Using reshape/view instead of permute.** `x.reshape(3, H, W)` on an HWC array keeps the memory order and slices it into three meaningless blocks, scrambling pixels across channels. Reordering axes requires `permute`/`transpose`.",
-          "**BGR vs RGB.** `cv2.imread` returns BGR. A model trained on RGB sees red and blue swapped — skies become orange. Fix: `cv2.cvtColor(img, cv2.COLOR_BGR2RGB)` or `img[..., ::-1]`.",
-          "**Forgetting to scale, or scaling twice.** Feeding 0–255 values to a model trained on [0, 1] inputs saturates its activations; applying `/255` after `ToTensor` (which already scaled) makes everything nearly black. Know exactly which step does the scaling.",
-          "**Wrong normalisation statistics.** Using ImageNet statistics for a model trained with [−1, 1] inputs (or vice versa) shifts every input. Always use the preprocessing that matches the weights you load.",
-          "**Computing statistics per batch or on the test set.** The mean/std are fixed constants from the training set; recomputing them on test data leaks information and changes the input distribution.",
-          "**uint8 arithmetic overflow.** In NumPy, `np.array([200], np.uint8) + np.array([100], np.uint8)` gives `[44]` (300 mod 256) without an error. Convert to float (or a wider integer) before arithmetic such as brightness changes or averaging.",
-          "**Confusing Pillow's size with array shape.** `Image.size` is (width, height); `np.asarray(img).shape` is (height, width, channels). Many off-by-transpose bugs come from mixing them, e.g. in `Resize((h, w))` calls.",
-          "**Distorting aspect ratio unintentionally.** `Resize((224, 224))` stretches non-square images. Use `Resize(256)` + `CenterCrop(224)` or letterboxing unless distortion is intended.",
-          "**Interpolating label masks bilinearly.** Averaging class ids produces invalid classes at boundaries. Resize masks with nearest-neighbour interpolation.",
-          "**Augmenting the evaluation set.** Random crops or flips at test time make metrics noisy and non-reproducible; use deterministic preprocessing for validation and test (test-time augmentation is a separate, deliberate technique).",
-          "**Displaying a normalised tensor directly.** `plt.imshow` on a CHW, normalised tensor fails or shows garbage. Undo the normalisation, permute to HWC and clip to [0, 1] first.",
+          "**Passing HWC data to PyTorch.** A (N, H, W, 3) batch fed to `nn.Conv2d(3, …)` either errors (expected 3 channels but got 224) or, worse, runs with the wrong axis as channels when sizes happen to match. Fix: `x.permute(0, 3, 1, 2)`; assert `x.shape[1] == in_channels`.",
+          "**Using reshape/view instead of permute.** `x.reshape(3, H, W)` on an HWC array keeps memory order and cuts it into three meaningless blocks, scrambling pixels across channels. Reordering axes needs `permute`/`transpose`.",
+          "**BGR vs RGB.** `cv2.imread` returns BGR, so an RGB-trained model sees red and blue swapped — skies turn orange. Fix: `cv2.cvtColor(img, cv2.COLOR_BGR2RGB)` or `img[..., ::-1]`.",
+          "**Forgetting to scale, or scaling twice.** 0–255 values into a model trained on [0, 1] saturate its activations; `/255` after `ToTensor` (which already scaled) makes everything nearly black. Know which step scales.",
+          "**Wrong normalisation statistics.** ImageNet statistics for a model trained on [−1, 1] inputs (or vice versa) shift every input. Match the preprocessing to the weights you load.",
+          "**Computing statistics per batch or on the test set.** Mean/std are fixed training-set constants; recomputing them on test data leaks information and changes the input distribution.",
+          "**uint8 arithmetic overflow.** In NumPy, `np.array([200], np.uint8) + np.array([100], np.uint8)` gives `[44]` (300 mod 256) with no error. Convert to float (or a wider integer) before brightness changes or averaging.",
+          "**Confusing Pillow's size with array shape.** `Image.size` is (width, height); `np.asarray(img).shape` is (height, width, channels). Mixing them causes many transpose bugs, e.g. in `Resize((h, w))` calls.",
+          "**Distorting aspect ratio by accident.** `Resize((224, 224))` stretches non-square images. Use `Resize(256)` + `CenterCrop(224)` or letterboxing unless you want distortion.",
+          "**Interpolating label masks bilinearly.** Averaging class ids creates invalid classes at boundaries. Use nearest neighbour for masks.",
+          "**Augmenting the evaluation set.** Random crops or flips at test time make metrics noisy and unrepeatable; use fixed preprocessing for validation and test (test-time augmentation is a separate, deliberate technique).",
+          "**Displaying a normalised tensor directly.** `plt.imshow` on a normalised CHW tensor fails or shows garbage. Undo the normalisation, permute to HWC and clip to [0, 1] first.",
         ],
       },
     ],
 
     // -------------------------------------------------------------- interview
     interview: [
-      { t: "qa", level: "beginner", q: "How is a colour image represented as a tensor?", a: "As a 3-D array of pixel intensities: height × width × channels, with 3 channels (red, green, blue) for a colour image and 1 for grayscale. Each value is usually an 8-bit integer 0–255. Libraries such as Pillow and NumPy store it H×W×C (channels-last); PyTorch layers expect C×H×W (channels-first). A batch adds a leading axis: N×C×H×W in PyTorch, N×H×W×C in TensorFlow." },
-      { t: "qa", level: "beginner", q: "Why do we divide pixel values by 255 and then normalise with a mean and standard deviation?", a: "Dividing by 255 converts 8-bit integers to floats in [0, 1]. Per-channel normalisation (x − μ_c)/σ_c then centres each channel near zero with unit spread across the training set. Centred, similarly scaled inputs keep early pre-activations in a good range at initialisation and make optimisation better conditioned. The statistics are dataset constants; with a pretrained model you must use the ones it was trained with, e.g. ImageNet's mean (0.485, 0.456, 0.406) and std (0.229, 0.224, 0.225)." },
-      { t: "qa", level: "beginner", q: "What goes wrong if you flatten a 224×224 RGB image into an MLP?", a: "The input has 150,528 values, so a single 1,000-unit dense layer needs about 150.5 million weights — hard to train and prone to overfitting. The MLP also ignores which pixels are neighbours (it is invariant to any fixed reordering of the pixels), cannot reuse a detector learned at one position at another, and only accepts one input size. Convolutions fix all four issues with small shared local kernels." },
-      { t: "qa", level: "intermediate", q: "What is the difference between NCHW and NHWC, and what does PyTorch's channels_last memory format do?", a: "They are two orders of the same four axes. NCHW stores each channel plane contiguously (strides CHW, HW, W, 1); NHWC stores all channels of a pixel together. PyTorch's channels_last keeps the logical NCHW shape, so code is unchanged, but stores data in NHWC order (strides HWC, 1, WC, C). Convolutions on Tensor-Core GPUs and many CPU backends are faster in NHWC, so converting the model and inputs to channels_last is a common speed-up; results are identical." },
-      { t: "qa", level: "intermediate", q: "You fine-tune an ImageNet-pretrained ResNet and accuracy is mysteriously poor. Which preprocessing issues would you check?", a: "Channel order (images loaded with OpenCV are BGR); scaling (0–255 vs [0, 1], or scaled twice); normalisation statistics (the model expects ImageNet mean/std); layout (HWC passed where CHW is expected, or reshape used instead of permute); resolution and aspect ratio (stretched images, very different input size); evaluation-time augmentation; and whether the same transforms are applied at training and inference. Visualising a de-normalised batch catches most of these in seconds." },
-      { t: "qa", level: "intermediate", q: "Which interpolation method would you use to resize (a) a photo, (b) a segmentation mask, and why?", a: "(a) Bilinear, bicubic or area/antialiased resampling: they blend neighbouring pixels and give smooth results; antialiasing matters when shrinking a lot, to avoid aliasing. (b) Nearest neighbour: a mask contains class ids, and averaging ids (e.g. 3 and 7 into 5) creates invalid labels at boundaries. Nearest neighbour preserves the exact set of values." },
-      { t: "qa", level: "advanced", q: "Prove that an MLP is invariant to a fixed permutation of its input pixels, and explain why a CNN is not.", a: "Let P be a permutation matrix and W the first-layer weights. Define W' = W Pᵀ. Then W'(Px) = W PᵀP x = Wx, so the permuted-input network with weights W' computes exactly the same function; the hypothesis class is unchanged. If initial weights are related this way, gradients obey ∂L/∂W' = (∂L/∂W)Pᵀ, and element-wise optimisers preserve the relation, so training is identical (the experiment shows identical accuracies). A convolution applies one kernel to windows of neighbouring pixels; for a general permutation there is no kernel K' with K' ⋆ (Px) = P(K ⋆ x). Its symmetry group is the translations (equivariance), so destroying spatial adjacency removes the structure its inductive bias relies on." },
-      { t: "qa", level: "advanced", q: "How can input normalisation be folded into the first convolution layer, and why might you do it?", a: "Normalisation is z_c = (x_c − μ_c)/σ_c. A convolution computes Σ_c Σ_{m,n} W[o,c,m,n] z_c + b_o = Σ W[o,c,m,n]/σ_c · x_c + (b_o − Σ_c Σ_{m,n} W[o,c,m,n] μ_c/σ_c). So scaling each input-channel slice of the weights by 1/σ_c and subtracting the folded term from the bias gives a layer that takes [0, 1] inputs directly. This removes a preprocessing pass at inference (useful on edge devices). It is exact away from the borders; with zero padding, padded zeros correspond to z = 0, i.e. x = μ, so border outputs differ slightly unless the padding value is adjusted." },
-      { t: "qa", level: "advanced", q: "Why do strong inductive biases help CNNs on small datasets but matter less for Vision Transformers trained on huge datasets?", a: "An inductive bias restricts the hypothesis space to functions consistent with assumptions (locality, weight sharing, translation equivariance). If the assumptions hold, the model needs fewer examples to find a good solution, because it does not have to learn them from data. A Vision Transformer has weaker spatial bias — global attention between patches, learned position embeddings — so with limited data it overfits or learns slowly, but with enough data it can learn spatial regularities itself and also capture long-range interactions a CNN builds only gradually. Hybrid designs (convolutional stems, local attention) try to get both." },
+      { t: "qa", level: "beginner", q: "How is a colour image represented as a tensor?", a: "As a 3-D array of pixel intensities: height × width × channels, with 3 channels (red, green, blue) for colour and 1 for grayscale. Values are usually 8-bit integers 0–255. Pillow and NumPy store H×W×C (channels-last); PyTorch layers expect C×H×W (channels-first). A batch adds a leading axis: N×C×H×W in PyTorch, N×H×W×C in TensorFlow." },
+      { t: "qa", level: "beginner", q: "Why do we divide pixel values by 255 and then normalise with a mean and standard deviation?", a: "Dividing by 255 turns 8-bit integers into floats in [0, 1]. Per-channel normalisation (x − μ_c)/σ_c then centres each channel near zero with unit spread over the training set. Centred, similarly scaled inputs keep early pre-activations in a good range at initialisation and make optimisation better behaved. The statistics are dataset constants; a pretrained model needs the ones it was trained with, e.g. ImageNet's mean (0.485, 0.456, 0.406) and std (0.229, 0.224, 0.225)." },
+      { t: "qa", level: "beginner", q: "What goes wrong if you flatten a 224×224 RGB image into an MLP?", a: "The input has 150,528 values, so one 1,000-unit dense layer needs about 150.5 million weights — hard to train and prone to overfitting. The MLP also ignores which pixels are neighbours (it is invariant to any fixed reordering of pixels), cannot reuse a detector learned at one position elsewhere, and accepts only one input size. Convolutions fix all four with small shared local kernels." },
+      { t: "qa", level: "intermediate", q: "What is the difference between NCHW and NHWC, and what does PyTorch's channels_last memory format do?", a: "Two orders of the same four axes. NCHW stores each channel plane contiguously (strides CHW, HW, W, 1); NHWC stores all channels of a pixel together. PyTorch's channels_last keeps the logical NCHW shape, so code is unchanged, but stores data in NHWC order (strides HWC, 1, WC, C). Convolutions on Tensor-Core GPUs and many CPU backends are faster in NHWC, so converting model and inputs to channels_last is a common speed-up with identical results." },
+      { t: "qa", level: "intermediate", q: "You fine-tune an ImageNet-pretrained ResNet and accuracy is mysteriously poor. Which preprocessing issues would you check?", a: "Channel order (OpenCV loads BGR); scaling (0–255 vs [0, 1], or scaled twice); normalisation statistics (the model expects ImageNet mean/std); layout (HWC where CHW is expected, or reshape instead of permute); resolution and aspect ratio (stretched images, very different size); augmentation at evaluation; and whether training and inference use the same transforms. Looking at a de-normalised batch catches most of these in seconds." },
+      { t: "qa", level: "intermediate", q: "Which interpolation method would you use to resize (a) a photo, (b) a segmentation mask, and why?", a: "(a) Bilinear, bicubic or area/antialiased resampling: they blend neighbours for smooth results; antialiasing matters when shrinking a lot. (b) Nearest neighbour: a mask holds class ids, and averaging ids (3 and 7 into 5) creates invalid labels at boundaries. Nearest neighbour keeps the exact set of values." },
+      { t: "qa", level: "advanced", q: "Prove that an MLP is invariant to a fixed permutation of its input pixels, and explain why a CNN is not.", a: "Let P be a permutation matrix and W the first-layer weights, and set W' = W Pᵀ. Then W'(Px) = W PᵀP x = Wx, so the permuted-input network with W' computes exactly the same function; the hypothesis class is unchanged. If the initial weights are related this way, gradients obey ∂L/∂W' = (∂L/∂W)Pᵀ, and element-wise optimisers keep the relation, so training is identical (the experiment shows identical accuracies). A convolution applies one kernel to windows of neighbouring pixels; for a general permutation there is no kernel K' with K' ⋆ (Px) = P(K ⋆ x). Its symmetries are the translations (equivariance), so destroying adjacency removes the structure its inductive bias relies on." },
+      { t: "qa", level: "advanced", q: "How can input normalisation be folded into the first convolution layer, and why might you do it?", a: "Normalisation is z_c = (x_c − μ_c)/σ_c. A convolution computes Σ_c Σ_{m,n} W[o,c,m,n] z_c + b_o = Σ W[o,c,m,n]/σ_c · x_c + (b_o − Σ_c Σ_{m,n} W[o,c,m,n] μ_c/σ_c). So dividing each input-channel slice of the weights by σ_c and subtracting the folded term from the bias gives a layer that takes [0, 1] inputs directly, saving a preprocessing pass at inference (useful on edge devices). It is exact away from the borders. With zero padding, padded zeros mean z = 0, i.e. x = μ, so border outputs differ slightly unless the padding value is adjusted." },
+      { t: "qa", level: "advanced", q: "Why do strong inductive biases help CNNs on small datasets but matter less for Vision Transformers trained on huge datasets?", a: "An inductive bias limits the model to functions that fit its assumptions (locality, weight sharing, translation equivariance). If the assumptions hold, the model needs fewer examples, because it does not have to learn them from data. A Vision Transformer has weaker spatial bias — global attention between patches, learned position embeddings — so with little data it overfits or learns slowly. With enough data it learns spatial regularities itself and also captures long-range interactions a CNN builds only gradually. Hybrid designs (convolutional stems, local attention) try to get both." },
     ],
 
     // --------------------------------------------------------------- practice
@@ -814,20 +810,20 @@ print("NCHW:", nchw.shape)
           },
           {
             kind: "numeric",
-            q: "A pixel's red value is 230. Using the ImageNet statistics for red (mean 0.485, std 0.229), what is its normalised value? (2 decimals)",
+            q: "A pixel's red value is 230. With ImageNet's red mean 0.485 and std 0.229, what is its normalised value? (2 decimals)",
             answer: 1.82,
             tolerance: 0.01,
             explain: "230/255 = 0.90196; (0.90196 − 0.485)/0.229 = 0.41696/0.229 = 1.8208.",
           },
           {
-            q: "You load an image with Pillow and convert it with np.asarray. What is its shape for a 640-wide, 427-tall RGB photo?",
+            q: "You open a 640-wide, 427-tall RGB photo with Pillow and turn it into an array with np.asarray. What shape is it?",
             options: ["(640, 427, 3)", "(427, 640, 3)", "(3, 427, 640)", "(3, 640, 427)"],
             answer: 1,
-            explain: "NumPy arrays from images are (height, width, channels). Pillow's img.size would report (640, 427) = (width, height).",
+            explain: "Image arrays in NumPy are (height, width, channels). Careful: Pillow's img.size gives (640, 427) = (width, height).",
           },
           {
             kind: "numeric",
-            q: "How many parameters (weights + biases) does a dense layer with 500 units have on a flattened 32×32×3 image?",
+            q: "A 32×32×3 image is flattened into a dense layer with 500 units. How many parameters (weights + biases) does that layer have?",
             answer: 1536500,
             tolerance: 0,
             explain: "32·32·3 = 3,072 inputs; 3,072 × 500 + 500 = 1,536,000 + 500 = 1,536,500.",
@@ -836,18 +832,18 @@ print("NCHW:", nchw.shape)
             q: "In the shuffled-pixels experiment, why is the MLP's test accuracy exactly unchanged?",
             options: [
               "Because digits are easy and every model reaches the same accuracy",
-              "Because permuting the inputs is equivalent to permuting the columns of the first weight matrix, so the same function and training path exist",
-              "Because the permutation was undone automatically by the DataLoader",
+              "Because shuffling the inputs is the same as shuffling the columns of the first weight matrix, so the same function and training path exist",
+              "Because the DataLoader quietly undid the shuffle",
               "Because MLPs use weight sharing",
             ],
             answer: 1,
-            explain: "W(Pᵀ)(Px) = Wx. With the initial weights permuted the same way, both runs are the same computation. MLPs have no notion of which inputs are neighbours.",
+            explain: "W(Pᵀ)(Px) = Wx. If the starting weights are shuffled the same way, both runs do the very same arithmetic. An MLP has no idea which inputs are neighbours.",
           },
           {
-            q: "A contiguous PyTorch tensor of shape (8, 3, 32, 32) is converted with x.contiguous(memory_format=torch.channels_last). What is x.shape afterwards?",
+            q: "A PyTorch tensor of shape (8, 3, 32, 32) is converted with x.contiguous(memory_format=torch.channels_last). What is x.shape now?",
             options: ["(8, 32, 32, 3)", "(8, 3, 32, 32)", "(3, 8, 32, 32)", "(8, 3072)"],
             answer: 1,
-            explain: "channels_last changes only the memory order (strides become (3072, 1, 96, 3)); the logical shape stays NCHW.",
+            explain: "channels_last only changes how values are laid out in memory (strides become (3072, 1, 96, 3)); the shape you see stays NCHW.",
           },
           {
             kind: "numeric",
@@ -860,15 +856,15 @@ print("NCHW:", nchw.shape)
             q: "Which resize method should be used for a segmentation label mask?",
             options: ["Bicubic", "Bilinear", "Nearest neighbour", "Area averaging"],
             answer: 2,
-            explain: "Only nearest neighbour keeps every output value equal to an existing class id; the others average ids into meaningless values.",
+            explain: "Only nearest neighbour copies existing class ids. The others average ids (say 2 and 4 into 3), which makes nonsense labels.",
           },
         ],
       },
       {
         t: "exercise",
         title: "Shapes, memory and normalisation by hand",
-        prompt: "A training pipeline loads 4,000×3,000 RGB JPEGs, resizes the shorter side to 256, centre-crops 224×224, and batches 64 images. (a) What is the shape of the uint8 array of one decoded original photo (NumPy, height 3,000)? How many bytes? (b) After Resize(256), what is the size (H×W) before cropping? (c) What is the shape of one batch in PyTorch, and its size in MiB as float32? (d) The pixel (R, G, B) = (51, 102, 204) is normalised with ImageNet statistics; compute the three values. (e) How many parameters would a 1,000-unit dense layer on one cropped image need?",
-        hint: "Resize(256) scales so the shorter side is 256 and the other side keeps the ratio (torchvision truncates to an integer). 1 MiB = 2²⁰ bytes.",
+        prompt: "A training pipeline loads 4,000×3,000 RGB JPEGs, resizes the shorter side to 256, centre-crops 224×224, and batches 64 images. (a) One decoded photo as a uint8 NumPy array (height 3,000): what shape, and how many bytes? (b) After Resize(256), what size (H×W) is it before cropping? (c) What shape is one PyTorch batch, and how many MiB is it as float32? (d) Normalise the pixel (R, G, B) = (51, 102, 204) with ImageNet statistics. (e) How many parameters would a 1,000-unit dense layer on one cropped image need?",
+        hint: "Resize(256) makes the shorter side 256 and keeps the shape's ratio (torchvision rounds the other side down). 1 MiB = 2²⁰ bytes.",
         solution: [
           {
             t: "list",
@@ -885,8 +881,8 @@ print("NCHW:", nchw.shape)
       {
         t: "exercise",
         title: "Dataset statistics and a verified bilinear resize",
-        prompt: "Using both scikit-learn sample photos (`load_sample_images()`), (1) compute the per-channel mean and standard deviation over all images and pixels of the [0, 1]-scaled data, and verify that normalising with them gives each channel mean 0 and std 1; (2) implement half-pixel bilinear resizing for H×W×C arrays in NumPy and verify it against `torch.nn.functional.interpolate(..., mode=\"bilinear\", align_corners=False)` for downsampling and upsampling.",
-        hint: "Reduce over axes (0, 1, 2) of an (N, H, W, C) array to get one number per channel. For the resize, map output index i to source coordinate (i + 0.5)·H/H′ − 0.5 and clamp to [0, H − 1]. PyTorch's interpolate wants NCHW.",
+        prompt: "Take the two scikit-learn sample photos (`load_sample_images()`), scaled to [0, 1]. (1) Compute each channel's mean and standard deviation over all images and pixels, and check that normalising with them gives every channel mean 0 and std 1. (2) Write a half-pixel bilinear resize for H×W×C arrays in NumPy and check it against `torch.nn.functional.interpolate(..., mode=\"bilinear\", align_corners=False)`, both shrinking and enlarging.",
+        hint: "Average over axes (0, 1, 2) of an (N, H, W, C) array to get one number per channel. For the resize, output index i reads from source position (i + 0.5)·H/H′ − 0.5, clamped to [0, H − 1]. PyTorch's interpolate wants NCHW.",
         solution: [
           {
             t: "code",
@@ -935,7 +931,7 @@ after normalising: mean [0. 0. 0.]  std [1. 1. 1.]
           },
           {
             t: "p",
-            text: "These two photos are darker and less blue on average than ImageNet (means 0.39/0.43/0.39 vs 0.485/0.456/0.406) and have higher spread — a reminder that statistics are a property of the dataset. The interpolation agrees with PyTorch to floating-point round-off for both shrinking and enlarging, because both use the same half-pixel coordinate mapping and clamping.",
+            text: "These two photos are darker and less blue than ImageNet on average (means 0.39/0.43/0.39 vs 0.485/0.456/0.406) and more spread out — statistics belong to the dataset. The resize matches PyTorch to round-off error, shrinking and enlarging, because both use the same half-pixel mapping and clamping.",
           },
         ],
       },
@@ -946,13 +942,13 @@ after normalising: mean [0. 0. 0.]  std [1. 1. 1.]
       {
         t: "list",
         items: [
-          "An image is a tensor of pixel intensities: H×W (grayscale) or H×W×3 (RGB), usually uint8 0–255 (bit depth 8); medical and scientific images use 12–16 bits or floats.",
-          "Channels are 2-D planes (R, G, B; or learned feature maps inside a CNN). Other colour spaces (HSV, YCbCr, Lab, BGR) exist; feed a model the space and channel order it was trained on.",
-          "Layouts: HWC (files, NumPy, Keras), CHW (PyTorch); batches NCHW (PyTorch) vs NHWC (TensorFlow). `permute` reorders axes as a view; `reshape` does not. channels_last keeps NCHW shape with NHWC memory.",
-          "Preprocessing: decode → resize (preserve aspect ratio: shorter side + crop, or letterbox) → ÷255 → per-channel (x − μ)/σ with training-set statistics (ImageNet: mean 0.485/0.456/0.406, std 0.229/0.224/0.225) → batch. Augment only during training.",
+          "An image is a tensor of pixel brightness values: H×W (grayscale) or H×W×3 (RGB), usually uint8 0–255 (8 bits); medical and scientific images use 12–16 bits or floats.",
+          "Each channel is a 2-D plane (R, G or B; inside a CNN, a learned feature map). Other colour spaces exist (HSV, YCbCr, Lab, BGR); give a model the same space and channel order it was trained on.",
+          "Layouts: HWC (files, NumPy, Keras), CHW (PyTorch); batches NCHW (PyTorch) vs NHWC (TensorFlow). `permute` reorders axes as a view; `reshape` does not. channels_last keeps the NCHW shape but stores NHWC.",
+          "Preprocessing: decode → resize (keep the aspect ratio: shorter side + crop, or letterbox) → ÷255 → per-channel (x − μ)/σ with training-set statistics (ImageNet: mean 0.485/0.456/0.406, std 0.229/0.224/0.225) → batch. Augment only while training.",
           "Interpolation: bilinear/area for images (antialias when shrinking), nearest for label masks.",
-          "Dense layers on images explode in parameters (150.5 M for one 1,000-unit layer on 224×224×3), ignore spatial structure (exactly invariant to a fixed pixel permutation), cannot share detectors across positions, and fix the input size.",
-          "CNNs build in locality, weight sharing and translation equivariance; shuffling pixels hurts them because those biases rely on neighbourhoods.",
+          "Dense layers on images need huge numbers of parameters (150.5 M for one 1,000-unit layer on 224×224×3), ignore which pixels are neighbours (a fixed pixel shuffle changes nothing), can't reuse a detector at other positions, and fix the input size.",
+          "CNNs build in locality, weight sharing and translation equivariance. Shuffling pixels hurts them, because all three rely on neighbourhoods.",
         ],
       },
       {

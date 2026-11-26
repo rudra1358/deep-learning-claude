@@ -34,7 +34,7 @@ export function ArchitectureExplorer() {
               {p.name} <span className="text-faint">{p.year}</span>
             </button>
           ))}
-          {custom && <span className="text-sm text-gold">edited — your custom network</span>}
+          {custom && <span className="text-sm text-gold">edited — this is now your own network</span>}
         </div>
         {!custom && <p className="mb-4 max-w-3xl text-sm text-muted">{preset.note}</p>}
 
@@ -158,9 +158,9 @@ function TransformerCalc() {
   ] as const;
   return (
     <section>
-      <h2 className="font-serif text-2xl font-semibold">Transformer encoder parameter calculator</h2>
+      <h2 className="font-serif text-2xl font-semibold">Transformer encoder: count the parameters</h2>
       <p className="mt-1 max-w-3xl text-sm text-muted">
-        <Inline text={String.raw`Per layer: attention projections $4(d^2+d)$, feed-forward $2\,d\,d_{ff} + d_{ff} + d$, two LayerNorms $4d$. With BERT-base settings this gives 109,482,240 — exactly the count of the published checkpoint.`} />
+        <Inline text={String.raw`Per layer: attention projections $4(d^2+d)$, feed-forward $2\,d\,d_{ff} + d_{ff} + d$, two LayerNorms $4d$. With BERT-base settings you get 109,482,240 — exactly the size of the released BERT-base model.`} />
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         {Object.entries(TF_PRESETS).map(([name, c]) => (

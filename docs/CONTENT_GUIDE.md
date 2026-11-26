@@ -107,3 +107,56 @@ already registered in `web/components/sims/SimEmbed.tsx` and `registry.ts`.
 - Responsive: SVGs use `viewBox` + `className="w-full h-auto"`; layout must work at 375 px width.
 - Accessibility: buttons have labels, `aria-label` on SVG (`role="img"`), narration uses `aria-live` (Narration does).
 - TypeScript strict mode must pass (`npx tsc --noEmit` in `web/`).
+
+## 3. Plain-language standard (applies to every learner-facing sentence)
+
+The site must teach like a patient friend sitting next to a complete beginner, not like a textbook. A learner with
+zero background should finish any section thinking "oh, now I get it". Simple wording, **same technical depth**.
+
+### Voice
+- Talk to the reader: "you", "we", "let's". Friendly and encouraging, never condescending ("obviously", "trivially",
+  "it is easy to see", "simply" are banned — if it were obvious we would not need to explain it).
+- Short sentences (aim for ≤ 20 words; split anything longer). One idea per sentence. Short paragraphs (2–4 sentences).
+- Everyday words: "use" not "utilize", "show" not "demonstrate", "because" not "owing to the fact that",
+  "about" not "approximately", "start" not "commence", "so" not "consequently", "enough" not "sufficient".
+- No academic filler or hedging stacks ("it should be noted that", "in the context of", "with respect to",
+  "a non-trivial amount of"). No marketing tone.
+
+### Explaining
+- **What → why → how.** For every concept: what it is in one plain sentence, why we need it (the problem it solves),
+  then how it works step by step.
+- **Define before use.** The first time a technical term appears, explain it in plain words right there
+  (e.g. "a **gradient** — the direction in which the loss goes up fastest"). Keep the real term (learners need it for
+  interviews and papers), but never rely on a term before it has been explained in this lesson or linked.
+- **Analogies from daily life** (cooking, sports, shopping, maps, school…), and say where the analogy stops working.
+- **Break big ideas into small steps.** Prefer `steps` blocks and bullet lists over long paragraphs. Never stack
+  several new concepts in one sentence; show how they relate.
+- **Formulas:** keep every formula. Before or after each one, add a sentence that says what it means in words, and
+  name each symbol in plain language ("$w$ is the weight — how much this input matters"). Worked numbers stay.
+- **Hard parts get a simpler second pass:** if a paragraph is unavoidably dense, follow it with
+  "In plain words: …" or a tiny concrete example.
+- History, names and citations stay, but keep them short and explain why they matter to the learner.
+
+### Length: simpler AND shorter
+The user's rule: lessons must not get longer. A rewritten lesson's prose must be **at most as many words as the
+original** (the checker fails above 105%); aim for 80–95%. Make room for plain-words explanations by cutting:
+repetition (the same point made in intro, mechanism and summary), filler and hedging, long history asides,
+tangents that don't help understanding, and sentences that restate a formula without adding meaning. Keep every
+core idea, formula explanation, worked example, caveat that matters and practical tip — the goal is the best
+understanding of the topic in the fewest clear words. Prefer one good analogy over three.
+
+### What must NOT change (checked by `node scripts/check-prose-only.mjs`)
+Code blocks (code, output, title, language), display formulas (`math` blocks and step `tex`), simulator embeds,
+quiz answers / number of options / numeric answers and tolerances, exercise and interview-question counts, lesson
+metadata (id, level, prerequisites, next, terms) and existing `/learn/` links. Rewrite prose only. Inline `$…$`
+math inside prose may stay as is; do not change its meaning. Facts, numbers and claims must remain exactly as true
+as before — simplifying never means dropping a caveat that matters or making something less accurate.
+Quiz options keep their order (the `answer` index points into them).
+
+### Example
+Before: "The perceptron learning rule constitutes an error-driven update procedure wherein misclassified instances
+induce an additive correction to the weight vector proportional to the input."
+
+After: "The perceptron learns from its mistakes. Every time it gets an example wrong, it nudges its weights a little
+toward the right answer. How big is the nudge? It is the input itself, scaled by the learning rate. Examples it
+already gets right change nothing."

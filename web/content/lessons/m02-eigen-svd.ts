@@ -262,7 +262,7 @@ const lesson: Lesson = {
   id: "m02/eigen-svd",
   title: "Eigenvalues, Eigenvectors and SVD",
   summary:
-    "What a matrix does to space, taken apart: determinants as volume scaling, eigenvectors as directions a map only stretches, diagonalization and the spectral theorem, positive definiteness, and the singular value decomposition as rotate–scale–rotate — with low-rank approximation, PCA on real data, condition numbers, LoRA and weight-matrix compression.",
+    "Take a matrix apart to see what it does to space: the determinant as area scaling, eigenvectors as directions a matrix only stretches, diagonalization and the spectral theorem, positive definite matrices, and the SVD as rotate–scale–rotate. Then use it: low-rank approximation, PCA on real data, condition numbers, LoRA and compressing weight matrices.",
   minutes: 85,
   level: "intermediate",
   prerequisites: ["m02/vectors-matrices", "m02/norms-spaces"],
@@ -273,21 +273,24 @@ const lesson: Lesson = {
     intro: [
       {
         t: "p",
-        text: String.raw`A matrix is a linear map: it sends every vector of the plane (or of $\mathbb{R}^n$) somewhere, and it does so by rotating, stretching, shearing, reflecting or flattening space. Looking at the entries of a $4096\times4096$ weight matrix tells you almost nothing about which of these it does. **Matrix decompositions** answer the question directly by rewriting the matrix as a product of simple pieces whose geometric meaning is obvious.`,
+        text: String.raw`A matrix is a **linear map**: it moves every vector of the plane (or of $\mathbb{R}^n$, lists of $n$ numbers) somewhere new, by rotating, stretching, shearing, mirroring or flattening space. Staring at the numbers of a $4096\times4096$ weight matrix tells you almost nothing about which. **Matrix decompositions** fix this: they rewrite a matrix as a product of simple pieces with clear geometric meaning. Two matter most:`,
+      },
+      {
+        t: "list",
+        items: [
+          String.raw`The **eigendecomposition** $A = P\Lambda P^{-1}$ finds the directions a square matrix only stretches (the **eigenvectors**) and by how much (the **eigenvalues**). It explains repeated application ($A^k$), whether a recurrence blows up, and how curved a loss surface is.`,
+          String.raw`The **singular value decomposition (SVD)** $A = U\Sigma V^\top$ works for every matrix: any linear map is a rotation, a stretch along perpendicular axes, then another rotation. It gives the rank, the spectral norm, the best low-rank approximation, PCA and the condition number (how sensitive a problem is to small errors).`,
+        ],
       },
       {
         t: "p",
-        text: String.raw`Two decompositions dominate. The **eigendecomposition** $A = P\Lambda P^{-1}$ finds the special directions that a square matrix only stretches (the **eigenvectors**) and by how much (the **eigenvalues**); it explains repeated application $A^k$, the stability of recurrences, and the curvature of a loss surface through the Hessian. The **singular value decomposition** (SVD) $A = U\Sigma V^\top$ works for every matrix, square or not: any linear map is a rotation, then a scaling along perpendicular axes, then another rotation. The SVD gives the rank, the spectral norm, the best low-rank approximation of a matrix, principal component analysis, and the condition number that governs numerical stability.`,
-      },
-      {
-        t: "p",
-        text: String.raw`In deep learning these tools appear constantly: PCA for visualising and compressing data and activations; the spectral norm of weight matrices in analyses of [exploding and vanishing gradients](/learn/m04/gradient-problems); LoRA, which fine-tunes large models by learning **low-rank** weight updates ([Scaling and efficiency](/learn/m19/scaling-efficiency)); and compression of trained layers by truncated SVD. The simulator in the Interactive Visualization section animates all of it in two dimensions.`,
+        text: String.raw`In deep learning they are everywhere: PCA to visualise and compress data; spectral norms in [exploding and vanishing gradients](/learn/m04/gradient-problems); LoRA, which fine-tunes big models with **low-rank** weight updates ([Scaling and efficiency](/learn/m19/scaling-efficiency)); and shrinking trained layers with truncated SVD. The simulator below animates it all in 2-D.`,
       },
       {
         t: "callout",
         kind: "key",
         title: "The ideas to keep",
-        text: String.raw`Eigenvector: $A\mathbf{v} = \lambda\mathbf{v}$ — a direction that stays on its own line. SVD: $A = U\Sigma V^\top$ — rotate ($V^\top$), scale the axes by $\sigma_1 \ge \sigma_2 \ge \dots \ge 0$ ($\Sigma$), rotate ($U$). The unit circle maps to an ellipse with semi-axes $\sigma_i$; $\sigma_1$ is the spectral norm, the number of non-zero $\sigma_i$ is the rank, $|\det A| = \prod\sigma_i$, and keeping the $k$ largest gives the best rank-$k$ approximation.`,
+        text: String.raw`Eigenvector: $A\mathbf{v} = \lambda\mathbf{v}$ — a direction that stays on its own line. SVD: $A = U\Sigma V^\top$ — rotate ($V^\top$), stretch the axes by $\sigma_1 \ge \sigma_2 \ge \dots \ge 0$ ($\Sigma$), rotate ($U$). The unit circle becomes an ellipse whose half-axes have lengths $\sigma_i$. $\sigma_1$ is the spectral norm, the number of non-zero $\sigma_i$ is the rank, $|\det A| = \prod\sigma_i$, and keeping the $k$ largest gives the best rank-$k$ approximation.`,
       },
     ],
 
@@ -296,10 +299,10 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`[Scalars, Vectors, Matrices and Tensors](/learn/m02/vectors-matrices) — matrix products, the transpose rule $(AB)^\top = B^\top A^\top$, the inverse and the $2\times2$ determinant $ad - bc$, and the fact that the columns of $A$ are the images of the basis vectors.`,
-          String.raw`[Vector Spaces, Norms and Distances](/learn/m02/norms-spaces) — span, basis, rank, orthonormal vectors ($Q^\top Q = I$), projections, and the Frobenius and spectral norms; this lesson explains *why* $\|A\|_2 = \sigma_{\max}$.`,
-          String.raw`**Roots of a quadratic**: $\lambda = \tfrac{-b \pm\sqrt{b^2 - 4ac}}{2a}$, including the case of a negative discriminant (complex roots).`,
-          String.raw`**Variance and covariance** (for PCA): the variance of a feature and the covariance of two features; see [Probability](/learn/m02/probability) if they are unfamiliar.`,
+          String.raw`[Scalars, Vectors, Matrices and Tensors](/learn/m02/vectors-matrices) — matrix products, $(AB)^\top = B^\top A^\top$, the inverse, the $2\times2$ determinant $ad - bc$, and that the columns of $A$ show where the basis vectors land.`,
+          String.raw`[Vector Spaces, Norms and Distances](/learn/m02/norms-spaces) — span, basis, rank, orthonormal vectors ($Q^\top Q = I$), projections, Frobenius and spectral norms (here you learn *why* $\|A\|_2 = \sigma_{\max}$).`,
+          String.raw`**Roots of a quadratic**: $\lambda = \tfrac{-b \pm\sqrt{b^2 - 4ac}}{2a}$; if the discriminant (the part under the root) is negative, the roots are complex.`,
+          String.raw`**Variance and covariance** (for PCA): how spread out one feature is, and how two features move together ([Probability](/learn/m02/probability)).`,
         ],
       },
     ],
@@ -310,19 +313,23 @@ const lesson: Lesson = {
         t: "callout",
         kind: "analogy",
         title: "Kneading dough",
-        text: "Put a circular stamp of ink on a sheet of dough and knead it with one steady motion — press, stretch and twist. The circle becomes an ellipse. The SVD says every such linear motion can be redone in three clean moves: turn the dough so the directions that will be stretched most and least line up with the table edges (V transpose), stretch along those two edges by different amounts (Σ), then turn it to its final orientation (U). The lengths of the ellipse's long and short axes are the singular values. Eigenvectors are different: they are lines drawn on the dough that, after kneading, still point the same way — they may have been stretched or flipped, but not turned.",
+        text: "Stamp an ink circle on dough and knead it in one steady motion. The circle becomes an ellipse. The SVD redoes any such motion in three clean moves: turn the dough so the most- and least-stretched directions line up with the table edges (V transpose), stretch along those edges (Σ), then turn it into place (U). The ellipse's long and short axes are the singular values. Eigenvectors are lines on the dough that still point the same way afterwards — stretched or flipped, never turned.",
       },
       {
         t: "p",
-        text: String.raw`An **eigenvector** of a square matrix is a direction the map does not rotate: the arrow $\mathbf{v}$ lands on the same line, scaled by its **eigenvalue** $\lambda$. If $\lambda = 2$ the arrow doubles; if $\lambda = 0.5$ it halves; if $\lambda = -1$ it flips. Not every map has such directions in the real plane: a rotation by 45° turns every line, so its eigenvalues are complex numbers. A matrix with a full set of eigenvectors is easy to understand: in the coordinate system made of its eigenvectors it is just independent scaling along each axis. Applying it ten times scales each eigen-direction by $\lambda^{10}$, so the direction with the largest $|\lambda|$ soon dominates — the same mechanism that makes signals explode or vanish through many layers.`,
+        text: String.raw`An **eigenvector** of a square matrix is a direction the map does not rotate. The arrow $\mathbf{v}$ lands on its own line, just scaled by a number $\lambda$ (the Greek letter "lambda"), called its **eigenvalue**. If $\lambda = 2$ the arrow doubles; if $\lambda = 0.5$ it halves; if $\lambda = -1$ it flips.`,
       },
       {
         t: "p",
-        text: String.raw`The **determinant** is the factor by which the map scales areas (volumes in higher dimensions). A determinant of 3 triples every area; a negative determinant also flips orientation, like a mirror; a zero determinant flattens the plane onto a line, destroying information irreversibly. **Symmetric** matrices — covariance matrices, Hessians — are the friendliest kind: their eigenvectors are perpendicular and their eigenvalues real, so for them eigenvectors and singular vectors coincide.`,
+        text: String.raw`Not every map has such directions: a 45° rotation turns every line, so its eigenvalues are complex. But with a full set of eigenvectors, a matrix just scales each eigen-axis on its own. Apply it ten times and each eigen-direction is scaled by $\lambda^{10}$, so the largest $|\lambda|$ soon takes over — the same mechanism that makes signals explode or vanish through many layers.`,
       },
       {
         t: "p",
-        text: String.raw`**PCA** applies the SVD to a centred data matrix: the right singular vectors are the directions in which the data cloud is most spread out, and the singular values say how much. Keeping only the first few directions gives the best low-dimensional summary of the data in the least-squares sense — exactly the same theorem (Eckart–Young) that justifies compressing a weight matrix by dropping its small singular values.`,
+        text: String.raw`The **determinant** is how much the map scales areas (volumes in higher dimensions). 3 triples every area; a negative value also mirrors; zero squashes the plane onto a line, losing information for good. **Symmetric** matrices (equal to their transpose, like covariance matrices and Hessians) are the friendliest: real eigenvalues, perpendicular eigenvectors, and eigenvectors equal to singular vectors.`,
+      },
+      {
+        t: "p",
+        text: String.raw`**PCA** (principal component analysis) runs the SVD on mean-subtracted data. The right singular vectors are the directions where the data is most spread out; the singular values say how much. Keeping the first few gives the best low-dimensional summary (smallest squared error) — the same theorem (Eckart–Young) that justifies compressing a weight matrix by dropping small singular values.`,
       },
     ],
 
@@ -332,21 +339,21 @@ const lesson: Lesson = {
       {
         t: "steps",
         items: [
-          { title: "Write the condition", text: String.raw`$A\mathbf{v} = \lambda\mathbf{v}$ with $\mathbf{v} \ne \mathbf{0}$ means $(A - \lambda I)\mathbf{v} = \mathbf{0}$ has a non-zero solution, so $A - \lambda I$ must be singular.` },
-          { title: "Characteristic polynomial", text: "Set its determinant to zero. For a 2×2 matrix this is a quadratic in λ with coefficients given by the trace and determinant.", tex: String.raw`\det(A - \lambda I) = \lambda^2 - \operatorname{tr}(A)\,\lambda + \det(A) = 0` },
-          { title: "Solve for λ", text: "Two roots (counted with multiplicity). A negative discriminant means complex eigenvalues: no real eigenvector exists." },
-          { title: "Find each eigenvector", text: String.raw`For each $\lambda$, solve $(A - \lambda I)\mathbf{v} = \mathbf{0}$. In 2-D one row suffices: if the first row is $(a - \lambda,\ b)$, then $\mathbf{v} = (b,\ \lambda - a)$ is orthogonal to it.` },
-          { title: "Normalise (optional)", text: "Eigenvectors are defined only up to scale (and sign); libraries return unit vectors." },
+          { title: "Write the condition", text: String.raw`$A\mathbf{v} = \lambda\mathbf{v}$ with $\mathbf{v} \ne \mathbf{0}$ means $(A - \lambda I)\mathbf{v} = \mathbf{0}$ has a non-zero solution ($I$ is the identity), so $A - \lambda I$ must be singular (not invertible).` },
+          { title: "Characteristic polynomial", text: "Set its determinant to zero. For 2×2 this is a quadratic in λ built from the trace (sum of the diagonal) and determinant.", tex: String.raw`\det(A - \lambda I) = \lambda^2 - \operatorname{tr}(A)\,\lambda + \det(A) = 0` },
+          { title: "Solve for λ", text: "You get two roots (a repeated root counts twice). A negative discriminant means complex eigenvalues: no real eigenvector exists." },
+          { title: "Find each eigenvector", text: String.raw`For each $\lambda$, solve $(A - \lambda I)\mathbf{v} = \mathbf{0}$. In 2-D one row is enough: if the first row is $(a - \lambda,\ b)$, then $\mathbf{v} = (b,\ \lambda - a)$ is perpendicular to it, so it solves the equation.` },
+          { title: "Normalise (optional)", text: "An eigenvector has no fixed length or sign — any multiple works. Libraries return unit-length vectors." },
         ],
       },
       { t: "h", text: "Computing the SVD (conceptually)" },
       {
         t: "steps",
         items: [
-          { title: "Form the Gram matrix", tex: String.raw`A^\top A = V\Sigma^\top U^\top U\Sigma V^\top = V\,\Sigma^\top\Sigma\,V^\top` },
-          { title: "Eigendecompose it", text: String.raw`$A^\top A$ is symmetric positive semi-definite, so it has orthonormal eigenvectors $\mathbf{v}_i$ (the **right singular vectors**) and eigenvalues $\lambda_i \ge 0$.` },
+          { title: "Form the Gram matrix AᵀA", tex: String.raw`A^\top A = V\Sigma^\top U^\top U\Sigma V^\top = V\,\Sigma^\top\Sigma\,V^\top` },
+          { title: "Eigendecompose it", text: String.raw`$A^\top A$ is symmetric and positive semi-definite, so it has perpendicular unit eigenvectors $\mathbf{v}_i$ (the **right singular vectors**) and eigenvalues $\lambda_i \ge 0$.` },
           { title: "Singular values", tex: String.raw`\sigma_i = \sqrt{\lambda_i(A^\top A)}, \quad \text{sorted } \sigma_1 \ge \sigma_2 \ge \dots \ge 0` },
-          { title: "Left singular vectors", text: String.raw`For each $\sigma_i > 0$: $\mathbf{u}_i = A\mathbf{v}_i/\sigma_i$. These are orthonormal automatically; complete them to a basis if $A$ is rank-deficient.` },
+          { title: "Left singular vectors", text: String.raw`For each $\sigma_i > 0$: $\mathbf{u}_i = A\mathbf{v}_i/\sigma_i$, automatically orthonormal; if $A$ is rank-deficient, add vectors to complete a basis.` },
           { title: "Assemble", tex: String.raw`A = U\Sigma V^\top = \sum_{i=1}^{r} \sigma_i\,\mathbf{u}_i\mathbf{v}_i^\top` },
         ],
       },
@@ -354,23 +361,23 @@ const lesson: Lesson = {
         t: "callout",
         kind: "warning",
         title: "This is how to understand the SVD, not how to compute it",
-        text: String.raw`Forming $A^\top A$ squares the condition number and destroys small singular values in floating point. Production routines (LAPACK's divide-and-conquer or QR-iteration SVD behind NumPy and PyTorch) reduce $A$ to bidiagonal form with orthogonal transformations and never form $A^\top A$. Similarly, eigenvalues are not found from the characteristic polynomial beyond tiny sizes: polynomial roots are numerically fragile, and libraries use the QR algorithm.`,
+        text: String.raw`Forming $A^\top A$ squares the condition number and wipes out small singular values in floating point. Real routines (LAPACK, behind NumPy and PyTorch) reduce $A$ to bidiagonal form with orthogonal steps and never form $A^\top A$. Likewise, polynomial roots are numerically fragile, so beyond tiny sizes libraries find eigenvalues with the QR algorithm.`,
       },
       { t: "h", text: "PCA via the SVD" },
       {
         t: "steps",
         items: [
-          { title: "Centre", text: String.raw`Subtract the mean of every feature: $X_c = X - \mathbf{1}\boldsymbol{\mu}^\top$, with $X \in \mathbb{R}^{n\times d}$ (one example per row).` },
+          { title: "Centre", text: String.raw`Subtract each feature's mean: $X_c = X - \mathbf{1}\boldsymbol{\mu}^\top$. Here $X \in \mathbb{R}^{n\times d}$ holds $n$ examples (rows) with $d$ features, and $\boldsymbol{\mu}$ is the vector of feature means.` },
           { title: "Thin SVD", tex: String.raw`X_c = U\Sigma V^\top, \qquad U \in \mathbb{R}^{n\times d},\ \Sigma, V \in \mathbb{R}^{d\times d}` },
-          { title: "Read off the components", text: String.raw`Rows of $V^\top$ (columns of $V$) are the principal directions; the variance along direction $i$ is $\sigma_i^2/(n-1)$.` },
-          { title: "Project", text: String.raw`The $k$-dimensional representation is $Z = X_cV_k = U_k\Sigma_k$ (first $k$ columns).` },
-          { title: "Reconstruct (optional)", text: String.raw`$\hat X = ZV_k^\top + \mathbf{1}\boldsymbol{\mu}^\top$; the reconstruction error is the variance in the discarded directions.` },
+          { title: "Read off the components", text: String.raw`The columns of $V$ (rows of $V^\top$) are the principal directions. The variance along direction $i$ is $\sigma_i^2/(n-1)$.` },
+          { title: "Project", text: String.raw`The $k$-dimensional version of the data is $Z = X_cV_k = U_k\Sigma_k$ (keep the first $k$ columns).` },
+          { title: "Reconstruct (optional)", text: String.raw`$\hat X = ZV_k^\top + \mathbf{1}\boldsymbol{\mu}^\top$. The reconstruction error equals the variance in the directions you threw away.` },
         ],
       },
       { t: "h", text: "Compressing a dense layer with truncated SVD" },
       {
         t: "p",
-        text: String.raw`Given a trained weight $W \in \mathbb{R}^{m\times n}$, compute $W = U\Sigma V^\top$, keep the top $r$ singular triplets, and replace the layer $\mathbf{x} \mapsto W\mathbf{x} + \mathbf{b}$ by two layers: $\mathbf{x} \mapsto V_r^\top\mathbf{x}$ (no bias, $r\times n$) followed by $\mathbf{h} \mapsto (U_r\Sigma_r)\mathbf{h} + \mathbf{b}$ ($m\times r$). Parameters drop from $mn$ to $r(m+n)$, which is a saving whenever $r < mn/(m+n)$. Optionally fine-tune briefly afterwards to recover accuracy.`,
+        text: String.raw`Take a trained weight $W \in \mathbb{R}^{m\times n}$, compute $W = U\Sigma V^\top$, and keep the top $r$ singular values with their vectors. Replace the layer $\mathbf{x} \mapsto W\mathbf{x} + \mathbf{b}$ by two thinner layers: first $\mathbf{x} \mapsto V_r^\top\mathbf{x}$ (no bias, $r\times n$), then $\mathbf{h} \mapsto (U_r\Sigma_r)\mathbf{h} + \mathbf{b}$ ($m\times r$). Parameters drop from $mn$ to $r(m+n)$ — a saving whenever $r < mn/(m+n)$. A short fine-tune afterwards can win back accuracy.`,
       },
     ],
 
@@ -379,16 +386,16 @@ const lesson: Lesson = {
       { t: "h", text: "Linear maps, matrices and the determinant" },
       {
         t: "p",
-        text: String.raw`A linear map $T:\mathbb{R}^n\to\mathbb{R}^m$ is determined by where it sends the basis vectors: the matrix of $T$ has $T(\mathbf{e}_j)$ as its $j$-th column, and composing maps multiplies their matrices. Changing the basis to the columns of an invertible $P$ represents the **same** map by $P^{-1}AP$ (a **similarity transform**); eigenvalues, trace and determinant do not depend on that choice.`,
+        text: String.raw`A linear map $T:\mathbb{R}^n\to\mathbb{R}^m$ is fixed by where it sends the basis vectors: column $j$ of its matrix is $T(\mathbf{e}_j)$, and chaining maps multiplies matrices. In a new basis (columns of an invertible $P$) the **same** map is $P^{-1}AP$, a **similarity transform**; eigenvalues, trace and determinant stay the same.`,
       },
       {
         t: "p",
-        text: String.raw`The **determinant** of a square matrix is the signed factor by which it scales $n$-dimensional volume. For $A = \begin{pmatrix} a & b\\ c & d\end{pmatrix}$, the unit square maps to the parallelogram spanned by the columns $(a, c)$ and $(b, d)$, whose signed area is $ad - bc$. The sign records orientation: positive if $(a,c)$ to $(b,d)$ is a counter-clockwise turn like $\mathbf{e}_1$ to $\mathbf{e}_2$, negative if the map mirrors the plane. Key properties:`,
+        text: String.raw`The **determinant** is the signed factor by which a square matrix scales $n$-dimensional volume. For $A = \begin{pmatrix} a & b\\ c & d\end{pmatrix}$, the unit square lands on the parallelogram spanned by the columns $(a, c)$ and $(b, d)$, with signed area $ad - bc$: positive if turning from $(a,c)$ to $(b,d)$ is counter-clockwise (like $\mathbf{e}_1$ to $\mathbf{e}_2$), negative if the map mirrors the plane. Key rules:`,
       },
       { t: "math", tex: String.raw`\det(AB) = \det A\,\det B, \qquad \det A^{-1} = \frac{1}{\det A}, \qquad \det A^\top = \det A, \qquad \det A = 0 \iff A \text{ singular} \iff \operatorname{rank}A < n` },
       {
         t: "p",
-        text: String.raw`The product rule says volume scalings compose by multiplication, which is why a stack of layers' Jacobian determinants multiply — the basis of normalising flows. For the worked matrices below: $\det\begin{pmatrix}4&1\\2&3\end{pmatrix} = 12 - 2 = 10$ and $\det\begin{pmatrix}3&0\\4&5\end{pmatrix} = 15$.`,
+        text: String.raw`Volume scalings multiply when you chain maps, so stacked layers' Jacobian determinants multiply — the basis of normalising flows. For the matrices below: $\det\begin{pmatrix}4&1\\2&3\end{pmatrix} = 12 - 2 = 10$ and $\det\begin{pmatrix}3&0\\4&5\end{pmatrix} = 15$.`,
       },
       { t: "h", text: "Eigenvalues and eigenvectors" },
       {
@@ -397,7 +404,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Here $A \in \mathbb{R}^{n\times n}$, $\lambda \in \mathbb{C}$ is an eigenvalue and $\mathbf{v}$ its eigenvector. $p(\lambda) = \det(A - \lambda I)$ is the **characteristic polynomial**, of degree $n$, so there are exactly $n$ eigenvalues counted with multiplicity (possibly complex, in conjugate pairs for real $A$). The sum and product identities follow by comparing coefficients of $p$ with $\prod_i(\lambda_i - \lambda)$.`,
+        text: String.raw`$A \in \mathbb{R}^{n\times n}$ is square, $\lambda \in \mathbb{C}$ an eigenvalue (possibly complex), $\mathbf{v}$ its eigenvector. $p(\lambda) = \det(A - \lambda I)$ is the **characteristic polynomial**, of degree $n$, so there are exactly $n$ eigenvalues counting repeats (complex ones come in conjugate pairs for real $A$). They always add up to the trace and multiply to the determinant — compare the coefficients of $p$ with $\prod_i(\lambda_i - \lambda)$.`,
       },
       { t: "h", text: "Worked example: a 2×2 eigendecomposition" },
       {
@@ -412,22 +419,22 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The eigenvectors $(1,1)$ and $(1,-2)$ are **not** perpendicular ($1 - 2 = -1 \ne 0$): $A$ is not symmetric. A rotation $R_\theta = \begin{pmatrix}\cos\theta & -\sin\theta\\ \sin\theta & \cos\theta\end{pmatrix}$ has $p(\lambda) = \lambda^2 - 2\cos\theta\,\lambda + 1$ with discriminant $4\cos^2\theta - 4 < 0$ for $\theta \notin \{0, \pi\}$, so its eigenvalues $e^{\pm i\theta}$ are complex. A shear $\begin{pmatrix}1&1\\0&1\end{pmatrix}$ has $\lambda = 1$ twice but only one eigen-direction, $(1, 0)$: it is **defective**.`,
+        text: String.raw`The eigenvectors $(1,1)$ and $(1,-2)$ are **not** perpendicular ($1 - 2 = -1 \ne 0$), because $A$ is not symmetric. Two warnings: a rotation $R_\theta = \begin{pmatrix}\cos\theta & -\sin\theta\\ \sin\theta & \cos\theta\end{pmatrix}$ has $p(\lambda) = \lambda^2 - 2\cos\theta\,\lambda + 1$ with discriminant $4\cos^2\theta - 4 < 0$ for $\theta \notin \{0, \pi\}$, so its eigenvalues $e^{\pm i\theta}$ are complex. A shear $\begin{pmatrix}1&1\\0&1\end{pmatrix}$ has $\lambda = 1$ twice but only one eigen-direction, $(1, 0)$: it is **defective**.`,
       },
       { t: "h", text: "Diagonalization" },
       {
         t: "p",
-        text: String.raw`If $A$ has $n$ linearly independent eigenvectors, put them in the columns of $P$ and the eigenvalues on the diagonal of $\Lambda$. Then $AP = P\Lambda$, so`,
+        text: String.raw`If $A$ has $n$ independent eigenvectors, put them as the columns of $P$ and the eigenvalues on the diagonal of $\Lambda$ (capital lambda). Then $AP = P\Lambda$, so`,
       },
       { t: "math", tex: String.raw`A = P\Lambda P^{-1}, \qquad A^k = P\Lambda^kP^{-1}, \qquad A^k\mathbf{x} = \sum_i c_i\lambda_i^k\mathbf{v}_i \ \text{ where } \mathbf{x} = \sum_i c_i\mathbf{v}_i` },
       {
         t: "p",
-        text: String.raw`For the example, $P = \begin{pmatrix}1&1\\1&-2\end{pmatrix}$, $P^{-1} = \frac{1}{-3}\begin{pmatrix}-2&-1\\-1&1\end{pmatrix} = \begin{pmatrix}0.6667&0.3333\\0.3333&-0.3333\end{pmatrix}$, and $A^{10} = P\,\operatorname{diag}(5^{10}, 2^{10})\,P^{-1}$ with $5^{10} = 9765625$, $2^{10} = 1024$:`,
+        text: String.raw`In words: switch to eigen-coordinates, scale each, switch back; powers only touch the diagonal. For the example, $P = \begin{pmatrix}1&1\\1&-2\end{pmatrix}$, $P^{-1} = \frac{1}{-3}\begin{pmatrix}-2&-1\\-1&1\end{pmatrix} = \begin{pmatrix}0.6667&0.3333\\0.3333&-0.3333\end{pmatrix}$, and $A^{10} = P\,\operatorname{diag}(5^{10}, 2^{10})\,P^{-1}$ with $5^{10} = 9765625$, $2^{10} = 1024$:`,
       },
       { t: "math", tex: String.raw`A^{10} = \begin{pmatrix} \frac{2\cdot5^{10} + 2^{10}}{3} & \frac{5^{10} - 2^{10}}{3}\\[4pt] \frac{2\cdot5^{10} - 2\cdot2^{10}}{3} & \frac{5^{10} + 2\cdot2^{10}}{3}\end{pmatrix} = \begin{pmatrix} 6510758 & 3254867\\ 6509734 & 3255891\end{pmatrix}` },
       {
         t: "p",
-        text: String.raw`The last form of $A^k\mathbf{x}$ is the key to **power iteration** and to deep-network dynamics: after many applications the component along the eigenvector with largest $|\lambda|$ dominates, with the others shrinking relative to it like $|\lambda_2/\lambda_1|^k$ (here $0.4^k$). The program below starts power iteration at $(1, 0)$ and reaches $(0.7071, 0.7071)$ within 25 iterations. If $|\lambda_{\max}| > 1$ the vector grows exponentially; if all $|\lambda| < 1$ it decays to zero — exactly the exploding/vanishing behaviour of a linear recurrence $\mathbf{h}_{t+1} = W\mathbf{h}_t$, as in an RNN unrolled through time.`,
+        text: String.raw`The formula for $A^k\mathbf{x}$ is the key to **power iteration** and to deep networks. After many steps the part along the eigenvector with largest $|\lambda|$ dominates; the others shrink relative to it like $|\lambda_2/\lambda_1|^k$ (here $0.4^k$). The program below starts at $(1, 0)$ and reaches $(0.7071, 0.7071)$ within 25 steps. If $|\lambda_{\max}| > 1$ the vector grows exponentially; if all $|\lambda| < 1$ it decays to zero — the exploding/vanishing behaviour of a linear recurrence $\mathbf{h}_{t+1} = W\mathbf{h}_t$, like an RNN unrolled through time.`,
       },
       { t: "h", text: "Symmetric matrices and the spectral theorem" },
       {
@@ -436,11 +443,11 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**Real eigenvalues.** If $A\mathbf{v} = \lambda\mathbf{v}$ with possibly complex $\mathbf{v}$, then $\bar{\mathbf{v}}^\top A\mathbf{v} = \lambda\|\mathbf{v}\|^2$; taking the conjugate transpose and using $A = A^\top$ real gives the same quantity equal to $\bar\lambda\|\mathbf{v}\|^2$, so $\lambda = \bar\lambda$. **Orthogonal eigenvectors.** For $A\mathbf{v}_1 = \lambda_1\mathbf{v}_1$, $A\mathbf{v}_2 = \lambda_2\mathbf{v}_2$ with $\lambda_1 \ne \lambda_2$: $\lambda_1\mathbf{v}_1^\top\mathbf{v}_2 = (A\mathbf{v}_1)^\top\mathbf{v}_2 = \mathbf{v}_1^\top A\mathbf{v}_2 = \lambda_2\mathbf{v}_1^\top\mathbf{v}_2$, so $(\lambda_1 - \lambda_2)\mathbf{v}_1^\top\mathbf{v}_2 = 0$ and $\mathbf{v}_1 \perp \mathbf{v}_2$. (Repeated eigenvalues still admit an orthonormal eigenbasis; that is the full spectral theorem.)`,
+        text: String.raw`In words: a symmetric matrix is a sum of pieces, one per perpendicular unit direction $\mathbf{q}_i$ (the columns of orthogonal $Q$), each scaled by a real $\lambda_i$. **Why real?** If $A\mathbf{v} = \lambda\mathbf{v}$ with possibly complex $\mathbf{v}$, then $\bar{\mathbf{v}}^\top A\mathbf{v} = \lambda\|\mathbf{v}\|^2$ (the bar means complex conjugate). Taking the conjugate transpose and using that $A = A^\top$ is real gives the same quantity equal to $\bar\lambda\|\mathbf{v}\|^2$, so $\lambda = \bar\lambda$. **Why perpendicular?** For $A\mathbf{v}_1 = \lambda_1\mathbf{v}_1$, $A\mathbf{v}_2 = \lambda_2\mathbf{v}_2$ with $\lambda_1 \ne \lambda_2$: $\lambda_1\mathbf{v}_1^\top\mathbf{v}_2 = (A\mathbf{v}_1)^\top\mathbf{v}_2 = \mathbf{v}_1^\top A\mathbf{v}_2 = \lambda_2\mathbf{v}_1^\top\mathbf{v}_2$, so $(\lambda_1 - \lambda_2)\mathbf{v}_1^\top\mathbf{v}_2 = 0$ and $\mathbf{v}_1 \perp \mathbf{v}_2$. (Even with repeated eigenvalues you can still pick a perpendicular unit eigenbasis; that is the full spectral theorem.)`,
       },
       {
         t: "p",
-        text: String.raw`Example: $S = \begin{pmatrix}2&1\\1&2\end{pmatrix}$ has $p(\lambda) = \lambda^2 - 4\lambda + 3$, eigenvalues $3$ and $1$ with eigenvectors $(1,1)/\sqrt2$ and $(1,-1)/\sqrt2$, perpendicular. Geometrically, a symmetric matrix stretches space along perpendicular axes with no rotation, so its SVD and eigendecomposition coincide when all $\lambda_i \ge 0$ ($\sigma_i = |\lambda_i|$ in general).`,
+        text: String.raw`Example: $S = \begin{pmatrix}2&1\\1&2\end{pmatrix}$ has $p(\lambda) = \lambda^2 - 4\lambda + 3$, eigenvalues $3$ and $1$, and eigenvectors $(1,1)/\sqrt2$ and $(1,-1)/\sqrt2$, which are perpendicular. Geometrically, a symmetric matrix stretches space along perpendicular axes with no rotation. So its SVD and eigendecomposition coincide when all $\lambda_i \ge 0$ (in general $\sigma_i = |\lambda_i|$).`,
       },
       { t: "h", text: "Positive (semi-)definite matrices" },
       {
@@ -449,7 +456,11 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`For symmetric $A$, write $\mathbf{x} = Q\mathbf{y}$: then $\mathbf{x}^\top A\mathbf{x} = \sum_i\lambda_iy_i^2$, which is non-negative for all $\mathbf{y}$ exactly when all $\lambda_i \ge 0$. The quadratic form $\mathbf{x}^\top A\mathbf{x}$ is a bowl (PD), a flat-bottomed trough (PSD with a zero eigenvalue), or a saddle (eigenvalues of both signs). Important PSD matrices: every Gram matrix $B^\top B$ (since $\mathbf{x}^\top B^\top B\mathbf{x} = \|B\mathbf{x}\|^2 \ge 0$), every covariance matrix, and the **Hessian** of a convex function. At a critical point of a loss, a positive-definite Hessian means a local minimum, an indefinite one a saddle point; the ratio of its largest to smallest eigenvalue measures how elongated the valley is and therefore how much gradient descent zig-zags. These ideas are developed in [Jacobians and Hessians](/learn/m02/jacobians-hessians) and [Optimization](/learn/m02/optimization-math).`,
+        text: String.raw`Read $A \succeq 0$ as "**positive semi-definite** (PSD)", $A \succ 0$ as "**positive definite** (PD)", $\forall$ as "for all". The tests agree because, for symmetric $A$ and $\mathbf{x} = Q\mathbf{y}$, $\mathbf{x}^\top A\mathbf{x} = \sum_i\lambda_iy_i^2$. Picture this **quadratic form** as a surface: a bowl (PD), a flat-bottomed trough (PSD with a zero eigenvalue), or a saddle (mixed signs). Every Gram matrix $B^\top B$ is PSD ($\mathbf{x}^\top B^\top B\mathbf{x} = \|B\mathbf{x}\|^2 \ge 0$), as is every covariance matrix and the **Hessian** (matrix of second derivatives) of a convex function.`,
+      },
+      {
+        t: "p",
+        text: String.raw`Why it matters for training: at a critical point of a loss, a PD Hessian means a local minimum, an indefinite one a saddle. Its largest-to-smallest eigenvalue ratio says how stretched the valley is, so how much gradient descent zig-zags. More in [Jacobians and Hessians](/learn/m02/jacobians-hessians) and [Optimization](/learn/m02/optimization-math).`,
       },
       { t: "h", text: "The singular value decomposition" },
       {
@@ -458,12 +469,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`with $p = \min(m, n)$. Every real matrix has an SVD. The columns $\mathbf{v}_i$ of $V$ are the **right singular vectors**, the columns $\mathbf{u}_i$ of $U$ the **left singular vectors**, and $\sigma_i$ the **singular values**; $A\mathbf{v}_i = \sigma_i\mathbf{u}_i$. The relation to eigendecompositions is`,
+        text: String.raw`Here $p = \min(m, n)$; every real matrix has an SVD. The columns $\mathbf{v}_i$ of $V$ are the **right singular vectors**, the columns $\mathbf{u}_i$ of $U$ the **left singular vectors**, the $\sigma_i$ (sigma) the **singular values**, and $A\mathbf{v}_i = \sigma_i\mathbf{u}_i$: $A$ sends each $\mathbf{v}_i$ to $\mathbf{u}_i$, stretched by $\sigma_i$. Link to eigendecompositions:`,
       },
       { t: "math", tex: String.raw`A^\top A = V(\Sigma^\top\Sigma)V^\top, \qquad AA^\top = U(\Sigma\Sigma^\top)U^\top, \qquad \sigma_i = \sqrt{\lambda_i(A^\top A)}` },
       {
         t: "p",
-        text: String.raw`**Geometric meaning.** Read $A\mathbf{x} = U(\Sigma(V^\top\mathbf{x}))$ right to left: $V^\top$ rotates (or reflects) so the $\mathbf{v}_i$ land on the coordinate axes; $\Sigma$ scales axis $i$ by $\sigma_i$ (and drops or adds dimensions if $m \ne n$); $U$ rotates the axes onto the $\mathbf{u}_i$. The unit sphere therefore maps to an ellipsoid with semi-axes $\sigma_i\mathbf{u}_i$. Consequences: $\|A\|_2 = \sigma_1$ (the longest semi-axis), $\|A\|_F = \sqrt{\sum_i\sigma_i^2}$, $\operatorname{rank}A$ = number of non-zero $\sigma_i$, and for square $A$, $|\det A| = \prod_i\sigma_i$ (rotations preserve volume, $\Sigma$ scales it).`,
+        text: String.raw`**Geometric meaning.** Read $A\mathbf{x} = U(\Sigma(V^\top\mathbf{x}))$ right to left: $V^\top$ rotates (or reflects) the $\mathbf{v}_i$ onto the axes; $\Sigma$ stretches axis $i$ by $\sigma_i$ (dropping or adding dimensions if $m \ne n$); $U$ rotates the axes onto the $\mathbf{u}_i$. So the unit sphere becomes an ellipsoid with half-axes $\sigma_i\mathbf{u}_i$. Consequences: $\|A\|_2 = \sigma_1$ (the longest half-axis), $\|A\|_F = \sqrt{\sum_i\sigma_i^2}$, $\operatorname{rank}A$ = number of non-zero $\sigma_i$, and for square $A$, $|\det A| = \prod_i\sigma_i$ (rotations keep volume; only $\Sigma$ changes it).`,
       },
       { t: "h", text: "Worked example: SVD of a 2×2 matrix" },
       {
@@ -484,7 +495,11 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The **Eckart–Young(–Mirsky) theorem**: truncating the SVD gives the best rank-$k$ approximation in both the spectral and Frobenius norms, and the error is exactly the discarded singular values. Storing $A_k$ takes $k(m + n + 1)$ numbers instead of $mn$. For $M$ above, $A_1 = \sigma_1\mathbf{u}_1\mathbf{v}_1^\top = 6.7082\cdot\frac{1}{\sqrt{20}}\begin{pmatrix}1&1\\3&3\end{pmatrix} = \begin{pmatrix}1.5&1.5\\4.5&4.5\end{pmatrix}$, and $M - A_1 = \begin{pmatrix}1.5&-1.5\\-0.5&0.5\end{pmatrix}$ has spectral and Frobenius norm $2.2361 = \sigma_2$ (both equal because the error has rank 1). The program below verifies the theorem on a $60\times40$ matrix that is rank 8 plus noise: the first 8 singular values are 28–71, the 9th is 1.27, and the rank-8 truncation's error is exactly $\sigma_9 = 1.2687$ in spectral norm.`,
+        text: String.raw`The **Eckart–Young(–Mirsky) theorem**: keeping the $k$ largest singular pieces gives the best rank-$k$ approximation $A_k$ in both spectral and Frobenius norm, and the error is exactly the dropped singular values. Storing $A_k$ takes $k(m + n + 1)$ numbers instead of $mn$.`,
+      },
+      {
+        t: "p",
+        text: String.raw`For $M$ above, $A_1 = \sigma_1\mathbf{u}_1\mathbf{v}_1^\top = 6.7082\cdot\frac{1}{\sqrt{20}}\begin{pmatrix}1&1\\3&3\end{pmatrix} = \begin{pmatrix}1.5&1.5\\4.5&4.5\end{pmatrix}$, and $M - A_1 = \begin{pmatrix}1.5&-1.5\\-0.5&0.5\end{pmatrix}$ has spectral and Frobenius norm $2.2361 = \sigma_2$ (equal because the error has rank 1). The program below checks the theorem on a $60\times40$ matrix that is rank 8 plus noise: the first 8 singular values are 28–71, the 9th is 1.27, and the rank-8 error is exactly $\sigma_9 = 1.2687$ in spectral norm.`,
       },
       { t: "h", text: "PCA via SVD, worked on the Iris data" },
       {
@@ -494,12 +509,16 @@ const lesson: Lesson = {
       { t: "math", tex: String.raw`C = \begin{pmatrix} 0.6857 & -0.0424 & 1.2743 & 0.5163\\ -0.0424 & 0.1900 & -0.3297 & -0.1216\\ 1.2743 & -0.3297 & 3.1163 & 1.2956\\ 0.5163 & -0.1216 & 1.2956 & 0.5810\end{pmatrix}, \qquad \operatorname{tr}C = 4.5730` },
       {
         t: "p",
-        text: String.raw`The SVD of $X_c$ gives singular values $(25.100, 6.013, 3.414, 1.885)$; dividing their squares by $n - 1 = 149$ gives the covariance eigenvalues (component variances) $(4.2282, 0.2427, 0.0782, 0.0238)$, which sum to the trace $4.5730$. The **explained variance ratios** are $(0.9246, 0.0531, 0.0171, 0.0052)$: one direction carries 92.5% of the variance, two carry 97.8%. The first principal direction is $\mathbf{v}_1 = (0.3614, -0.0845, 0.8567, 0.3583)$, dominated by petal length. The first flower, $(5.1, 3.5, 1.4, 0.2)$, centres to $(-0.7433, 0.4427, -2.3580, -0.9993)$ and gets PC1 score $\mathbf{v}_1^\top\mathbf{x}_c = -0.2686 - 0.0374 - 2.0201 - 0.3580 = -2.6841$. (The sign of each component is arbitrary: an SVD routine may return $-\mathbf{v}_1$, flipping every score.)`,
+        text: String.raw`The SVD of $X_c$ gives singular values $(25.100, 6.013, 3.414, 1.885)$. Squared and divided by $n - 1 = 149$, they give each component's variance — the covariance eigenvalues — $(4.2282, 0.2427, 0.0782, 0.0238)$, summing to the trace $4.5730$. The **explained variance ratios** (each variance divided by the total) are $(0.9246, 0.0531, 0.0171, 0.0052)$: one direction carries 92.5% of the variance, two carry 97.8%.`,
+      },
+      {
+        t: "p",
+        text: String.raw`The first principal direction is $\mathbf{v}_1 = (0.3614, -0.0845, 0.8567, 0.3583)$, dominated by petal length. The first flower, $(5.1, 3.5, 1.4, 0.2)$, centres to $(-0.7433, 0.4427, -2.3580, -0.9993)$ and gets PC1 score $\mathbf{v}_1^\top\mathbf{x}_c = -0.2686 - 0.0374 - 2.0201 - 0.3580 = -2.6841$. (Each component's sign is arbitrary: a library may return $-\mathbf{v}_1$, flipping every score.)`,
       },
       {
         t: "math",
         tex: String.raw`\text{why it works:}\quad \operatorname{Var}(X_c\mathbf{w}) = \frac{\mathbf{w}^\top X_c^\top X_c\mathbf{w}}{n-1} = \mathbf{w}^\top C\mathbf{w} \;\le\; \lambda_1(C)\ \text{ for } \|\mathbf{w}\| = 1, \text{ with equality at } \mathbf{w} = \mathbf{v}_1`,
-        caption: "The direction of maximum variance maximises a Rayleigh quotient, whose maximum is the top eigenvalue of C — the top right singular vector of the centred data.",
+        caption: "The spread of the data along a unit direction w is wᵀCw. It is largest — equal to C's top eigenvalue — when w is the top right singular vector of the centred data.",
       },
       { t: "h", text: "Condition number" },
       {
@@ -508,12 +527,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The condition number bounds how much relative error in the data is amplified in the solution. $\kappa = 1$ for orthogonal matrices (perfect); $\kappa = \infty$ for singular ones. Example: $C = \begin{pmatrix}1&1\\1&1.001\end{pmatrix}$ has $\sigma = (2.0005, 0.0005)$, so $\kappa = 4002$. Solving $C\mathbf{x} = (2, 2.001)$ gives $\mathbf{x} = (1, 1)$; changing the right-hand side by 0.001 to $(2, 2.002)$ gives $\mathbf{x} = (0, 2)$ — a 0.05% change in $\mathbf{b}$ moves $\mathbf{x}$ by 100%. In optimization, the condition number of the Hessian governs how slowly plain gradient descent converges; normalisation layers and adaptive optimizers can be read as attempts to improve conditioning.`,
+        text: String.raw`The **condition number** $\kappa$ (kappa) limits how much a small relative error in the data ($\delta\mathbf{b}$) can grow in the answer ($\delta\mathbf{x}$). $\kappa = 1$ for orthogonal matrices (perfect), $\infty$ for singular ones. Example: $C = \begin{pmatrix}1&1\\1&1.001\end{pmatrix}$ has $\sigma = (2.0005, 0.0005)$, so $\kappa = 4002$. $C\mathbf{x} = (2, 2.001)$ gives $\mathbf{x} = (1, 1)$, but $(2, 2.002)$ gives $\mathbf{x} = (0, 2)$ — a 0.05% change in $\mathbf{b}$ moves $\mathbf{x}$ by 100%. The Hessian's condition number controls how slowly plain gradient descent converges; normalisation layers and adaptive optimizers can be seen as ways to improve it.`,
       },
       { t: "h", text: "Spectral norm and exploding gradients" },
       {
         t: "p",
-        text: String.raw`Backpropagation through $L$ linear layers multiplies the gradient by $W_L^\top, \dots, W_1^\top$ (and activation derivatives). Since $\|W^\top\mathbf{g}\| \le \sigma_1(W)\|\mathbf{g}\|$, the gradient norm is bounded by $\prod_l\sigma_1(W_l)$, and when the layers are random and roughly isotropic the typical growth factor per layer is about the **gain** of the initialisation rather than $\sigma_1$. The PyTorch program below pushes a vector through 50 random $256\times256$ layers with entries of standard deviation $g/\sqrt{256}$: the norm ratio is $5.1\times10^{-3}$ for $g = 0.9$, $0.65$ for $g = 1.0$ and $81$ for $g = 1.1$, close to $g^{50}$, even though each layer's spectral norm is about $2g$. Initialisations that keep this gain near 1 ([Weight Initialization](/learn/m07/initialization)) and orthogonal matrices (all $\sigma_i = 1$) are the linear-algebra answer to [vanishing and exploding gradients](/learn/m04/gradient-problems).`,
+        text: String.raw`Backpropagation through $L$ linear layers multiplies the gradient by $W_L^\top, \dots, W_1^\top$ (and activation derivatives). Since $\|W^\top\mathbf{g}\| \le \sigma_1(W)\|\mathbf{g}\|$, the gradient norm is at most $\prod_l\sigma_1(W_l)$. But for random, roughly direction-neutral layers, typical growth per layer is about the initialisation **gain**, not $\sigma_1$. The PyTorch program below pushes a vector through 50 random $256\times256$ layers with entries of standard deviation $g/\sqrt{256}$: the norm ratio is $5.1\times10^{-3}$ for $g = 0.9$, $0.65$ for $g = 1.0$ and $81$ for $g = 1.1$ — close to $g^{50}$, though each layer's spectral norm is about $2g$. The linear-algebra answer to [vanishing and exploding gradients](/learn/m04/gradient-problems): initialisations that keep the gain near 1 ([Weight Initialization](/learn/m07/initialization)) and orthogonal matrices (all $\sigma_i = 1$).`,
       },
     ],
 
@@ -521,7 +540,7 @@ const lesson: Lesson = {
     visual: [
       {
         t: "p",
-        text: "The simulator applies an editable 2×2 matrix A to the plane. The grey grid is the image of the square grid, the black curve the image of the unit circle, the shaded parallelogram the image of the unit square (accent when det > 0, clay when det < 0). In **I → A** mode, Play morphs the identity into A along M(t) = (1 − t)I + tA, with A's eigen-directions drawn as dotted lines. In **SVD** mode the stepper applies Vᵀ, Σ and U one at a time.",
+        text: "The simulator applies an editable 2×2 matrix A to the plane. The grey grid, black curve and shaded parallelogram show where the square grid, unit circle and unit square land (accent when det > 0, clay when det < 0). In **I → A** mode, Play morphs the identity into A along M(t) = (1 − t)I + tA, with A's eigen-directions drawn as dotted lines. In **SVD** mode the stepper applies Vᵀ, Σ and U one at a time.",
       },
       { t: "sim", id: "linear-transform", caption: "Linear transformations, eigenvectors and the SVD in two dimensions." },
       { t: "h", text: "What to try" },
@@ -529,13 +548,13 @@ const lesson: Lesson = {
         t: "list",
         ordered: true,
         items: [
-          String.raw`**Eigen-lines are invariant.** With the *General* preset ($\lambda = 2.5, 1$), press **Play**. Every grid line moves, but the two dotted eigen-lines stay put and the black arrows slide along them — because $M(t)\mathbf{v} = (1 - t + t\lambda)\mathbf{v}$ whenever $A\mathbf{v} = \lambda\mathbf{v}$. Note the eigen-lines are not perpendicular.`,
-          String.raw`**Reproduce the worked example.** Choose *Lesson: [[4,1],[2,3]]*: the panel shows $\lambda_1 = 5$ along $(0.71, 0.71)$, $\lambda_2 = 2$ along $(0.45, -0.89)$, det 10. Drag x onto an eigen-line: Ax stays on it.`,
-          String.raw`**Complex eigenvalues.** Choose *Rotation 45°*. The narration reports complex eigenvalues $0.71 \pm 0.71i$ and no dotted lines appear — no direction survives unrotated. Then *Shear*: one eigen-line only (defective).`,
-          String.raw`**Determinant as area.** Drag d from 1.5 toward 0.25 on *General* and watch the shaded area and det fall together; continue to negative det and the parallelogram turns clay (orientation flipped). *Projection* gives det 0: the plane collapses to a line.`,
-          String.raw`**SVD as rotate–scale–rotate.** Choose *Lesson: [[3,0],[4,5]]*, switch to **SVD** and Step: $V^\top$ rotates by $-45°$ (the circle is unchanged), $\Sigma$ stretches the axes to $6.708$ and $2.236$, $U$ rotates by $71.6°$. The panel's U, Σ, Vᵀ match the worked example.`,
-          String.raw`**Symmetric matrices.** Choose *Symmetric* ($[[2,1],[1,2]]$). In I → A mode the eigen-lines are perpendicular; in SVD mode the arrows $\sigma_i\mathbf{u}_i$ point along those same lines: SVD = eigendecomposition. Then try *Reflection* in SVD mode: det < 0, so U contains a reflection, shown as the second axis passing through zero.`,
-          String.raw`**Conditioning.** Make $A$ nearly singular, e.g. $a = 1, b = 1, c = 1, d = 1.1$. The ellipse becomes a thin needle, and the SVD panel's condition number grows large: tiny changes in the output direction correspond to huge changes in the input.`,
+          String.raw`**Eigen-lines stay put.** On *General* ($\lambda = 2.5, 1$), press **Play**. Every grid line moves, but the dotted eigen-lines stay and the black arrows slide along them, since $M(t)\mathbf{v} = (1 - t + t\lambda)\mathbf{v}$ whenever $A\mathbf{v} = \lambda\mathbf{v}$. They are not perpendicular.`,
+          String.raw`**Reproduce the worked example.** *Lesson: [[4,1],[2,3]]* shows $\lambda_1 = 5$ along $(0.71, 0.71)$, $\lambda_2 = 2$ along $(0.45, -0.89)$, det 10. Drag x onto an eigen-line: Ax stays on it.`,
+          String.raw`**Complex eigenvalues.** *Rotation 45°* reports $0.71 \pm 0.71i$ and no dotted lines — no direction escapes rotation. *Shear*: only one eigen-line (defective).`,
+          String.raw`**Determinant as area.** On *General*, drag d from 1.5 toward 0.25: area and det fall together. Go negative and the parallelogram turns clay (orientation flipped). *Projection* gives det 0: the plane collapses to a line.`,
+          String.raw`**SVD as rotate–scale–rotate.** *Lesson: [[3,0],[4,5]]*, **SVD** mode, Step: $V^\top$ rotates by $-45°$ (circle unchanged), $\Sigma$ stretches the axes to $6.708$ and $2.236$, $U$ rotates by $71.6°$ — matching the worked example.`,
+          String.raw`**Symmetric matrices.** *Symmetric* ($[[2,1],[1,2]]$): the eigen-lines are perpendicular, and in SVD mode the arrows $\sigma_i\mathbf{u}_i$ lie along them: SVD = eigendecomposition. *Reflection* in SVD mode: det < 0, so U contains a reflection (the second axis passes through zero).`,
+          String.raw`**Conditioning.** Set $a = 1, b = 1, c = 1, d = 1.1$ (nearly singular). The ellipse becomes a needle and the condition number grows large: tiny output changes match huge input changes.`,
         ],
       },
     ],
@@ -544,17 +563,17 @@ const lesson: Lesson = {
     scratch: [
       {
         t: "p",
-        text: "A from-scratch tour: eigenvalues from the characteristic polynomial, diagonalization and matrix powers, power iteration, the spectral theorem, the SVD built from the eigendecomposition of MᵀM, Eckart–Young verified numerically, and PCA via SVD on the 1797 images of the 8×8 digits dataset (bundled with scikit-learn, no download needed).",
+        text: "A from-scratch tour: eigenvalues from the characteristic polynomial, diagonalization and matrix powers, power iteration, the spectral theorem, the SVD built from the eigendecomposition of MᵀM, Eckart–Young checked numerically, and PCA via SVD on the 1797 images of the 8×8 digits dataset (bundled with scikit-learn, no download needed).",
       },
       { t: "code", lang: "python", title: "eigen_svd_from_scratch.py", code: SCRATCH_CODE, output: SCRATCH_OUTPUT },
       { t: "p", text: "Reading the output:" },
       {
         t: "list",
         items: [
-          "The Rayleigh quotient vᵀAv estimates the eigenvalue from the current unit vector. It is exactly 5 after the first iteration only by coincidence of this starting point; in general it converges as the direction does.",
-          "`np.linalg.eigh` is the right call for symmetric matrices: it guarantees real eigenvalues, orthonormal eigenvectors and ascending order, and it is faster and more accurate than the general `np.linalg.eig`.",
-          "The Eckart–Young lines show the spectral-norm error of the rank-k truncation equal to σ_{k+1} and the Frobenius error equal to the root of the sum of the discarded σ² — to every printed digit.",
-          "Digits PCA: the first two components hold only 28.5% of the variance (handwriting is not a two-dimensional phenomenon), 21 components are needed for 90%, and the mean squared reconstruction error drops from 13.42 to 1.82 grey-level units² between k = 2 and k = 21. Squared singular values divided by n − 1 equal the covariance eigenvalues, confirming the two routes to PCA agree.",
+          "The Rayleigh quotient vᵀAv estimates the eigenvalue from the current unit vector. It hits exactly 5 at step 1 only by luck of this start; normally it converges as the direction does.",
+          "Use `np.linalg.eigh` for symmetric matrices: real eigenvalues, perpendicular unit eigenvectors, ascending order, and faster and more accurate than `np.linalg.eig`.",
+          "Eckart–Young holds to every printed digit: the rank-k error is σ_{k+1} in spectral norm and the root of the sum of the dropped σ² in Frobenius norm.",
+          "Digits PCA: two components hold only 28.5% of the variance (handwriting is not two-dimensional), 90% needs 21, and the mean squared reconstruction error drops from 13.42 to 1.82 grey-level units² between k = 2 and k = 21. Squared singular values over n − 1 equal the covariance eigenvalues, so both routes to PCA agree.",
         ],
       },
     ],
@@ -569,18 +588,18 @@ const lesson: Lesson = {
             blocks: [
               {
                 t: "p",
-                text: "`torch.linalg.eig` handles general square matrices and always returns complex tensors (a rotation genuinely has complex eigenvalues); `torch.linalg.eigh` is for symmetric/Hermitian ones; `torch.linalg.svd` returns `U, S, Vh` with `Vh` already transposed. The program then trains a 64→256→256→10 MLP on the digits dataset, replaces its 256×256 hidden layer by rank-r factorisations, and finally measures signal growth through 50 random layers and the effect of `spectral_norm`.",
+                text: "`torch.linalg.eig` handles any square matrix and always returns complex tensors (a rotation really has complex eigenvalues); `torch.linalg.eigh` is for symmetric/Hermitian ones; `torch.linalg.svd` returns `U, S, Vh`, with `Vh` already transposed. The program then trains a 64→256→256→10 MLP on digits, swaps its 256×256 hidden layer for rank-r factorisations, and measures signal growth through 50 random layers and the effect of `spectral_norm`.",
               },
               { t: "code", lang: "python", title: "eigen_svd_torch.py", code: TORCH_CODE, output: TORCH_OUTPUT, runnable: false },
               {
                 t: "p",
-                text: "Compression result: rank 16 keeps the full model's test accuracy (0.9741) with 12.8% of the layer's parameters, although it retains only 74.5% of the squared-singular-value 'energy'. Accuracy depends on the directions the next layer actually uses, not on reconstructing the matrix perfectly. At rank 4 accuracy collapses to 0.70. In practice one chooses r per layer by validation accuracy and often fine-tunes the factorised model briefly.",
+                text: "Result: rank 16 keeps the full test accuracy (0.9741) with 12.8% of the layer's parameters, though it keeps only 74.5% of the squared-singular-value 'energy'. What counts is the directions the next layer uses, not a perfect matrix copy. At rank 4 accuracy collapses to 0.70. In practice, pick r per layer by validation accuracy and often fine-tune briefly.",
               },
               {
                 t: "callout",
                 kind: "note",
                 title: "LoRA in one line",
-                text: String.raw`LoRA freezes a pretrained $W_0 \in \mathbb{R}^{m\times n}$ and learns $W = W_0 + \tfrac{\alpha}{r}BA$ with $B \in \mathbb{R}^{m\times r}$ (initialised to zero) and $A \in \mathbb{R}^{r\times n}$, $r \ll \min(m, n)$ (Hu et al., 2021, "LoRA: Low-Rank Adaptation of Large Language Models"). The update has rank at most $r$ and $r(m+n)$ trainable parameters; for $m = n = 4096$ and $r = 8$ that is 65,536 instead of 16,777,216 (0.39%). Unlike the post-hoc truncation above, the low-rank factors are trained directly. See [Scaling and efficiency](/learn/m19/scaling-efficiency).`,
+                text: String.raw`LoRA freezes a pretrained $W_0 \in \mathbb{R}^{m\times n}$ and learns $W = W_0 + \tfrac{\alpha}{r}BA$, with $B \in \mathbb{R}^{m\times r}$ (started at zero) and $A \in \mathbb{R}^{r\times n}$, where $r \ll \min(m, n)$ (Hu et al., 2021, "LoRA: Low-Rank Adaptation of Large Language Models"). The update has rank at most $r$ and only $r(m+n)$ trainable parameters: for $m = n = 4096$ and $r = 8$ that is 65,536 instead of 16,777,216 (0.39%). Unlike truncating after training, the low-rank factors are trained directly. See [Scaling and efficiency](/learn/m19/scaling-efficiency).`,
               },
             ],
           },
@@ -589,7 +608,7 @@ const lesson: Lesson = {
             blocks: [
               {
                 t: "p",
-                text: "TensorFlow provides `tf.linalg.eig`, `tf.linalg.eigh` and `tf.linalg.svd`. Two porting traps: `tf.linalg.svd` returns `(s, u, v)` in that order, and `v` is **not** transposed (A = u·diag(s)·vᵀ), unlike NumPy/PyTorch's `Vh`. Keras kernels are stored as (in, out), the transpose of PyTorch's weight, which changes which factor gets which shape when factorising a layer.",
+                text: "TensorFlow has `tf.linalg.eig`, `tf.linalg.eigh` and `tf.linalg.svd`. Two porting traps: `tf.linalg.svd` returns `(s, u, v)` in that order, with `v` **not** transposed (A = u·diag(s)·vᵀ), unlike NumPy/PyTorch's `Vh`. And Keras kernels are (in, out), the transpose of PyTorch's weight, which swaps the factor shapes when you factorise a layer.",
               },
               {
                 t: "code",
@@ -610,13 +629,13 @@ const lesson: Lesson = {
       { t: "h", text: "Decompositions compared" },
       {
         t: "table",
-        head: ["Decomposition", "Form", "Exists for", "Advantages", "Limitations / use"],
+        head: ["Decomposition", "Form", "Exists for", "Strengths", "Limits / uses"],
         rows: [
           ["Eigendecomposition", String.raw`$A = P\Lambda P^{-1}$`, "square, diagonalizable", "explains powers $A^k$, recurrences, dynamics", "P may be ill-conditioned; complex values for real A; defective matrices have none"],
           ["Spectral (symmetric)", String.raw`$A = Q\Lambda Q^\top$`, "symmetric", "real λ, orthonormal Q, numerically stable", "Hessians, covariance matrices, graph Laplacians"],
           ["SVD", String.raw`$A = U\Sigma V^\top$`, "every matrix", "rank, norms, best low-rank approximation, pseudo-inverse", "cost O(mn·min(m,n)); compression, PCA, LoRA analysis"],
           ["Truncated / randomized SVD", String.raw`$A \approx U_k\Sigma_kV_k^\top$`, "every matrix", "only the top k triplets; randomized methods scale to huge matrices", "approximate; PCA on large data (scikit-learn's randomized solver)"],
-          ["QR", String.raw`$A = QR$`, "every matrix", "stable least squares, orthogonal bases", "no spectral information directly; orthogonal init"],
+          ["QR", String.raw`$A = QR$`, "every matrix", "stable least squares, orthogonal bases", "no direct spectral information; orthogonal init"],
           ["Cholesky", String.raw`$A = LL^\top$`, "symmetric positive definite", "half the cost of LU; tests PD-ness", "sampling Gaussians, Gaussian processes, second-order methods"],
           ["Jordan form", String.raw`$A = PJP^{-1}$`, "every square matrix (over ℂ)", "handles defective matrices in theory", "numerically unstable; theory only"],
         ],
@@ -626,9 +645,9 @@ const lesson: Lesson = {
         t: "table",
         head: ["Variant", "Idea", "When to use"],
         rows: [
-          ["PCA (covariance)", "SVD of centred data", "features on comparable scales"],
+          ["PCA (covariance)", "SVD of centred data", "features on similar scales"],
           ["PCA (correlation / standardised)", "SVD after dividing each feature by its standard deviation", "features in different units"],
-          ["Randomized PCA", "random projection to a small subspace, then exact SVD there", "large n and d when only a few components are needed"],
+          ["Randomized PCA", "random projection to a small subspace, then exact SVD there", "large n and d when you need only a few components"],
           ["Incremental PCA", "update the decomposition batch by batch", "data that does not fit in memory"],
           ["Kernel PCA", "PCA in a feature space defined by a kernel", "non-linear structure"],
           ["Linear autoencoder", "encoder/decoder trained with MSE", "spans the same subspace as PCA; see [Autoencoders](/learn/m14/autoencoders)"],
@@ -641,15 +660,15 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "**Dimensionality reduction and visualisation.** PCA is the standard first look at embeddings and activations, and a common preprocessing step before t-SNE or UMAP.",
-          String.raw`**Parameter-efficient fine-tuning.** LoRA (Hu et al., 2021) trains rank-$r$ updates $BA$ to frozen weights; the method rests on the observation that useful fine-tuning updates have low effective rank.`,
-          "**Model compression.** Truncated SVD factorises large dense or embedding layers into two thin layers; it is one of several techniques alongside quantization and pruning ([Model Optimization](/learn/m18/model-optimization)).",
-          String.raw`**Training stability.** Spectral normalization (Miyato et al., 2018) constrains $\sigma_1(W)$ in GAN discriminators; orthogonal initialisation sets all singular values to 1; monitoring the largest Hessian eigenvalue explains why too-large learning rates diverge ($\eta > 2/\lambda_{\max}$ for gradient descent on a quadratic).`,
-          "**Recurrent dynamics.** The eigenvalues of an RNN's recurrent weight matrix determine whether its hidden state (and gradient) explodes or vanishes over time steps; see [Backpropagation Through Time](/learn/m09/bptt).",
-          "**Recommender systems.** Matrix factorisation of a user × item matrix, closely related to the truncated SVD, was a central technique in the Netflix Prize competition.",
-          "**Latent semantic analysis.** Truncated SVD of a term × document matrix was an early method for capturing word and document similarity, a precursor of learned word embeddings.",
-          "**Graph learning.** Eigenvectors of the graph Laplacian define spectral clustering and the spectral view of graph convolutions ([Graph Neural Networks](/learn/m15/graph-neural-networks)).",
-          "**Whitening.** Multiplying centred data by $V\Sigma^{-1}$ (PCA whitening) decorrelates features and equalises their variance, a classical preprocessing step for images.",
+          "**Dimensionality reduction and visualisation.** PCA is the standard first look at embeddings and activations, often before t-SNE or UMAP.",
+          String.raw`**Parameter-efficient fine-tuning.** LoRA (Hu et al., 2021) trains rank-$r$ updates $BA$ on frozen weights, because useful fine-tuning updates tend to have low effective rank.`,
+          "**Model compression.** Truncated SVD splits large dense or embedding layers into two thin ones, alongside quantization and pruning ([Model Optimization](/learn/m18/model-optimization)).",
+          String.raw`**Training stability.** Spectral normalization (Miyato et al., 2018) limits $\sigma_1(W)$ in GAN discriminators; orthogonal initialisation sets all singular values to 1; the largest Hessian eigenvalue explains why too-large learning rates $\eta$ diverge ($\eta > 2/\lambda_{\max}$ for gradient descent on a quadratic).`,
+          "**Recurrent dynamics.** The eigenvalues of an RNN's recurrent weights decide whether its hidden state (and gradient) explodes or vanishes over time; see [Backpropagation Through Time](/learn/m09/bptt).",
+          "**Recommender systems.** Factorising a user × item matrix, close to truncated SVD, was central in the Netflix Prize.",
+          "**Latent semantic analysis.** Truncated SVD of a term × document matrix was an early way to capture word similarity, a forerunner of word embeddings.",
+          "**Graph learning.** Graph Laplacian eigenvectors define spectral clustering and the spectral view of graph convolutions ([Graph Neural Networks](/learn/m15/graph-neural-networks)).",
+          String.raw`**Whitening.** Multiplying centred data by $V\Sigma^{-1}$ removes feature correlations and equalises variances, a classic image preprocessing step.`,
         ],
       },
     ],
@@ -660,22 +679,22 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "**The SVD always exists and is numerically stable**; it gives rank, norms, condition number, pseudo-inverse and optimal low-rank approximations in one computation.",
-          "**Eigendecompositions explain dynamics**: repeated application, stability of recurrences and of gradient descent, and the curvature encoded in Hessians.",
-          "**Optimality guarantees**: Eckart–Young makes truncated SVD and PCA provably the best linear compression in squared error.",
-          "**Interpretability of directions**: singular vectors and principal components are concrete directions you can inspect.",
+          "**The SVD always exists and is numerically stable**; one computation gives rank, norms, condition number, pseudo-inverse and best low-rank approximations.",
+          "**Eigendecompositions explain dynamics**: repeated application, stability of recurrences and gradient descent, Hessian curvature.",
+          "**Optimality**: Eckart–Young makes truncated SVD and PCA provably the best linear compression in squared error.",
+          "**Interpretable directions** you can inspect: singular vectors and principal components.",
         ],
       },
       { t: "h", text: "Limitations" },
       {
         t: "list",
         items: [
-          String.raw`**Cost.** A full SVD of an $m\times n$ matrix costs $O(mn\min(m,n))$; for large matrices use truncated, randomized or iterative (Lanczos, power-iteration) methods.`,
-          "**Linearity.** PCA finds only linear structure; curved manifolds need kernel PCA, autoencoders or other non-linear methods.",
-          "**Scale sensitivity.** PCA on raw features is dominated by the features with the largest units; standardise when units differ.",
-          "**Sign and order ambiguity.** Eigenvectors and singular vectors are defined up to sign (and arbitrary rotation within repeated eigenvalues), so components from two runs or libraries may not match element-wise.",
-          "**Non-normal matrices.** For non-symmetric matrices eigenvalues can mislead about transient behaviour: a matrix with all |λ| < 1 can still amplify vectors greatly for many steps if its eigenvectors are nearly parallel. Singular values tell the worst-case one-step stretch.",
-          "**Energy is not accuracy.** Keeping 90% of a weight matrix's squared singular values does not guarantee keeping 90% of model accuracy — measure the task metric.",
+          String.raw`**Cost.** A full SVD of an $m\times n$ matrix costs $O(mn\min(m,n))$. For large matrices use truncated, randomized or iterative (Lanczos, power-iteration) methods.`,
+          "**Linearity.** PCA finds only linear structure; curved data needs kernel PCA, autoencoders or other non-linear methods.",
+          "**Scale sensitivity.** On raw features, PCA is dominated by features with the largest units; standardise when units differ.",
+          "**Sign and order ambiguity.** Eigenvectors and singular vectors are fixed only up to sign (and any rotation within repeated eigenvalues), so components from two runs or libraries may not match element by element.",
+          "**Non-normal matrices.** For non-symmetric matrices, eigenvalues can mislead about short-term behaviour: with all |λ| < 1, vectors can still grow for many steps if the eigenvectors are nearly parallel. Singular values give the worst-case one-step stretch.",
+          "**Energy is not accuracy.** Keeping 90% of a weight matrix's squared singular values does not guarantee 90% of model accuracy — measure the task metric.",
         ],
       },
     ],
@@ -685,14 +704,14 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "**Confusing eigenvalues with singular values.** They agree (up to sign) only for symmetric (more generally, normal) matrices. For the shear [[1,1],[0,1]], both eigenvalues are 1, but the singular values are 1.618 and 0.618. **Fix:** use singular values for norms, rank and conditioning; eigenvalues for powers and dynamics.",
-          "**Forgetting to centre data before PCA.** Without centring, the first component points at the mean rather than along the direction of greatest variance. **Fix:** subtract the column means (scikit-learn's PCA does this; a hand-written SVD does not).",
-          "**Mixing up the SVD output conventions.** NumPy/PyTorch return `Vh` (= Vᵀ, rows are singular vectors); TensorFlow returns `v` (columns). Using the wrong one silently reconstructs garbage. **Fix:** always check `U @ diag(S) @ Vh ≈ A` once.",
-          "**Using `eig` on a symmetric matrix.** It may return tiny imaginary parts, unsorted values and non-orthogonal vectors due to rounding. **Fix:** use `eigh` for symmetric/Hermitian matrices.",
-          "**Computing the SVD via eig(AᵀA) in practice.** This squares the condition number; small singular values lose half their accurate digits. **Fix:** call the SVD routine directly.",
-          "**Interpreting component signs.** A PCA score of −2.68 versus +2.68 is a library convention, not a property of the data. **Fix:** compare subspaces or absolute loadings, or fix a sign convention.",
-          "**Inverting an ill-conditioned matrix.** A condition number of 10¹² means about 12 of float64's ~16 digits can be lost. **Fix:** check κ, regularise (add λI), or use a least-squares solver / pseudo-inverse with a cutoff on small σ.",
-          "**Truncating a weight matrix without checking the task metric.** **Fix:** sweep r and evaluate accuracy, as in the PyTorch example; fine-tune after factorising.",
+          "**Confusing eigenvalues with singular values.** They agree (up to sign) only for symmetric (more generally, normal) matrices: the shear [[1,1],[0,1]] has eigenvalues 1 and 1 but singular values 1.618 and 0.618. **Fix:** singular values for norms, rank and conditioning; eigenvalues for powers and dynamics.",
+          "**Forgetting to centre data before PCA.** The first component then points at the mean, not along the greatest spread. **Fix:** subtract column means (scikit-learn's PCA does; a hand-written SVD does not).",
+          "**Mixing up SVD output conventions.** NumPy/PyTorch return `Vh` (= Vᵀ, rows are singular vectors); TensorFlow returns `v` (columns). The wrong one silently rebuilds garbage. **Fix:** check `U @ diag(S) @ Vh ≈ A` once.",
+          "**Using `eig` on a symmetric matrix.** Rounding can give tiny imaginary parts, unsorted values and non-perpendicular vectors. **Fix:** use `eigh`.",
+          "**Computing the SVD via eig(AᵀA) in practice.** This squares the condition number; small singular values lose half their accurate digits. **Fix:** call the SVD routine.",
+          "**Reading meaning into component signs.** A PCA score of −2.68 versus +2.68 is a library convention. **Fix:** compare subspaces or absolute loadings, or fix a sign convention.",
+          "**Inverting an ill-conditioned matrix.** κ = 10¹² can cost about 12 of float64's ~16 digits. **Fix:** check κ, regularise (add λI), or use a least-squares solver / pseudo-inverse that cuts off small σ.",
+          "**Truncating a weight matrix without checking the task metric.** **Fix:** sweep r and measure accuracy, as in the PyTorch example; fine-tune after factorising.",
         ],
       },
     ],
@@ -700,14 +719,14 @@ const lesson: Lesson = {
     /* ------------------------------------------------------------------ */
     interview: [
       { t: "qa", level: "beginner", q: "What is an eigenvector, intuitively and formally?", a: "Formally, a non-zero v with Av = λv; λ is its eigenvalue. Intuitively, a direction the linear map does not rotate — vectors along it are only stretched by λ (or flipped if λ < 0). The eigenvalues are the roots of det(A − λI) = 0." },
-      { t: "qa", level: "beginner", q: "What does the determinant tell you geometrically?", a: "The factor by which the map scales areas (volumes). |det A| = 2 doubles areas; a negative sign means orientation is flipped (a reflection is involved); det A = 0 means space is flattened into a lower dimension, so A is not invertible." },
-      { t: "qa", level: "beginner", q: "What is the SVD and why is it useful?", a: "Every matrix factors as A = UΣVᵀ with orthogonal U, V and a non-negative diagonal Σ: rotate, scale along perpendicular axes, rotate. It reveals the rank (number of non-zero σ), the spectral norm (σ₁), the condition number (σ₁/σ_min), and gives the best low-rank approximation by keeping the largest σ — the basis of PCA and matrix compression." },
-      { t: "qa", level: "intermediate", q: "How are the SVD of A and the eigendecomposition of AᵀA related?", a: "AᵀA = VΣᵀΣVᵀ, so the right singular vectors of A are the eigenvectors of AᵀA and σᵢ² are its eigenvalues. Likewise AAᵀ = UΣΣᵀUᵀ gives the left singular vectors. This is the standard way to derive the SVD, though it is not how it is computed numerically." },
-      { t: "qa", level: "intermediate", q: "Why do symmetric matrices have real eigenvalues and orthogonal eigenvectors, and why does it matter in deep learning?", a: "If Av₁ = λ₁v₁ and Av₂ = λ₂v₂, then λ₁v₁ᵀv₂ = (Av₁)ᵀv₂ = v₁ᵀAv₂ = λ₂v₁ᵀv₂, so distinct eigenvalues force v₁ ⟂ v₂; a similar argument with conjugates shows λ is real. Hessians and covariance matrices are symmetric, so they decompose into independent curvature or variance directions along perpendicular axes — the basis of second-order analysis, PCA and conditioning arguments." },
-      { t: "qa", level: "intermediate", q: "Explain how PCA is computed with the SVD and how you choose the number of components.", a: "Centre the data, compute the thin SVD X_c = UΣVᵀ. The principal directions are the rows of Vᵀ, the component variances are σᵢ²/(n−1), and the projected data are U_kΣ_k. Choose k from the cumulative explained-variance ratio (e.g. 90–95%), from an elbow in the scree plot, or by the downstream metric." },
-      { t: "qa", level: "intermediate", q: "What is the condition number and what happens when it is large?", a: "κ = σ_max/σ_min. It bounds the amplification of relative errors when solving Ax = b and measures how stretched the ellipse image of the unit sphere is. Large κ means small changes in data cause large changes in solutions, and for Hessians it means gradient descent must use a step small enough for the steepest direction, making progress along the flattest direction slow." },
-      { t: "qa", level: "advanced", q: "State the Eckart–Young theorem and connect it to LoRA and to compressing weights.", a: "For any matrix with SVD UΣVᵀ, the truncation A_k = Σ_{i≤k} σᵢuᵢvᵢᵀ minimises ‖A − B‖ over rank-k B in both spectral and Frobenius norm, with errors σ_{k+1} and √(Σ_{i>k}σᵢ²). Post-hoc compression truncates a trained weight's SVD accordingly. LoRA instead constrains the *update* ΔW = BA to rank r and trains B, A directly, betting that the needed change lies in a low-dimensional subspace; it uses r(m+n) trainable parameters instead of mn." },
-      { t: "qa", level: "advanced", q: "Why can a matrix whose eigenvalues all have |λ| < 1 still cause large transient growth, and what does this mean for RNNs?", a: "For non-normal matrices the eigenvectors can be nearly parallel, so expressing a vector in the eigenbasis requires huge cancelling coefficients. Each power Aᵏ shrinks the components individually, but the cancellation breaks and ‖Aᵏx‖ can grow by orders of magnitude before eventually decaying. The relevant one-step bound is the spectral norm σ₁, not the spectral radius. For RNNs, eigenvalue-based stability arguments are therefore incomplete; orthogonal or unitary recurrent matrices (all σ = |λ| = 1) avoid the problem by construction." },
+      { t: "qa", level: "beginner", q: "What does the determinant tell you geometrically?", a: "How much the map scales areas (volumes). |det A| = 2 doubles areas; a negative sign means orientation is flipped (a reflection is involved); det A = 0 means space is flattened into a lower dimension, so A is not invertible." },
+      { t: "qa", level: "beginner", q: "What is the SVD and why is it useful?", a: "Every matrix factors as A = UΣVᵀ (orthogonal U, V; non-negative diagonal Σ): rotate, stretch along perpendicular axes, rotate. It reveals the rank (number of non-zero σ), spectral norm (σ₁) and condition number (σ₁/σ_min), and keeping the largest σ gives the best low-rank approximation — the basis of PCA and compression." },
+      { t: "qa", level: "intermediate", q: "How are the SVD of A and the eigendecomposition of AᵀA related?", a: "AᵀA = VΣᵀΣVᵀ, so the right singular vectors of A are the eigenvectors of AᵀA, and σᵢ² are its eigenvalues. Likewise AAᵀ = UΣΣᵀUᵀ gives the left singular vectors. This is the standard way to derive the SVD, but not how it is computed numerically." },
+      { t: "qa", level: "intermediate", q: "Why do symmetric matrices have real eigenvalues and orthogonal eigenvectors, and why does it matter in deep learning?", a: "If Av₁ = λ₁v₁ and Av₂ = λ₂v₂, then λ₁v₁ᵀv₂ = (Av₁)ᵀv₂ = v₁ᵀAv₂ = λ₂v₁ᵀv₂, so distinct eigenvalues force v₁ ⟂ v₂; a similar argument with complex conjugates shows λ is real. Hessians and covariance matrices are symmetric, so they split into independent curvature or variance directions along perpendicular axes — the basis of second-order analysis, PCA and conditioning." },
+      { t: "qa", level: "intermediate", q: "Explain how PCA is computed with the SVD and how you choose the number of components.", a: "Centre the data and compute the thin SVD X_c = UΣVᵀ. The principal directions are the rows of Vᵀ, the component variances are σᵢ²/(n−1), and the projected data are U_kΣ_k. Choose k from the cumulative explained-variance ratio (e.g. 90–95%), from an elbow in the scree plot, or by the downstream metric." },
+      { t: "qa", level: "intermediate", q: "What is the condition number and what happens when it is large?", a: "κ = σ_max/σ_min: it bounds how much relative errors grow when solving Ax = b, and how stretched the unit sphere's ellipse image is. Large κ means small data changes cause large solution changes. For Hessians, gradient descent needs a step small enough for the steepest direction, so progress along the flattest one is slow." },
+      { t: "qa", level: "advanced", q: "State the Eckart–Young theorem and connect it to LoRA and to compressing weights.", a: "For any matrix with SVD UΣVᵀ, the truncation A_k = Σ_{i≤k} σᵢuᵢvᵢᵀ minimises ‖A − B‖ over rank-k B in both spectral and Frobenius norm, with errors σ_{k+1} and √(Σ_{i>k}σᵢ²). Post-hoc compression truncates a trained weight's SVD this way. LoRA instead limits the *update* ΔW = BA to rank r and trains B, A directly, betting the needed change is low-dimensional; it uses r(m+n) trainable parameters instead of mn." },
+      { t: "qa", level: "advanced", q: "Why can a matrix whose eigenvalues all have |λ| < 1 still cause large transient growth, and what does this mean for RNNs?", a: "For non-normal matrices the eigenvectors can be nearly parallel, so a vector written in the eigenbasis needs huge coefficients that cancel. Each power Aᵏ shrinks the components one by one, the cancellation breaks, and ‖Aᵏx‖ can grow by orders of magnitude before it decays. The one-step bound is the spectral norm σ₁, not the spectral radius. So eigenvalue-based stability arguments for RNNs are incomplete; orthogonal or unitary recurrent matrices (all σ = |λ| = 1) avoid the problem by design." },
     ],
 
     /* ------------------------------------------------------------------ */
@@ -715,8 +734,8 @@ const lesson: Lesson = {
       {
         t: "quiz",
         questions: [
-          { kind: "numeric", q: "What is the determinant of [[3, 1], [2, 4]]?", answer: 10, tolerance: 0.001, explain: "3·4 − 1·2 = 10: the map multiplies areas by 10 and preserves orientation." },
-          { kind: "numeric", q: "The matrix [[4, 1], [2, 3]] has eigenvalues 5 and one other. What is the other? (Use the trace.)", answer: 2, tolerance: 0.001, explain: "The eigenvalues sum to the trace 7, so the other is 2 (and 5·2 = 10 = det, as a check)." },
+          { kind: "numeric", q: "What is the determinant of [[3, 1], [2, 4]]?", answer: 10, tolerance: 0.001, explain: "3·4 − 1·2 = 10: the map multiplies areas by 10 and keeps orientation." },
+          { kind: "numeric", q: "The matrix [[4, 1], [2, 3]] has eigenvalues 5 and one other. What is the other? (Use the trace.)", answer: 2, tolerance: 0.001, explain: "The eigenvalues sum to the trace 7, so the other is 2 (check: 5·2 = 10 = det)." },
           { kind: "numeric", q: "What is the largest singular value of [[0, −2], [1, 0]]?", answer: 2, tolerance: 0.001, explain: "AᵀA = [[1, 0], [0, 4]], whose eigenvalues are 1 and 4, so σ = 2 and 1." },
           { kind: "numeric", q: "What is the condition number of diag(10, 0.1)?", answer: 100, tolerance: 0.01, explain: "σ_max/σ_min = 10/0.1 = 100." },
           { kind: "numeric", q: "A covariance matrix has eigenvalues 6, 3 and 1. What fraction of the variance does the first principal component explain?", answer: 0.6, tolerance: 0.001, explain: "6/(6 + 3 + 1) = 0.6." },
@@ -729,7 +748,7 @@ const lesson: Lesson = {
       {
         t: "exercise",
         title: "Spectral decomposition by hand",
-        prompt: String.raw`Let $S = \begin{pmatrix}5&2\\2&2\end{pmatrix}$. (a) Find its eigenvalues and unit eigenvectors. (b) Verify $S = \lambda_1\mathbf{q}_1\mathbf{q}_1^\top + \lambda_2\mathbf{q}_2\mathbf{q}_2^\top$. (c) Is $S$ positive definite? What are its singular values and condition number?`,
+        prompt: String.raw`Let $S = \begin{pmatrix}5&2\\2&2\end{pmatrix}$. (a) Find its eigenvalues and unit eigenvectors. (b) Check that $S = \lambda_1\mathbf{q}_1\mathbf{q}_1^\top + \lambda_2\mathbf{q}_2\mathbf{q}_2^\top$. (c) Is $S$ positive definite? What are its singular values and condition number?`,
         hint: "trace 7, determinant 6.",
         solution: [
           {
@@ -747,13 +766,13 @@ const lesson: Lesson = {
       {
         t: "exercise",
         title: "Compress an image with truncated SVD",
-        prompt: "Load scikit-learn's bundled sample image `china.jpg`, convert it to grayscale, and compute its SVD. For k = 5, 20, 50 and 100 report the fraction of squared-singular-value energy kept, the relative Frobenius error of the rank-k approximation, and the storage cost relative to the original. How many components keep 99% of the energy? Explain the relation between energy and error.",
-        hint: "Rank-k reconstruction: (U[:, :k] * s[:k]) @ Vt[:k]. Storage of the factors: k(m + n + 1) numbers.",
+        prompt: "Load scikit-learn's bundled sample image `china.jpg`, convert it to grayscale, and compute its SVD. For k = 5, 20, 50 and 100, report the fraction of squared-singular-value energy kept, the relative Frobenius error of the rank-k approximation, and the storage cost compared with the original. How many components keep 99% of the energy? Explain how energy and error are related.",
+        hint: "Rank-k reconstruction: (U[:, :k] * s[:k]) @ Vt[:k]. Storing the factors takes k(m + n + 1) numbers.",
         solution: [
           { t: "code", lang: "python", title: "svd_image_compression.py", code: EX_CODE, output: EX_OUTPUT },
           {
             t: "p",
-            text: String.raw`By Eckart–Young, $\|A - A_k\|_F^2 = \sum_{i>k}\sigma_i^2$, so the relative error is exactly $\sqrt{1 - \text{energy}}$: for $k = 50$, $\sqrt{1 - 0.9894} = 0.103$. Natural images have rapidly decaying singular values (a few smooth large-scale patterns carry most of the energy), so 54 of 427 components keep 99% of the energy at about a fifth of the storage. The remaining 1% is fine texture and edges, which is why low-rank images look blurry even when the energy fraction is high.`,
+            text: String.raw`By Eckart–Young, $\|A - A_k\|_F^2 = \sum_{i>k}\sigma_i^2$, so the relative error is exactly $\sqrt{1 - \text{energy}}$: for $k = 50$, $\sqrt{1 - 0.9894} = 0.103$. Natural images have singular values that fall off fast (a few smooth large-scale patterns carry most of the energy), so 54 of 427 components keep 99% of the energy at about a fifth of the storage. The last 1% is fine texture and edges — which is why low-rank images look blurry even when the energy fraction is high.`,
           },
         ],
       },
@@ -771,8 +790,8 @@ const lesson: Lesson = {
           String.raw`**SVD:** $A = U\Sigma V^\top$ for every matrix; rotate–scale–rotate; $\sigma_i = \sqrt{\lambda_i(A^\top A)}$; $\|A\|_2 = \sigma_1$, $\|A\|_F^2 = \sum\sigma_i^2$, rank = #(σ > 0), $|\det A| = \prod\sigma_i$.`,
           String.raw`**Eckart–Young:** $A_k = \sum_{i\le k}\sigma_i\mathbf{u}_i\mathbf{v}_i^\top$ is the best rank-$k$ approximation; errors $\sigma_{k+1}$ (spectral) and $\sqrt{\sum_{i>k}\sigma_i^2}$ (Frobenius).`,
           String.raw`**PCA:** centre, SVD, directions = rows of $V^\top$, variances $\sigma_i^2/(n-1)$, scores $U_k\Sigma_k$.`,
-          String.raw`**Condition number** $\kappa = \sigma_{\max}/\sigma_{\min}$ bounds error amplification.`,
-          "**Deep learning:** LoRA learns rank-r updates; truncated SVD compresses layers (rank 16 kept full accuracy at 12.8% of the parameters in our example); spectral norms and initialisation gain govern signal and gradient growth through depth.",
+          String.raw`**Condition number** $\kappa = \sigma_{\max}/\sigma_{\min}$ limits how much errors grow.`,
+          "**Deep learning:** LoRA learns rank-r updates; truncated SVD compresses layers (rank 16 kept full accuracy at 12.8% of the parameters in our example); spectral norms and initialisation gain control signal and gradient growth through depth.",
         ],
       },
     ],
@@ -782,7 +801,7 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "[Jacobians, Hessians and Computational Graphs](/learn/m02/jacobians-hessians) — the Hessian is a symmetric matrix whose eigenvalues describe the curvature of the loss; this lesson's spectral theorem and definiteness tests are what you need to read it.",
+          "[Jacobians, Hessians and Computational Graphs](/learn/m02/jacobians-hessians) — the Hessian is a symmetric matrix whose eigenvalues describe the loss's curvature; this lesson's spectral theorem and definiteness tests are what you need to read it.",
           "[Optimization: Objectives, Convexity and Minima](/learn/m02/optimization-math) — convexity, saddle points and why the condition number controls gradient descent.",
           "[Vanishing and Exploding Gradients](/learn/m04/gradient-problems) — products of Jacobians and their singular values in real networks.",
           "[Scaling and Efficiency](/learn/m19/scaling-efficiency) — LoRA and other parameter-efficient methods built on low-rank structure.",

@@ -134,24 +134,24 @@ export default function RegularizationSim() {
   let title: string;
   let body: string;
   if (k === 0) {
-    title = "λ = 0: no regularisation";
-    body = `All three solutions sit at the unregularised minimum c = (${fmt(c1, 2)}, ${fmt(c2, 2)}). Press Play to sweep λ upward and watch the constraint regions shrink.`;
+    title = "λ = 0: no penalty yet";
+    body = `With no penalty, all three answers sit at the plain loss minimum c = (${fmt(c1, 2)}, ${fmt(c2, 2)}). Press Play to raise λ (the penalty strength) and watch the allowed regions shrink.`;
   } else if (nZero === 0) {
     title = `λ = ${fmt(lam, 3)}: both penalties shrink`;
-    body = `The L1 diamond (radius ${fmt(l1(wL1), 3)}) and L2 circle (radius ${fmt(l2(wL2), 3)}) are both touched by a data-loss contour at a point with two non-zero coordinates. The first L1 coordinate becomes exactly 0 at λ ≈ ${fmt(Math.min(...(zeroAt.filter((z) => z !== null) as number[])), 3)}.`;
+    body = `A loss contour touches the L1 diamond (radius ${fmt(l1(wL1), 3)}) and the L2 circle (radius ${fmt(l2(wL2), 3)}). Both touch points still have two non-zero coordinates. The first L1 coordinate hits exactly 0 at λ ≈ ${fmt(Math.min(...(zeroAt.filter((z) => z !== null) as number[])), 3)}.`;
   } else if (nZero === 1) {
     const i = l1Zero[0] ? 1 : 2;
     title = `λ = ${fmt(lam, 3)}: L1 has set w${i} to exactly 0`;
-    body = `The contour now touches the diamond at a corner on the w${3 - i}-axis, so the L1 solution is sparse: w${i} = 0 exactly (not 1e-6 — exactly). The L2 solution is still (${fmt(wL2[0], 3)}, ${fmt(wL2[1], 3)}): a circle has no corners, so ridge only shrinks. ISTA (proximal gradient with soft-thresholding) reaches the same point in ${check.iters} iterations (|Δ| = ${istaErr.toExponential(1)}).`;
+    body = `The contour now touches the diamond at a corner on the w${3 - i}-axis. So the L1 answer is sparse (has zeros): w${i} = 0 exactly, not 1e-6. The L2 answer is still (${fmt(wL2[0], 3)}, ${fmt(wL2[1], 3)}). A circle has no corners, so ridge only shrinks weights. ISTA (proximal gradient with soft-thresholding) reaches the same point in ${check.iters} iterations (|Δ| = ${istaErr.toExponential(1)}).`;
   } else {
-    title = `λ = ${fmt(lam, 3)} ≥ λ_max: L1 solution is the origin`;
-    body = `Once λ ≥ ‖Ac‖∞ = ${fmt(lmax, 3)} the subgradient condition |∂L/∂wᵢ(0)| ≤ λ holds for both coordinates and the lasso returns w = 0. Ridge never reaches 0 for finite λ: (A + λI)⁻¹Ac only tends to 0 as λ → ∞; here ‖w_L2‖ = ${fmt(l2(wL2), 3)}.`;
+    title = `λ = ${fmt(lam, 3)} ≥ λ_max: L1 answer is w = 0`;
+    body = `Once λ ≥ ‖Ac‖∞ = ${fmt(lmax, 3)}, the subgradient condition |∂L/∂wᵢ(0)| ≤ λ holds for both coordinates. So lasso returns w = 0. Ridge never reaches 0 for any finite λ: (A + λI)⁻¹Ac only gets close to 0 as λ → ∞. Here ‖w_L2‖ = ${fmt(l2(wL2), 3)}.`;
   }
 
   return (
     <SimShell
       title="L1 vs L2 Regularization"
-      subtitle="Elliptical data-loss contours in the (w₁, w₂) plane. Each penalised optimum is where a contour touches the L1 diamond or the L2 circle. Play sweeps λ from 0 upward."
+      subtitle="Oval loss contours in the (w₁, w₂) plane. Each penalised best answer is where a contour touches the L1 diamond or the L2 circle. Play raises λ from 0."
       controls={
         <div className="space-y-2">
           <Controls s={s} />
@@ -258,7 +258,7 @@ export default function RegularizationSim() {
           </div>
           <Narration title={title}>{body}</Narration>
           <p className="text-xs text-faint">
-            Objectives: L2 = L(w) + (λ/2)‖w‖₂², L1 = L(w) + λ‖w‖₁, elastic net = L(w) + λ(α‖w‖₁ + (1−α)/2‖w‖₂²), with L(w) = ½(w−c)ᵀA(w−c). L2 is solved in closed form, L1 exactly by enumerating sign patterns and cross-checked with ISTA.
+            Objectives: L2 = L(w) + (λ/2)‖w‖₂², L1 = L(w) + λ‖w‖₁, elastic net = L(w) + λ(α‖w‖₁ + (1−α)/2‖w‖₂²), with L(w) = ½(w−c)ᵀA(w−c). L2 is solved with a direct formula. L1 is solved exactly by trying every sign pattern, then checked with ISTA.
           </p>
         </div>
       }
@@ -319,11 +319,11 @@ export default function RegularizationSim() {
         {showEN && <circle cx={px(wEN[0])} cy={py(wEN[1])} r={4.5} fill={ENC} stroke="var(--surface)" strokeWidth={1.2} />}
       </svg>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
-        <span>× unregularised optimum c</span>
-        <span className="text-accent">● L2 optimum / circle</span>
-        <span className="text-clay">● L1 optimum / diamond</span>
+        <span>× best with no penalty, c</span>
+        <span className="text-accent">● L2 best / circle</span>
+        <span className="text-clay">● L1 best / diamond</span>
         {showEN && <span className="text-gold">● elastic net</span>}
-        <span>thin lines: path as λ grows · dashed: contour through the optimum</span>
+        <span>thin lines: path as λ grows · dashed: contour through the best point</span>
       </div>
 
       <figure className="mt-4">
@@ -359,7 +359,7 @@ export default function RegularizationSim() {
           ))}
         </svg>
         <figcaption className="mt-1 text-xs text-muted">
-          Regularisation path: <span className="text-clay">solid = L1 coefficients</span> (they hit 0 and stay there), <span className="text-accent">dashed = L2</span> (they decay smoothly but never reach 0). Thicker line = w₁, thinner = w₂.
+          Regularisation path: <span className="text-clay">solid = L1 coefficients</span> (they hit 0 and stay there), <span className="text-accent">dashed = L2</span> (they shrink smoothly but never reach 0). Thicker line = w₁, thinner = w₂.
         </figcaption>
       </figure>
     </SimShell>

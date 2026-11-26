@@ -113,13 +113,13 @@ export default function LogisticRegressionSim() {
   let text: string;
   if (pts.length === 0 || pos === 0 || neg === 0) {
     title = "Need both classes";
-    text = "Add at least one point of each class: with a single class the loss can always be lowered by pushing the bias towards ±∞, so there is nothing meaningful to learn.";
+    text = "Add at least one point of each class. With only one class, the model can always lower the loss by pushing the bias toward ±∞. So there is nothing useful to learn.";
   } else if (s.step === 0) {
     title = "Step 0 — every parameter is zero";
-    text = `With w = 0 and b = 0, every point has z = 0 and p = σ(0) = 0.5, so BCE = ln 2 = 0.693 whatever the data. The gradient (1/N)Σ(p − y)x is −½ × (sum of class-1 positions) + ½ × (sum of class-0 positions), divided by N: it points from the class-1 points towards the class-0 points, so the first update −η∇ turns w towards class 1. Press Step to apply it.`;
+    text = `With w = 0 and b = 0, every point gets z = 0 and p = σ(0) = 0.5. So BCE = ln 2 = 0.693, whatever the data. The gradient (1/N)Σ(p − y)x is −½ × (sum of class-1 positions) + ½ × (sum of class-0 positions), divided by N. It points from the class-1 points toward the class-0 points. So the first update −η∇ turns w toward class 1. Press Step to apply it.`;
   } else if (diverged) {
     title = `Step ${s.step} — the learning rate is too large`;
-    text = `The objective increased at least once along the way (now ${fmt(cur.objective, 4)}). A step of η = ${fmt(lr, 2)} overshoots the minimum along the steepest direction of the loss surface. The loss is convex, so a smaller η is guaranteed to decrease it.`;
+    text = `The loss went up at least once along the way (now ${fmt(cur.objective, 4)}). A step of η = ${fmt(lr, 2)} is so big it jumps past the lowest point. This loss is convex (one bowl, no other dips), so a smaller η is sure to bring it down.`;
   } else {
     const head = `Update ${s.step} → ${s.step + 1}: w ← (${fmt(cur.w[0], 2)}, ${fmt(cur.w[1], 2)}) − ${fmt(lr, 2)}·(${fmt(cur.gw[0], 3)}, ${fmt(cur.gw[1], 3)}) = (${fmt(nextW[0], 2)}, ${fmt(nextW[1], 2)}). `;
     if (separable && lambda === 0) {
@@ -128,22 +128,22 @@ export default function LogisticRegressionSim() {
       text =
         head +
         (cur.accuracy === 1
-          ? `Every training point is already on the correct side, yet the gradient is not zero: BCE still rewards making p closer to 0 or 1, which only a larger ‖w‖ can do. ‖w‖ = ${fmt(wNorm, 2)} now versus ${fmt(Math.hypot(...half.w), 2)} at step ${half.t}; the dashed p = 0.25/0.75 lines squeeze towards the boundary. There is no finite minimiser — try λ > 0.`
-          : `${cur.wrong} point(s) are still misclassified. This data is linearly separable, so all of them will be fixed; after that ‖w‖ will grow without bound.`);
+          ? `Every training point is already on the right side, yet the gradient is not zero. BCE still rewards pushing p closer to 0 or 1, and only a bigger ‖w‖ can do that. ‖w‖ = ${fmt(wNorm, 2)} now, versus ${fmt(Math.hypot(...half.w), 2)} at step ${half.t}. The dashed p = 0.25/0.75 lines squeeze toward the boundary. No finite best w exists. Try λ > 0.`
+          : `${cur.wrong} point(s) are still on the wrong side. A straight line can split this data, so all of them will get fixed. After that, ‖w‖ will keep growing forever.`);
     } else if (separable) {
       title = `Step ${s.step} — separable data, L2 keeps w finite`;
-      text = head + `The penalty (λ/2)‖w‖² adds λw to the gradient. Where the data's pull towards larger margins equals λw the objective has a finite minimum: ‖w‖ settles near ${fmt(Math.hypot(...last.w), 2)} instead of growing for ever, and the probability band stays wide.`;
+      text = head + `The L2 penalty (λ/2)‖w‖² adds λw to the gradient. At some point the data's pull toward a bigger w is balanced by λw. So ‖w‖ settles near ${fmt(Math.hypot(...last.w), 2)} instead of growing forever, and the probability band stays wide.`;
     } else if (preset === "imbalanced" && pos <= 0.2 * pts.length) {
       title = `Step ${s.step} — imbalanced classes`;
-      text = head + `Accuracy is ${fmt(cur.accuracy * 100, 1)}%, but always predicting the majority class already scores ${fmt(baseline * 100, 1)}%. Recall on the minority class is ${tp}/${pos}. The bias absorbs the prior log-odds ln(${pos}/${neg}) = ${fmt(Math.log(pos / neg), 2)}, pushing the boundary into the minority class. Report per-class metrics, or reweight the classes.`;
+      text = head + `Accuracy is ${fmt(cur.accuracy * 100, 1)}%, but always guessing the bigger class already scores ${fmt(baseline * 100, 1)}%. Recall on the smaller class (how many of its points we catch) is ${tp}/${pos}. The bias soaks up the class ratio, ln(${pos}/${neg}) = ${fmt(Math.log(pos / neg), 2)}, and pushes the boundary into the smaller class. Report scores per class, or give the classes different weights.`;
     } else {
       const done = gNorm < 1e-3;
-      title = done ? `Step ${s.step} — converged (not separable)` : `Step ${s.step} — not linearly separable`;
+      title = done ? `Step ${s.step} — settled (no line splits it)` : `Step ${s.step} — no straight line splits this`;
       text =
         head +
-        `No straight line classifies every point, so BCE cannot reach 0; ${done ? "the gradient has vanished (‖∇‖ = " + fmt(gNorm, 4) + ") at finite weights" : "the loss approaches a positive minimum"} — loss ${fmt(cur.bce, 4)}, ${cur.wrong} point(s) misclassified.` +
+        `No straight line gets every point right, so BCE cannot reach 0. ${done ? "The gradient has dropped to almost zero (‖∇‖ = " + fmt(gNorm, 4) + ") at finite weights" : "The loss heads toward a minimum above zero"}. Loss ${fmt(cur.bce, 4)}, ${cur.wrong} point(s) wrong.` +
         (preset === "circles"
-          ? ` For the circles, accuracy (${fmt(cur.accuracy * 100, 1)}%) can even fall below the majority baseline (${fmt(baseline * 100, 1)}%): BCE is not accuracy. The cure is a non-linear feature such as x₁² + x₂², or a hidden layer.`
+          ? ` For the circles, accuracy (${fmt(cur.accuracy * 100, 1)}%) can even drop below always guessing the bigger class (${fmt(baseline * 100, 1)}%). Lower BCE does not always mean higher accuracy. The fix is a curved feature like x₁² + x₂², or a hidden layer.`
           : "");
     }
   }
@@ -154,7 +154,7 @@ export default function LogisticRegressionSim() {
   return (
     <SimShell
       title="Logistic Regression Trainer"
-      subtitle="Full-batch gradient descent on binary cross-entropy for p = σ(w₁x₁ + w₂x₂ + b). Click the plot to add points."
+      subtitle="Gradient descent on all points at once, using binary cross-entropy (BCE) loss for p = σ(w₁x₁ + w₂x₂ + b). Click the plot to add points."
       controls={
         <Controls
           s={s}
@@ -275,7 +275,7 @@ export default function LogisticRegressionSim() {
             <span className="text-clay">■ class 0</span>
             <span>— boundary p = 0.5</span>
             <span>- - p = 0.25 / 0.75</span>
-            <span className="text-gold">○ misclassified · → w</span>
+            <span className="text-gold">○ wrong · → w</span>
           </figcaption>
         </figure>
 
@@ -303,15 +303,15 @@ export default function LogisticRegressionSim() {
             <span className="text-clay">— loss {lambda > 0 ? "(BCE + L2)" : "(BCE)"}</span>
             <span className="text-accent">— accuracy</span>
             <span>··· ln 2 (w = 0)</span>
-            <span>x: iteration</span>
+            <span>x: step</span>
           </figcaption>
           <div className="mt-3 rounded-md border border-border p-2 text-xs text-muted">
-            <div className="mb-1 font-medium text-[var(--text)]">The update rule being applied</div>
+            <div className="mb-1 font-medium text-[var(--text)]">The update rule we apply</div>
             <div className="font-mono text-[11px]">∇w = (1/N) Σ (pᵢ − yᵢ) xᵢ + λw</div>
             <div className="font-mono text-[11px]">∂b = (1/N) Σ (pᵢ − yᵢ)</div>
             <div className="font-mono text-[11px]">w ← w − η ∇w, b ← b − η ∂b</div>
             <div className="mt-1">
-              Points with p close to their label contribute almost nothing; confidently wrong points pull hardest. Step {s.step} of {STEPS}; ‖∇‖ = {fmt(gNorm, 4)}.
+              Points whose p is already close to their label barely count. Points that are confidently wrong pull hardest. Step {s.step} of {STEPS}; ‖∇‖ = {fmt(gNorm, 4)}.
             </div>
           </div>
         </figure>

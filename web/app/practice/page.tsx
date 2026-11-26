@@ -29,11 +29,11 @@ export default function PracticePage() {
   return (
     <Container>
       <PageHeader eyebrow="Practice" title="Quizzes, exercises and interview questions">
-        Every published lesson ends with a knowledge check: multiple-choice and numerical questions, worked exercises and graded interview questions. Your best score on each quiz is saved.
+        Every finished lesson ends with a knowledge check: multiple-choice and number questions, exercises with solutions, and interview questions sorted by level. Your best score on each quiz is saved.
       </PageHeader>
       <PracticeList items={items} />
       <p className="py-6 text-sm text-faint">
-        Quizzes live inside each lesson&apos;s <em>Knowledge Check</em> section so you can review the material right above them. <Link href="/progress" className="text-accent">See your scores →</Link>
+        Quizzes sit in each lesson&apos;s <em>Knowledge Check</em> section, so the material is right above if you need a refresher. <Link href="/progress" className="text-accent">See your scores →</Link>
       </p>
     </Container>
   );

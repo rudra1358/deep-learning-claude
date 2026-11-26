@@ -527,17 +527,26 @@ const lesson: Lesson = {
     intro: [
       {
         t: "p",
-        text: String.raw`The losses of the previous two lessons compare **one prediction with one target**: a probability vector with a class label, or a number with a number. Many important problems do not fit that mould. A face-verification system must decide whether two photos show the **same person**, including people it never saw during training, so it cannot have one output per identity. An image-search engine must rank millions of images by **similarity** to a query. A segmentation network must outline a tumour that covers 2% of an image, where per-pixel accuracy rewards predicting "no tumour" everywhere. A detector is judged by the **overlap** of its boxes with the true boxes, not by coordinate errors.`,
+        text: String.raw`The last two lessons' losses compare **one prediction with one target**: probabilities with a class label, or a number with a number. Many important problems do not fit that shape:`,
+      },
+      {
+        t: "list",
+        items: [
+          "Face verification must decide whether two photos show the **same person**, including people never seen in training — so it cannot have one output per person.",
+          "Image search must rank millions of images by **similarity** to a query.",
+          "Segmentation must outline a tumour covering 2% of an image, where per-pixel accuracy rewards answering \"no tumour\" everywhere.",
+          "A detector is judged by how much its boxes **overlap** the true boxes, not by coordinate errors.",
+        ],
       },
       {
         t: "p",
-        text: String.raw`This lesson covers the losses designed for these situations. **Metric-learning losses** — the contrastive loss of Hadsell, Chopra and LeCun (2006), the triplet loss popularised by FaceNet (Schroff, Kalenichenko and Philbin, 2015), and the InfoNCE / NT-Xent loss behind modern self-supervised learning — train an **embedding** in which distance means dissimilarity. The **KL divergence** compares whole probability distributions and drives knowledge distillation and variational autoencoders. **Dice and IoU losses** optimise overlap directly and are insensitive to how large the background is. The **GIoU loss** (Rezatofighi et al., 2019) fixes the zero gradient of the IoU loss for boxes that do not overlap. **Reconstruction losses** close the loop back to MSE and cross-entropy for autoencoders.`,
+        text: String.raw`**Metric-learning losses** — contrastive (Hadsell et al., 2006), triplet (made popular by FaceNet, 2015) and InfoNCE / NT-Xent (behind modern self-supervised learning) — train an **embedding** (a list of numbers per input) where distance means dissimilarity. The **KL divergence** compares whole probability distributions and drives knowledge distillation and VAEs. **Dice and IoU losses** optimise overlap directly and do not care how big the background is. The **GIoU loss** fixes the IoU loss's zero gradient for non-overlapping boxes. **Reconstruction losses** bring back MSE and cross-entropy for autoencoders.`,
       },
       {
         t: "callout",
         kind: "key",
         title: "The common idea",
-        text: "Choose the loss to match what the system will be judged on: relative distances for retrieval and verification, agreement between distributions for distillation, overlap for segmentation and detection. A loss that measures something else (per-pixel accuracy, coordinate error, a fixed set of class labels) can be minimised while the real objective stays poor.",
+        text: "Match the loss to what the system will be judged on: relative distances for retrieval and verification, agreement between distributions for distillation, overlap for segmentation and detection. A loss that measures something else (per-pixel accuracy, coordinate error, a fixed list of classes) can go down while the real goal stays poor.",
       },
     ],
 
@@ -546,11 +555,11 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`[Classification Losses](/learn/m05/classification-losses) — softmax cross-entropy and its gradient $p - y$: InfoNCE is exactly a softmax cross-entropy over similarities, and the hinge $\max(0, \cdot)$ reappears in the contrastive and triplet losses.`,
-          String.raw`[Regression Losses](/learn/m05/regression-losses) — MSE as Gaussian maximum likelihood, which is the basis of reconstruction losses.`,
-          String.raw`[Entropy, Cross-Entropy and KL Divergence](/learn/m02/information-theory) — the definition $\mathrm{KL}(p\,\|\,q) = \sum_k p_k\log(p_k/q_k)$, its non-negativity and asymmetry.`,
+          String.raw`[Classification Losses](/learn/m05/classification-losses) — softmax cross-entropy and its gradient $p - y$: InfoNCE is exactly a softmax cross-entropy over similarities, and the hinge $\max(0, \cdot)$ returns in the contrastive and triplet losses.`,
+          String.raw`[Regression Losses](/learn/m05/regression-losses) — MSE as Gaussian maximum likelihood, the basis of reconstruction losses.`,
+          String.raw`[Entropy, Cross-Entropy and KL Divergence](/learn/m02/information-theory) — the definition $\mathrm{KL}(p\,\|\,q) = \sum_k p_k\log(p_k/q_k)$, why it is never negative, and why it is not symmetric.`,
           String.raw`[Norms and inner-product spaces](/learn/m02/norms-spaces) — Euclidean distance, unit vectors and cosine similarity; for unit vectors $\|u - v\|^2 = 2 - 2\cos(u, v)$.`,
-          "[Backpropagation](/learn/m04/backpropagation) — every loss here is differentiated with respect to embeddings, probabilities or box coordinates and then backpropagated into the network.",
+          "[Backpropagation](/learn/m04/backpropagation) — every loss here is differentiated with respect to embeddings, probabilities or box coordinates, then backpropagated into the network.",
         ],
       },
     ],
@@ -561,19 +570,19 @@ const lesson: Lesson = {
         t: "callout",
         kind: "analogy",
         title: "Arranging guests at a reception",
-        text: "You must seat guests so that friends sit close together and strangers are at least a table apart. The **contrastive** rule looks at one pair at a time: friends are pulled together; strangers are pushed apart only if they are closer than one table-width (the **margin**) — once they are far enough, nobody cares how far. The **triplet** rule is relative: for each guest, their friend must be closer than any stranger by at least the margin; absolute positions do not matter. And the useful corrections come from the awkward cases — a stranger who ended up sitting closer than a friend (a **hard negative**). Checking pairs who are obviously at different tables teaches you nothing.",
+        text: "You must seat guests so friends sit close and strangers are at least a table apart. The **contrastive** rule looks at one pair at a time: friends are pulled together; strangers are pushed apart only if they are closer than one table-width (the **margin**) — past that, nobody cares how far. The **triplet** rule is relative: each guest's friend must be closer than any stranger by at least the margin; absolute positions do not matter. Useful corrections come from awkward cases — a stranger sitting closer than a friend (a **hard negative**).",
       },
       {
         t: "p",
-        text: String.raw`A metric-learning network maps each input to a point (an **embedding**) in a space of, say, 128 dimensions. Training never tells it "this is person #4127"; it only says "these two are the same, those two are different". After training, verifying a new pair is just measuring a distance and comparing it with a threshold, and searching is finding nearest neighbours — both work for identities that were never seen in training.`,
+        text: String.raw`A metric-learning network maps each input to a point (an **embedding**) in a space of, say, 128 dimensions. Training never says "this is person #4127"; it only says "these two are the same, those two are different". Afterwards, checking a pair is a distance against a threshold and search is nearest neighbours — both work for unseen people.`,
       },
       {
         t: "p",
-        text: String.raw`InfoNCE turns the same idea into a multiple-choice question: "out of these 512 candidates, which one is the other view of my image?" — a softmax over similarities, trained with cross-entropy. The **temperature** decides how much the answer is driven by the single most confusing wrong candidate.`,
+        text: String.raw`InfoNCE turns the same idea into a multiple-choice question: "of these 512 candidates, which is the other view of my image?" — a softmax over similarities, trained with cross-entropy. The **temperature** sets how much the single most confusing wrong candidate drives the answer.`,
       },
       {
         t: "p",
-        text: String.raw`For segmentation, think of grading a student's drawing of a small lesion on a large scan. Counting correctly coloured pixels gives 98% to a blank page. The **Dice** score instead asks "how much of the drawn region and the true region overlap, relative to their sizes?" — a blank page scores 0, whatever the size of the scan. For boxes, IoU asks the same question about rectangles; GIoU adds "and if they do not overlap at all, how much empty space separates them?", so a box far away is told which way to move.`,
+        text: String.raw`For segmentation, imagine grading a student's drawing of a small lesion on a big scan. Counting correctly coloured pixels gives a blank page 98%. The **Dice** score asks instead "how much do the drawn and true regions overlap, relative to their sizes?" — a blank page scores 0, however big the scan. For boxes, IoU asks the same about rectangles; GIoU adds "and if they don't overlap at all, how much empty space lies between them?", so a far-away box learns which way to move.`,
       },
     ],
 
@@ -583,13 +592,13 @@ const lesson: Lesson = {
       {
         t: "steps",
         items: [
-          { title: "Build a batch with structure", text: String.raw`Sample $P$ classes and $K$ examples of each (a "$P\times K$" batch), so every example has positives (same class) and negatives (other classes) in the batch. For self-supervised InfoNCE, take $N$ examples and create two random augmentations ("views") of each.` },
-          { title: "Embed", text: String.raw`Run the encoder: $e_i = f_\theta(x_i) \in \mathbb{R}^d$. Usually L2-normalise, $u_i = e_i/\|e_i\|$, so all embeddings lie on the unit sphere and distance and cosine similarity are interchangeable.` },
-          { title: "Compute all pairwise distances or similarities", text: String.raw`One matrix product gives the $B\times B$ matrix of $\|u_i - u_j\|$ or $u_i^\top u_j$ for the whole batch.` },
-          { title: "Form the training tuples (mining)", text: String.raw`Pairs for the contrastive loss, (anchor, positive, negative) triplets for the triplet loss — choosing **which** negatives to use is called mining: random, semi-hard, hardest-in-batch. InfoNCE uses every other example in the batch as a negative.` },
-          { title: "Evaluate the loss", text: String.raw`Margin-based hinge for contrastive/triplet; softmax cross-entropy over similarities for InfoNCE. Tuples that already satisfy the margin contribute exactly zero.` },
-          { title: "Backpropagate", text: String.raw`The gradient with respect to each embedding is a sum of unit vectors pointing towards positives and away from negatives (derived in the Math section); backprop carries it through the normalisation and the encoder.` },
-          { title: "Evaluate by retrieval", text: String.raw`Measure recall@k (is a correct match among the $k$ nearest neighbours?) or verification accuracy at a distance threshold on **held-out identities**, not the training loss.` },
+          { title: "Build a batch with structure", text: String.raw`Sample $P$ classes and $K$ examples of each (a "$P\times K$" batch), so every example has positives (same class) and negatives (other classes) in the batch. For self-supervised InfoNCE, take $N$ examples and make two random augmentations ("views") of each.` },
+          { title: "Embed", text: String.raw`Run the encoder: $e_i = f_\theta(x_i) \in \mathbb{R}^d$. Usually L2-normalise, $u_i = e_i/\|e_i\|$, so all embeddings sit on the unit sphere and distance and cosine similarity carry the same information.` },
+          { title: "Compute all pairwise distances or similarities", text: String.raw`One matrix product gives the $B\times B$ matrix of $\|u_i - u_j\|$ or $u_i^\top u_j$ for the batch.` },
+          { title: "Form the training tuples (mining)", text: String.raw`Pairs for the contrastive loss, (anchor, positive, negative) triplets for the triplet loss. Choosing **which** negatives to use is called mining: random, semi-hard, hardest-in-batch. InfoNCE uses every other example in the batch as a negative.` },
+          { title: "Evaluate the loss", text: String.raw`Margin-based hinge for contrastive/triplet; softmax cross-entropy over similarities for InfoNCE. Tuples that already meet the margin contribute exactly zero.` },
+          { title: "Backpropagate", text: String.raw`Each embedding's gradient is a sum of unit vectors toward positives and away from negatives (derived below), carried back through the normalisation and encoder.` },
+          { title: "Evaluate by retrieval", text: String.raw`Measure recall@k (is a correct match among the $k$ nearest neighbours?) or verification accuracy at a distance threshold on **held-out identities** — not the training loss.` },
         ],
       },
       { t: "h", text: "The other families at a glance" },
@@ -611,7 +620,7 @@ const lesson: Lesson = {
       { t: "h", text: "1. Embeddings and distances" },
       {
         t: "p",
-        text: String.raw`An encoder $f_\theta: \mathcal{X}\to\mathbb{R}^d$ maps inputs to embeddings. The learned (pseudo-)metric is $D_\theta(x, x') = \|f_\theta(x) - f_\theta(x')\|_2$. If embeddings are normalised to unit length, $\|u - v\|_2^2 = 2 - 2\,u^\top v$, so squared Euclidean distance and cosine similarity $u^\top v$ carry the same information. Two gradients are used throughout:`,
+        text: String.raw`An encoder $f_\theta: \mathcal{X}\to\mathbb{R}^d$ maps inputs to embeddings. The learned distance is $D_\theta(x, x') = \|f_\theta(x) - f_\theta(x')\|_2$. For unit-length embeddings, $\|u - v\|_2^2 = 2 - 2\,u^\top v$, so squared distance and cosine similarity $u^\top v$ say the same thing. Two gradients appear throughout:`,
       },
       {
         t: "math",
@@ -621,7 +630,7 @@ const lesson: Lesson = {
       { t: "h", text: "2. Contrastive loss (Hadsell, Chopra and LeCun, 2006)" },
       {
         t: "p",
-        text: String.raw`In "Dimensionality Reduction by Learning an Invariant Mapping" (CVPR 2006), each training example is a pair $(x_1, x_2)$ with label $Y = 0$ if the pair is similar and $Y = 1$ if dissimilar. With $D = \|f(x_1) - f(x_2)\|$ and margin $m > 0$:`,
+        text: String.raw`In "Dimensionality Reduction by Learning an Invariant Mapping" (CVPR 2006), each training example is a pair $(x_1, x_2)$ with label $Y = 0$ if similar and $Y = 1$ if dissimilar. With $D = \|f(x_1) - f(x_2)\|$ and margin $m > 0$:`,
       },
       {
         t: "math",
@@ -629,33 +638,33 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`By the chain rule, the gradient with respect to the first embedding is $\frac{\partial\mathcal{L}}{\partial D}\cdot\frac{e_1 - e_2}{D}$: for a similar pair it is $e_1 - e_2$ (a spring with stiffness 1 pulling them together); for a dissimilar pair inside the margin it is $-(m - D)\frac{e_1 - e_2}{D}$ (a repulsive force of strength $m - D$ that falls to zero exactly at the margin). The second embedding receives the opposite gradient. Two design points:`,
+        text: String.raw`By the chain rule, the first embedding's gradient is $\frac{\partial\mathcal{L}}{\partial D}\cdot\frac{e_1 - e_2}{D}$. Similar pair: $e_1 - e_2$, a spring pulling them together. Dissimilar pair inside the margin: $-(m - D)\frac{e_1 - e_2}{D}$, a push of strength $m - D$ that drops to zero at the margin. The second embedding gets the opposite gradient. Two design points:`,
       },
       {
         t: "list",
         items: [
-          String.raw`**Why the push term is necessary.** With only the similar-pair term, the global minimum is $f(x) = \text{const}$: every distance 0, loss 0. The dissimilar term makes the collapsed solution cost $\tfrac12 m^2$ per dissimilar pair.`,
-          String.raw`**Why a margin.** Without it, dissimilar pairs could be pushed apart indefinitely by scaling up the embeddings. With the margin, only pairs closer than $m$ contribute — far-apart negatives do not waste capacity, and the scale of the embedding is fixed by $m$.`,
+          String.raw`**Why the push term is needed.** With only the similar-pair term, the best solution is $f(x) = \text{const}$: every distance 0, loss 0. The push term makes this collapse cost $\tfrac12 m^2$ per dissimilar pair.`,
+          String.raw`**Why a margin.** Without it, dissimilar pairs could be pushed apart forever by scaling up the embeddings. With it, only pairs closer than $m$ count — far-apart negatives waste no effort, and $m$ fixes the embedding's scale.`,
         ],
       },
       {
         t: "p",
-        text: String.raw`**Worked example** ($m = 1$): a similar pair at $D = 0.3$ costs $\tfrac12(0.09) = 0.045$, with $\partial\mathcal{L}/\partial D = 0.3$. A dissimilar pair at $D = 0.3$ costs $\tfrac12(0.7)^2 = 0.245$ with $\partial\mathcal{L}/\partial D = -0.7$; at $D = 1.2$ it costs 0 and has zero gradient.`,
+        text: String.raw`**Worked example** ($m = 1$): a similar pair at $D = 0.3$ costs $\tfrac12(0.09) = 0.045$, with $\partial\mathcal{L}/\partial D = 0.3$. A dissimilar pair at $D = 0.3$ costs $\tfrac12(0.7)^2 = 0.245$ with $\partial\mathcal{L}/\partial D = -0.7$; at $D = 1.2$ it costs 0 with zero gradient.`,
       },
 
       { t: "h", text: "3. Triplet loss (FaceNet, Schroff et al., 2015)" },
       {
         t: "p",
-        text: String.raw`A **triplet** is an anchor $a$, a positive $p$ (same identity) and a negative $n$ (different identity). FaceNet ("FaceNet: A Unified Embedding for Face Recognition and Clustering", CVPR 2015) embeds faces on the unit hypersphere in 128 dimensions and minimises`,
+        text: String.raw`A **triplet** is an anchor $a$, a positive $p$ (same identity) and a negative $n$ (different identity). FaceNet ("FaceNet: A Unified Embedding for Face Recognition and Clustering", CVPR 2015) embeds faces on the unit sphere in 128 dimensions and minimises`,
       },
       {
         t: "math",
         tex: String.raw`\mathcal{L} = \sum_{(a,p,n)} \Big[\, \|f(a) - f(p)\|_2^2 - \|f(a) - f(n)\|_2^2 + \alpha \,\Big]_+, \qquad [z]_+ = \max(0, z)`,
-        caption: String.raw`$\alpha$ is the margin (0.2 in the paper). A widely used variant (PyTorch's TripletMarginLoss) uses non-squared distances: $[\,d(a,p) - d(a,n) + m\,]_+$.`,
+        caption: String.raw`$\alpha$ is the margin (0.2 in the paper). A common variant (PyTorch's TripletMarginLoss) uses non-squared distances: $[\,d(a,p) - d(a,n) + m\,]_+$.`,
       },
       {
         t: "p",
-        text: String.raw`Unlike the contrastive loss, the triplet loss is **relative**: it only asks that each anchor be closer to its positive than to its negative by the margin, and places no constraint on the absolute distance between positives. Classes are allowed to have different spreads. For the Euclidean variant, with unit vectors $u = (a - p)/d(a,p)$ and $v = (a - n)/d(a,n)$, the gradients of an active triplet ($d(a,p) - d(a,n) + m > 0$) are`,
+        text: String.raw`Unlike the contrastive loss, the triplet loss is **relative**: each anchor must be closer to its positive than to its negative by the margin, with no rule on absolute distances. Classes may have different spreads. For the Euclidean variant, with unit vectors $u = (a - p)/d(a,p)$ and $v = (a - n)/d(a,n)$, an active triplet ($d(a,p) - d(a,n) + m > 0$) has gradients`,
       },
       {
         t: "math",
@@ -663,35 +672,39 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Gradient descent therefore moves $p$ along $u$ (towards $a$), moves $n$ along $-v$ (away from $a$), and moves $a$ along $v - u$ (towards $p$, away from $n$). Every active triplet produces unit-size forces whatever its loss — the hinge either acts fully or not at all. For the squared (FaceNet) form the gradients are $2(n - p)$, $-2(a - p)$ and $2(a - n)$: larger distances produce larger forces.`,
+        text: String.raw`So gradient descent moves $p$ along $u$ (toward $a$), $n$ along $-v$ (away from $a$), and $a$ along $v - u$ (toward $p$, away from $n$). Every active triplet gives unit-size forces whatever its loss (the hinge is fully on or off). In the squared (FaceNet) form the gradients are $2(n - p)$, $-2(a - p)$ and $2(a - n)$: bigger distances, bigger forces.`,
       },
       {
         t: "p",
-        text: String.raw`**Worked example** (Euclidean, $m = 0.5$): $a = (0, 0)$, $p = (0.6, 0.8)$, $n = (1.2, 0)$. Then $d(a,p) = 1$, $d(a,n) = 1.2$ and $\mathcal{L} = \max(0, 1 - 1.2 + 0.5) = 0.3$. $u = (-0.6, -0.8)$, $v = (-1, 0)$, so $\partial\mathcal{L}/\partial a = (0.4, -0.8)$, $\partial\mathcal{L}/\partial p = (0.6, 0.8)$, $\partial\mathcal{L}/\partial n = (-1, 0)$. A gradient step moves $p$ towards the origin, $n$ to the right, and $a$ up-left. In the FaceNet form with $\alpha = 0.2$ the same triplet has $1 - 1.44 + 0.2 < 0$: already satisfied, zero loss.`,
+        text: String.raw`**Worked example** (Euclidean, $m = 0.5$): $a = (0, 0)$, $p = (0.6, 0.8)$, $n = (1.2, 0)$. Then $d(a,p) = 1$, $d(a,n) = 1.2$ and $\mathcal{L} = \max(0, 1 - 1.2 + 0.5) = 0.3$. $u = (-0.6, -0.8)$, $v = (-1, 0)$, so $\partial\mathcal{L}/\partial a = (0.4, -0.8)$, $\partial\mathcal{L}/\partial p = (0.6, 0.8)$, $\partial\mathcal{L}/\partial n = (-1, 0)$. In the FaceNet form with $\alpha = 0.2$, the same triplet has $1 - 1.44 + 0.2 < 0$: already satisfied, zero loss.`,
       },
       { t: "h", text: "Easy, semi-hard and hard negatives" },
       {
         t: "p",
-        text: String.raw`For a fixed anchor–positive pair with distance $d_{ap}$, negatives fall into three groups:`,
+        text: String.raw`For a fixed anchor–positive pair at distance $d_{ap}$, negatives fall into three groups:`,
       },
       {
         t: "table",
         head: ["Negative", "Condition", "Loss", "Effect"],
         rows: [
           ["easy", String.raw`$d_{an} \ge d_{ap} + m$`, "0", "no gradient — wasted computation"],
-          ["semi-hard", String.raw`$d_{ap} < d_{an} < d_{ap} + m$`, String.raw`in $(0, m)$`, "correct order but inside the margin: useful, stable signal"],
-          ["hard", String.raw`$d_{an} < d_{ap}$`, String.raw`$> m$`, "wrong order: largest signal, but often label noise or outliers"],
+          ["semi-hard", String.raw`$d_{ap} < d_{an} < d_{ap} + m$`, String.raw`in $(0, m)$`, "right order but inside the margin: useful, stable signal"],
+          ["hard", String.raw`$d_{an} < d_{ap}$`, String.raw`$> m$`, "wrong order: biggest signal, but often label noise or outliers"],
         ],
       },
       {
         t: "p",
-        text: String.raw`With $N$ examples there are $O(N^3)$ triplets, and after a little training almost all are easy, so random sampling quickly stops producing gradient. **Mining** selects informative triplets, normally **online** inside each mini-batch. FaceNet used **semi-hard** negatives within large batches and reported that selecting the hardest negatives can, early in training, lead to a collapsed model with $f(x) = 0$. The intuition: if for many anchors the closest negative is nearer than a random positive, the loss $d_{ap} - d_{an} + m$ exceeds $m$, while shrinking every embedding towards one point drives it towards $m$ — collapse is a stable stationary point. Hermans, Beyer and Leibe ("In Defense of the Triplet Loss for Person Re-Identification", 2017) proposed **batch-hard** mining — for each anchor the farthest positive and closest negative in a $P\times K$ batch — and found it works well in practice when batches are well structured. The from-scratch code below reproduces the collapse: a 2-D linear embedding trained with the hardest negatives shrinks to a mean norm of 0.006.`,
+        text: String.raw`With $N$ examples there are $O(N^3)$ triplets, and after a little training almost all are easy, so random sampling soon stops giving gradient. **Mining** picks informative triplets, usually **online** inside each mini-batch. FaceNet used **semi-hard** negatives in large batches and reported that picking the hardest negatives early in training can collapse the model to $f(x) = 0$.`,
+      },
+      {
+        t: "p",
+        text: String.raw`Why? If for many anchors the closest negative is nearer than a random positive, the loss $d_{ap} - d_{an} + m$ is above $m$. Shrinking every embedding toward one point brings it down to $m$ — so collapse is a stable resting point. Hermans et al. (2017) proposed **batch-hard** mining — per anchor, the farthest positive and closest negative in a $P\times K$ batch — which works well when batches are well structured. The from-scratch code reproduces the collapse: a 2-D linear embedding trained with the hardest negatives shrinks to mean norm 0.006.`,
       },
 
       { t: "h", text: "4. InfoNCE and NT-Xent" },
       {
         t: "p",
-        text: String.raw`InfoNCE (van den Oord, Li and Vinyals, 2018, "Representation Learning with Contrastive Predictive Coding") scores one positive against many negatives at once. With an anchor $u$, its positive $u^+$, negatives $u^-_1,\dots,u^-_K$, similarity $s(\cdot,\cdot)$ (cosine for unit vectors) and temperature $\tau > 0$:`,
+        text: String.raw`InfoNCE (van den Oord, Li and Vinyals, 2018, "Representation Learning with Contrastive Predictive Coding") scores one positive against many negatives at once. With anchor $u$, positive $u^+$, negatives $u^-_1,\dots,u^-_K$, similarity $s(\cdot,\cdot)$ (cosine for unit vectors) and temperature $\tau > 0$:`,
       },
       {
         t: "math",
@@ -699,7 +712,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`This is the softmax cross-entropy of the previous lesson, with logits $s/\tau$ and the positive as the correct class. So the gradient with respect to the similarities is "probability minus target": with $q_j$ the softmax weights,`,
+        text: String.raw`This is the previous lesson's softmax cross-entropy, with logits $s/\tau$ and the positive as the correct class. So the gradient with respect to the similarities is "probability minus target", with $q_j$ the softmax weights:`,
       },
       {
         t: "math",
@@ -707,7 +720,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Each negative is pushed with a force proportional to its softmax weight: **InfoNCE performs soft hard-negative mining automatically**, and $\tau$ controls how hard. Example with $s^+ = 0.8$ and negatives $0.5, 0.1, -0.3$ (computed in the code below):`,
+        text: String.raw`Each negative is pushed in proportion to its softmax weight: **InfoNCE does soft hard-negative mining by itself**, and $\tau$ sets how hard. Example with $s^+ = 0.8$ and negatives $0.5, 0.1, -0.3$ (computed in the code):`,
       },
       {
         t: "table",
@@ -720,11 +733,11 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Small $\tau$ concentrates almost all of the gradient on the closest negative (and multiplies its size by $1/\tau$); large $\tau$ spreads it uniformly. Too small a temperature makes training unstable and over-sensitive to false negatives; too large makes it ignore the informative ones. van den Oord et al. showed that InfoNCE bounds the mutual information between the two views: $I \ge \log(K + 1) - \mathcal{L}_{\text{InfoNCE}}$, so more negatives allow a tighter bound.`,
+        text: String.raw`Small $\tau$ puts almost all the gradient on the closest negative (and multiplies its size by $1/\tau$); large $\tau$ spreads it evenly. Too small is unstable and over-sensitive to false negatives; too large ignores informative ones. van den Oord et al. showed InfoNCE bounds the mutual information between the two views: $I \ge \log(K + 1) - \mathcal{L}_{\text{InfoNCE}}$, so more negatives allow a tighter bound.`,
       },
       {
         t: "p",
-        text: String.raw`**NT-Xent** ("normalised temperature-scaled cross-entropy", SimCLR — Chen, Kornblith, Norouzi and Hinton, 2020) is InfoNCE applied symmetrically to a batch of $N$ images with two augmented views each: for each of the $2N$ embeddings, its other view is the positive and the remaining $2N - 2$ embeddings are negatives, so the softmax runs over $2N - 1$ candidates. A network that cannot tell the candidates apart has loss $\log(2N - 1)$, e.g. $\log 511 = 6.2364$ for $N = 256$. CLIP (Radford et al., 2021) uses the same loss between image and text embeddings, symmetrised over both directions, with a learned temperature. See [Self-Supervised Learning](/learn/m15/self-supervised) for how augmentations define what the representation becomes invariant to.`,
+        text: String.raw`**NT-Xent** ("normalised temperature-scaled cross-entropy", SimCLR — Chen, Kornblith, Norouzi and Hinton, 2020) is InfoNCE applied symmetrically to $N$ images with two augmented views each. For each of the $2N$ embeddings, its other view is the positive and the other $2N - 2$ are negatives, so the softmax runs over $2N - 1$ candidates. A network that cannot tell them apart has loss $\log(2N - 1)$, e.g. $\log 511 = 6.2364$ for $N = 256$. CLIP (Radford et al., 2021) uses the same loss between image and text embeddings, in both directions, with a learned temperature. More in [Self-Supervised Learning](/learn/m15/self-supervised).`,
       },
 
       { t: "h", text: "5. KL divergence as a loss" },
@@ -734,11 +747,11 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`(see [Information Theory](/learn/m02/information-theory)). When $p$ is a fixed target and $q = q_\theta$ is the model, $H(p)$ is a constant, so minimising $\mathrm{KL}(p\,\|\,q_\theta)$ and minimising the cross-entropy $H(p, q_\theta)$ give identical gradients — the loss values differ by $H(p)$, which is why a KL loss can reach 0 while a soft-target cross-entropy cannot. KL is **asymmetric**: $\mathrm{KL}(p\,\|\,q)$ ("forward") heavily penalises $q_k \approx 0$ where $p_k > 0$, so $q$ spreads to cover all of $p$'s mass; $\mathrm{KL}(q\,\|\,p)$ ("reverse") penalises $q$ putting mass where $p$ has none, so $q$ concentrates on one mode.`,
+        text: String.raw`(see [Information Theory](/learn/m02/information-theory)). When $p$ is a fixed target and $q = q_\theta$ is the model, $H(p)$ is a constant, so minimising $\mathrm{KL}(p\,\|\,q_\theta)$ and the cross-entropy $H(p, q_\theta)$ give identical gradients. The values differ by $H(p)$, which is why a KL loss can reach 0 but a soft-target cross-entropy cannot. KL is **not symmetric**: forward $\mathrm{KL}(p\,\|\,q)$ punishes $q_k \approx 0$ where $p_k > 0$, so $q$ spreads to cover all of $p$; reverse $\mathrm{KL}(q\,\|\,p)$ punishes mass where $p$ has none, so $q$ settles on one mode (peak).`,
       },
       {
         t: "p",
-        text: String.raw`**Knowledge distillation** (Hinton, Vinyals and Dean, 2015, "Distilling the Knowledge in a Neural Network") trains a small student to match a large teacher's softened output distribution. With teacher logits $t$, student logits $z$ and temperature $T$, $p^T = \mathrm{softmax}(t/T)$, $q^T = \mathrm{softmax}(z/T)$:`,
+        text: String.raw`**Knowledge distillation** (Hinton, Vinyals and Dean, 2015, "Distilling the Knowledge in a Neural Network") trains a small student to match a large teacher's softened outputs. With teacher logits $t$, student logits $z$ and temperature $T$, $p^T = \mathrm{softmax}(t/T)$, $q^T = \mathrm{softmax}(z/T)$:`,
       },
       {
         t: "math",
@@ -746,7 +759,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The softmax at temperature $T > 1$ exposes the teacher's small probabilities ("a 2 looks a bit like a 7"), and the factor $T^2$ compensates for the gradients shrinking like $1/T^2$ as $T$ grows, keeping the distillation term comparable to an ordinary cross-entropy on hard labels that is usually added to it. **Worked example:** teacher logits $(3, 1, 0.2)$, student $(2, 1.5, 0)$, $T = 2$: $p^T = (0.6194, 0.2279, 0.1527)$, $q^T = (0.4658, 0.3628, 0.1714)$, $\mathcal{L}_{\text{KD}} = 0.2117$ and the gradient is $2(q^T - p^T) = (-0.3071, 0.2699, 0.0373)$ — a descent step raises the student's first logit and lowers its second, towards the teacher's ranking.`,
+        text: String.raw`A softmax at $T > 1$ reveals the teacher's small probabilities ("a 2 looks a bit like a 7"). The $T^2$ factor makes up for gradients shrinking like $1/T^2$ as $T$ grows, keeping this term comparable to the ordinary hard-label cross-entropy usually added to it. **Worked example:** teacher logits $(3, 1, 0.2)$, student $(2, 1.5, 0)$, $T = 2$: $p^T = (0.6194, 0.2279, 0.1527)$, $q^T = (0.4658, 0.3628, 0.1714)$, $\mathcal{L}_{\text{KD}} = 0.2117$, gradient $2(q^T - p^T) = (-0.3071, 0.2699, 0.0373)$ — nudging the student toward the teacher's ranking.`,
       },
       {
         t: "p",
@@ -758,13 +771,13 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`For $\mu = (0.5, -1)$, $\log\sigma^2 = (0, -1)$: $\tfrac12(0.25 + 1 - 1 - 0) + \tfrac12(1 + e^{-1} - 1 + 1) = 0.125 + 0.683940 = 0.808940$; a Monte-Carlo estimate with 200,000 samples in the code gives 0.8095. It pulls each latent towards $\mu = 0$, $\sigma = 1$ (where the term is exactly zero). See [Variational Autoencoders](/learn/m14/vae).`,
+        text: String.raw`For $\mu = (0.5, -1)$, $\log\sigma^2 = (0, -1)$: $\tfrac12(0.25 + 1 - 1 - 0) + \tfrac12(1 + e^{-1} - 1 + 1) = 0.125 + 0.683940 = 0.808940$; a Monte-Carlo estimate with 200,000 samples in the code gives 0.8095. It pulls each latent toward $\mu = 0$, $\sigma = 1$ (where it is zero). See [Variational Autoencoders](/learn/m14/vae).`,
       },
 
       { t: "h", text: "6. Dice loss for segmentation" },
       {
         t: "p",
-        text: String.raw`For a binary mask, let $g_i \in \{0, 1\}$ be the true label of pixel $i$ and $p_i \in [0, 1]$ the predicted foreground probability. The **Dice coefficient** of two sets $A$ (prediction) and $B$ (truth) is $2|A\cap B|/(|A| + |B|)$ — identical to the F1 score of the foreground class. Replacing set sizes by sums of probabilities gives the differentiable **soft Dice**:`,
+        text: String.raw`For a binary mask, let $g_i \in \{0, 1\}$ be pixel $i$'s true label and $p_i \in [0, 1]$ its predicted foreground probability. The **Dice coefficient** of sets $A$ (prediction) and $B$ (truth) is $2|A\cap B|/(|A| + |B|)$ — the same as the foreground F1 score. Replacing set sizes by sums of probabilities gives the differentiable **soft Dice**:`,
       },
       {
         t: "math",
@@ -781,12 +794,12 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Two observations. (1) The gradient depends on the pixel only through $g_i$: every foreground pixel receives the same push, every background pixel the same pull, with sizes set by **global** sums. (2) Both $I$ and $S$ scale with the size of the object, not of the image, so the loss is unchanged if more background pixels with $p_i \approx 0$ are added. **Worked example:** four pixels, $p = (0.9, 0.6, 0.2, 0.1)$, $g = (1, 1, 0, 0)$, $\varepsilon = 0$: $I = 1.5$, $S = 1.8 + 2 = 3.8$, Dice $= 3/3.8 = 0.789474$, loss $0.210526$; gradients $-4.6/14.44 = -0.318560$ on the foreground pixels and $+3/14.44 = +0.207756$ on the background pixels.`,
+        text: String.raw`Two things to notice. (1) The gradient depends on the pixel only through $g_i$: every foreground pixel gets the same push, every background pixel the same pull, with sizes set by **global** sums. (2) $I$ and $S$ grow with the object's size, not the image's, so adding background pixels with $p_i \approx 0$ changes nothing. **Worked example:** four pixels, $p = (0.9, 0.6, 0.2, 0.1)$, $g = (1, 1, 0, 0)$, $\varepsilon = 0$: $I = 1.5$, $S = 1.8 + 2 = 3.8$, Dice $= 3/3.8 = 0.789474$, loss $0.210526$; gradients $-4.6/14.44 = -0.318560$ on foreground pixels and $+3/14.44 = +0.207756$ on background pixels.`,
       },
       { t: "h", text: "Why Dice helps with class imbalance — and where pixel-wise cross-entropy fails" },
       {
         t: "p",
-        text: String.raw`Pixel-wise binary cross-entropy is an **average over pixels**, so with a foreground fraction of 2% the background dominates both the loss and the gradient. In the code below (a 64×64 image with an 81-pixel lesion, 1.98% foreground), predicting a constant 0.01 everywhere gets BCE 0.1009, **lower** than a prediction that finds the lesion correctly with $p = 0.9$ inside and $p = 0.1$ outside (BCE 0.1054). The soft Dice loss ranks them the other way (0.9787 vs 0.7362). At a uniform prediction of 0.1, the Dice gradient on a foreground pixel is 56 times its gradient on a background pixel, whereas BCE's ratio is 9: Dice automatically re-weights the rare class.`,
+        text: String.raw`Pixel-wise binary cross-entropy **averages over pixels**, so with 2% foreground the background dominates loss and gradient. In the code (a 64×64 image with an 81-pixel lesion, 1.98% foreground), predicting a constant 0.01 everywhere gets BCE 0.1009 — **lower** than a prediction that finds the lesion with $p = 0.9$ inside and $p = 0.1$ outside (BCE 0.1054). Soft Dice ranks them the other way (0.9787 vs 0.7362). At a uniform prediction of 0.1, Dice's gradient on a foreground pixel is 56 times that on a background pixel; BCE's ratio is 9. Dice re-weights the rare class by itself.`,
       },
 
       { t: "h", text: "7. IoU (Jaccard) loss" },
@@ -796,7 +809,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The Jaccard index (intersection over union) is the standard segmentation metric (mean IoU over classes). Because Dice and $J$ are monotone functions of each other **for hard masks**, they rank predictions identically; as soft losses they weight errors slightly differently ($J \le$ Dice, and IoU penalises partial overlap more). In the worked example the soft IoU is $1.5/(3.8 - 1.5) = 0.652174$ (loss 0.347826) against Dice 0.789474. Berman, Triki and Blaschko (2018) derived the Lovász-softmax loss, a tractable convex surrogate of the IoU for multi-class segmentation.`,
+        text: String.raw`The Jaccard index (intersection over union) is the standard segmentation metric (mean IoU over classes). **For hard masks**, Dice and $J$ always move together, so they rank predictions the same; as soft losses they weight errors slightly differently ($J \le$ Dice, and IoU punishes partial overlap more). In the worked example, soft IoU is $1.5/(3.8 - 1.5) = 0.652174$ (loss 0.347826) against Dice 0.789474. The Lovász-softmax loss (Berman et al., 2018) is a tractable convex surrogate of IoU for multi-class segmentation.`,
       },
       { t: "h", text: "8. Dice versus cross-entropy, and the combination" },
       {
@@ -805,24 +818,24 @@ const lesson: Lesson = {
         rows: [
           ["Normalised by", "number of pixels", "size of the object (and prediction)"],
           ["Class imbalance", "dominated by the majority class unless re-weighted", "insensitive to background size"],
-          ["Gradient", String.raw`local, $(p_i - g_i)$ per logit, smooth and well-conditioned`, "global, depends on batch/image sums; noisy for tiny or empty objects"],
-          ["Calibration", "proper scoring rule: calibrated probabilities", "pushes probabilities towards 0/1; not calibrated"],
-          ["Empty ground truth", "well defined", String.raw`ill-defined without $\varepsilon$; any false positive is penalised strongly`],
+          ["Gradient", String.raw`local, $(p_i - g_i)$ per logit, smooth and well-behaved`, "global, depends on batch/image sums; noisy for tiny or empty objects"],
+          ["Calibration", "proper scoring rule: calibrated probabilities", "pushes probabilities toward 0/1; not calibrated"],
+          ["Empty ground truth", "well defined", String.raw`ill-defined without $\varepsilon$; any false positive is punished hard`],
         ],
       },
       {
         t: "p",
-        text: String.raw`Because their failure modes are complementary, many segmentation systems minimise $\mathcal{L}_{\text{CE}} + \mathcal{L}_{\text{Dice}}$ — the default of the widely used nnU-Net framework (Isensee et al., 2021). Cross-entropy provides stable per-pixel gradients early in training; Dice keeps small structures from being ignored. Multi-class versions average the Dice loss over classes (optionally weighting each class by the inverse square of its volume, the "generalised Dice" of Sudre et al., 2017).`,
+        text: String.raw`Their weaknesses complement each other, so many segmentation systems minimise $\mathcal{L}_{\text{CE}} + \mathcal{L}_{\text{Dice}}$ — the default of the popular nnU-Net framework (Isensee et al., 2021). Cross-entropy gives stable per-pixel gradients early on; Dice keeps small structures from being ignored. Multi-class versions average Dice over classes (optionally weighting each class by the inverse square of its volume, the "generalised Dice" of Sudre et al., 2017).`,
       },
 
       { t: "h", text: "9. Bounding boxes: IoU loss and GIoU" },
       {
         t: "p",
-        text: String.raw`Detectors are evaluated by the IoU between predicted box $B$ and ground-truth box $G$ (e.g. a detection counts if IoU ≥ 0.5). Regressing the four coordinates with L1 or smooth L1 treats them as independent and is not scale-invariant: an error of 5 pixels is large for a 10-pixel box and negligible for a 500-pixel box. The **IoU loss** $1 - \mathrm{IoU}(B, G)$ (UnitBox, Yu et al., 2016, used $-\ln\mathrm{IoU}$) optimises the evaluation measure directly and is scale-invariant. Its flaw: if the boxes do not overlap, IoU is 0 regardless of how far apart they are, so the loss is constant and **its gradient is exactly zero**.`,
+        text: String.raw`Detectors are scored by the IoU between predicted box $B$ and true box $G$ (e.g. a detection counts if IoU ≥ 0.5). L1 or smooth L1 on the four coordinates treats them as independent and ignores scale: 5 pixels off is huge for a 10-pixel box, nothing for a 500-pixel one. The **IoU loss** $1 - \mathrm{IoU}(B, G)$ (UnitBox, Yu et al., 2016, used $-\ln\mathrm{IoU}$) optimises the evaluation measure directly and is scale-invariant. Its flaw: if the boxes do not overlap, IoU is 0 however far apart they are, so the loss is constant and **its gradient is exactly zero**.`,
       },
       {
         t: "p",
-        text: String.raw`**Generalised IoU** (Rezatofighi, Tsoi, Gwak, Sadeghian, Reid and Savarese, CVPR 2019) subtracts the fraction of the smallest enclosing box $C$ that is not covered by the union:`,
+        text: String.raw`**Generalised IoU** (Rezatofighi et al., CVPR 2019) subtracts the part of the smallest enclosing box $C$ not covered by the union:`,
       },
       {
         t: "math",
@@ -830,7 +843,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Properties: $-1 < \mathrm{GIoU} \le \mathrm{IoU} \le 1$; GIoU equals IoU when the union fills its enclosing box, and tends to $-1$ when the boxes are tiny and far apart. **Worked examples** with $G = [0, 0, 2, 2]$ (corners $x_1, y_1, x_2, y_2$):`,
+        text: String.raw`Properties: $-1 < \mathrm{GIoU} \le \mathrm{IoU} \le 1$; GIoU equals IoU when the union fills its enclosing box, and tends to $-1$ for tiny boxes far apart. **Worked examples** with $G = [0, 0, 2, 2]$ (corners $x_1, y_1, x_2, y_2$):`,
       },
       {
         t: "table",
@@ -844,26 +857,26 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The IoU loss cannot distinguish the last three predictions; the GIoU loss grows with the gap, and autograd gives the box at gap 1 the gradient $(0.2, 0, -0.04, 0)$ with respect to $(x_1, y_1, x_2, y_2)$: moving the left edge towards $G$ helps most. The small negative entry for $x_2$ reveals GIoU's known weakness: enlarging the predicted box also reduces the empty part of $C$, so for non-overlapping boxes GIoU first tends to **grow** the box before moving it. Distance-IoU and Complete-IoU (Zheng et al., 2020) add a penalty on the normalised distance between box centres (and, for CIoU, on aspect ratio) to converge faster.`,
+        text: String.raw`The IoU loss cannot tell the last three apart; the GIoU loss grows with the gap. Autograd gives the box at gap 1 the gradient $(0.2, 0, -0.04, 0)$ with respect to $(x_1, y_1, x_2, y_2)$: moving the left edge toward $G$ helps most. The small negative entry for $x_2$ shows GIoU's known weakness: enlarging the box also shrinks the empty part of $C$, so for non-overlapping boxes GIoU tends to **grow** the box before moving it. DIoU and CIoU (Zheng et al., 2020) add a penalty on the normalised centre distance (and, for CIoU, aspect ratio) to converge faster.`,
       },
 
       { t: "h", text: "10. Reconstruction losses" },
       {
         t: "p",
-        text: String.raw`An [autoencoder](/learn/m14/autoencoders) reconstructs its input $x$ as $\hat x = g(f(x))$. The reconstruction loss is again a negative log-likelihood under a noise model for each output dimension:`,
+        text: String.raw`An [autoencoder](/learn/m14/autoencoders) rebuilds its input $x$ as $\hat x = g(f(x))$. The reconstruction loss is again a negative log-likelihood under a noise model for each output dimension:`,
       },
       {
         t: "list",
         items: [
-          String.raw`**MSE** $\frac1D\sum_j(\hat x_j - x_j)^2$ — Gaussian decoder with fixed variance; for real-valued data (standardised features, audio). It favours blurry outputs, because the mean of several plausible reconstructions minimises it (see [Regression Losses](/learn/m05/regression-losses)).`,
-          String.raw`**BCE** $-\frac1D\sum_j[x_j\log\hat x_j + (1 - x_j)\log(1 - \hat x_j)]$ with $\hat x_j = \sigma(\text{logit}_j)$ — Bernoulli decoder; standard for images with intensities in $[0, 1]$. For non-binary targets (e.g. $x_j = 0.3$) the minimum is reached at $\hat x_j = x_j$ but equals the entropy $H(x_j) > 0$, not 0 — so its value is not an error measure; compare models by MSE or PSNR instead.`,
-          String.raw`**L1** — Laplace decoder; less blurring than MSE, common in image restoration.`,
-          String.raw`**Perceptual losses** (Johnson, Alahi and Fei-Fei, 2016) compare feature maps of a fixed pretrained network instead of pixels, so reconstructions are judged by structure and texture rather than exact pixel values.`,
+          String.raw`**MSE** $\frac1D\sum_j(\hat x_j - x_j)^2$ — Gaussian decoder with fixed variance; for real-valued data (standardised features, audio). It favours blurry outputs, because the average of several plausible reconstructions minimises it (see [Regression Losses](/learn/m05/regression-losses)).`,
+          String.raw`**BCE** $-\frac1D\sum_j[x_j\log\hat x_j + (1 - x_j)\log(1 - \hat x_j)]$ with $\hat x_j = \sigma(\text{logit}_j)$ — Bernoulli decoder; standard for images with intensities in $[0, 1]$. For non-binary targets (e.g. $x_j = 0.3$) the minimum is at $\hat x_j = x_j$ but equals the entropy $H(x_j) > 0$, not 0 — so its value is not an error measure; compare models by MSE or PSNR.`,
+          String.raw`**L1** — Laplace decoder; less blur than MSE, common in image restoration.`,
+          String.raw`**Perceptual losses** (Johnson, Alahi and Fei-Fei, 2016) compare feature maps of a fixed pretrained network instead of pixels, judging structure and texture rather than exact pixel values.`,
         ],
       },
       {
         t: "p",
-        text: String.raw`In a VAE, the full objective is reconstruction NLL + KL term (section 5); the relative scale of the two depends on whether the reconstruction term is summed or averaged over dimensions — mixing a mean MSE with a summed KL silently changes the balance by a factor of $D$.`,
+        text: String.raw`In a VAE the full objective is reconstruction NLL + KL term (section 5). Their balance depends on whether the reconstruction term is summed or averaged over dimensions: mixing a mean MSE with a summed KL quietly changes the balance by a factor of $D$.`,
       },
     ],
 
@@ -872,17 +885,17 @@ const lesson: Lesson = {
       { t: "sim", id: "metric-learning", caption: "Contrastive & Triplet Embeddings: a linear map from 8-D to 2-D trained in your browser on five classes." },
       {
         t: "p",
-        text: "The data has five classes in 8 dimensions; only the first four coordinates carry class information and the other four are large noise. The embedding is e = Wx with a 2×8 matrix W, trained by mini-batch SGD (16 anchors per step). The highlighted anchor a, positive p and negative n are the first tuple of the current batch; the dashed gold circle shows the margin, the arrows show −∂ℓ/∂e (the direction each embedding would move). Everything shown is the real computation.",
+        text: "Five classes in 8 dimensions; only the first four coordinates carry class information, the other four are large noise. The embedding e = Wx (W is 2×8) is trained by mini-batch SGD (16 anchors per step). The highlighted a, p, n are the batch's first tuple; the dashed gold circle is the margin; arrows show −∂ℓ/∂e. All of it is the real computation.",
       },
       {
         t: "list",
         items: [
-          "**Step 0.** With the default settings the random projection mixes the classes: 1-NN test accuracy is 62%. Press **Play** (triplet loss, semi-hard negatives, margin 1): within about 25 steps the classes separate and 1-NN accuracy reaches 98%.",
-          String.raw`**Watch the active count.** In the readout, "active triplets k/16" counts triplets with non-zero loss. With semi-hard mining it starts near 12/16 and falls to about 3/16 by step 250–300; only these triplets produce a gradient.`,
+          "**Step 0.** The random projection mixes the classes: 1-NN test accuracy is 62%. Press **Play** (triplet loss, semi-hard negatives, margin 1): within about 25 steps the classes separate and 1-NN accuracy reaches 98%.",
+          String.raw`**Watch the active count.** "Active triplets k/16" counts triplets with non-zero loss. With semi-hard mining it starts near 12/16 and falls to about 3/16 by step 250–300; only these produce a gradient.`,
           String.raw`**Switch negatives to random.** Most random triplets are already satisfied (the narration says "margin satisfied, zero gradient"): on average only about 3.5 of 16 are active in the first 20 steps and fewer than 1 near the end, so learning is slower (96% at step 100 instead of 100%). This is why mining exists.`,
-          String.raw`**Switch to hard negatives.** The negative is now the closest point of another class — often inside the circle and sometimes closer than the positive (loss above m). Here it trains as fast as semi-hard; compare with the from-scratch code, where hardest-negative mining collapses a 2-D embedding of real digits.`,
-          String.raw`**Contrastive loss.** Each step now shows a single pair. Positive pairs (accent line) are always pulled with force proportional to their distance; negative pairs (dashed clay line) are pushed only while inside the circle of radius m. Notice that the embedding's overall size is set by m, whereas with the triplet loss only differences of distances matter.`,
-          String.raw`**Change the margin.** A larger margin (2) keeps more tuples active for longer (about 4 of 16 triplets still active near step 300, versus about 1.6 with margin 0.3); a small margin is satisfied quickly and stops shaping the embedding early. Press **New data** to draw a different dataset and initialisation.`,
+          String.raw`**Switch to hard negatives.** The negative is now the closest point of another class — often inside the circle, sometimes closer than the positive (loss above m). Here it trains as fast as semi-hard; compare the from-scratch code, where hardest-negative mining collapses a 2-D embedding of real digits.`,
+          String.raw`**Contrastive loss.** Each step shows one pair. Positive pairs (accent line) are always pulled, with force proportional to distance; negative pairs (dashed clay line) are pushed only inside the circle of radius m. The embedding's overall size is set by m, whereas with the triplet loss only differences of distances matter.`,
+          String.raw`**Change the margin.** A larger margin (2) keeps more tuples active longer (about 4 of 16 near step 300, versus about 1.6 with margin 0.3); a small margin is met quickly and stops shaping the embedding early.`,
         ],
       },
     ],
@@ -897,9 +910,9 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`All four analytic gradients agree with central differences to $\sim10^{-10}$.`,
-          String.raw`A random 2-D projection gives 16.4% nearest-neighbour accuracy (chance is 10%). Random and semi-hard negatives both reach about 64% — remarkable for a **linear** map to only 2 dimensions. With random negatives the fraction of active triplets falls from 0.89 to 0.35: two thirds of the computation is wasted at the end. Semi-hard keeps nearly all selected triplets active (0.99).`,
-          String.raw`**Hardest negatives collapse the embedding**: the mean embedding norm shrinks from 0.180 to 0.006 and accuracy drops to 36%, with every triplet still active. This is the failure FaceNet warned about; in a 2-D space most anchors have some negative closer than their positive, and pulling everything together is the easiest way to reduce $d_{ap} - d_{an} + m$ towards $m$.`,
+          String.raw`All four analytic gradients match central differences to $\sim10^{-10}$.`,
+          String.raw`A random 2-D projection gives 16.4% nearest-neighbour accuracy (chance is 10%). Random and semi-hard negatives both reach about 64% — impressive for a **linear** map to only 2 dimensions. With random negatives the active fraction falls from 0.89 to 0.35: two thirds of the work is wasted at the end. Semi-hard keeps nearly all selected triplets active (0.99).`,
+          String.raw`**Hardest negatives collapse the embedding**: mean norm shrinks from 0.180 to 0.006 and accuracy drops to 36%, with every triplet still active. This is FaceNet's warned-of failure: in 2-D most anchors have a negative closer than their positive, and pulling everything together is the easiest way to bring $d_{ap} - d_{an} + m$ down toward $m$.`,
         ],
       },
       {
@@ -910,10 +923,10 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`The NT-Xent gradient is the cross-entropy gradient $(P - \text{onehot})/2N$ with respect to the similarity matrix, pushed through $S = UU^\top/\tau$ (hence $(G + G^\top)U/\tau$) and through the normalisation (removing the component along each $u_i$). It matches finite differences to $3\times10^{-10}$.`,
-          String.raw`The distillation gradient computed numerically equals $T(q^T - p^T)$, and the Monte-Carlo VAE KL (0.8095) matches the closed form (0.8089).`,
-          String.raw`**Segmentation.** BCE prefers the all-background prediction (0.1009) to a correct lesion with 10% background noise (0.1054). Dice and IoU losses rank them correctly. Note that the "perfect" prediction with $p = 0.01$ on the background still has Dice loss 0.2024: the 4015 background pixels contribute $\sum p_i \approx 40$ to the denominator — soft Dice penalises diffuse low probabilities on a large background, which pushes networks to very confident outputs. The shifted lesion has hard Dice 0.3086.`,
-          String.raw`**Boxes.** Started at $[4, 3, 5, 4]$, which does not overlap the target, the IoU-loss box never moves (zero gradient); the GIoU-loss box converges to $[-0.089, -0.020, 2.088, 2.069]$, IoU 0.880 with the target after 300 steps.`,
+          String.raw`The NT-Xent gradient is the cross-entropy gradient $(P - \text{onehot})/2N$ for the similarity matrix, pushed through $S = UU^\top/\tau$ (hence $(G + G^\top)U/\tau$) and through the normalisation (removing the part along each $u_i$). It matches finite differences to $3\times10^{-10}$.`,
+          String.raw`The numerical distillation gradient equals $T(q^T - p^T)$, and the Monte-Carlo VAE KL (0.8095) matches the closed form (0.8089).`,
+          String.raw`**Segmentation.** BCE prefers the all-background prediction (0.1009) to a correct lesion with 10% background noise (0.1054); Dice and IoU losses rank them correctly. Even the "perfect" prediction with $p = 0.01$ on the background has Dice loss 0.2024: the 4015 background pixels add $\sum p_i \approx 40$ to the denominator. This pushes networks toward very confident outputs. The shifted lesion has hard Dice 0.3086.`,
+          String.raw`**Boxes.** Starting at $[4, 3, 5, 4]$, which misses the target, the IoU-loss box never moves (zero gradient); the GIoU-loss box converges to $[-0.089, -0.020, 2.088, 2.069]$, IoU 0.880 with the target after 300 steps.`,
         ],
       },
     ],
@@ -928,17 +941,17 @@ const lesson: Lesson = {
             blocks: [
               {
                 t: "p",
-                text: "A 64→128→4 MLP embedding of the digits, trained only on digits 0–6 with three losses (contrastive over all pairs of a P×K batch, triplet with batch-hard mining, and self-supervised NT-Xent with three temperatures), evaluated by recall@1 retrieval on test images of the seen digits and of the unseen digits 7–9, against PCA to the same 4 dimensions. Then KL distillation with F.kl_div, a Dice + cross-entropy segmentation loss, and IoU vs GIoU gradients for a non-overlapping box.",
+                text: "A 64→128→4 MLP embedding of the digits, trained only on digits 0–6 with three losses (contrastive over all pairs of a P×K batch, triplet with batch-hard mining, and self-supervised NT-Xent at three temperatures), scored by recall@1 retrieval on test images of seen digits and unseen digits 7–9, against PCA to the same 4 dimensions. Then KL distillation with F.kl_div, a Dice + cross-entropy segmentation loss, and IoU vs GIoU gradients for a non-overlapping box.",
               },
               { t: "code", lang: "python", title: "advanced_losses_torch.py", code: TORCH, output: TORCH_OUT },
               {
                 t: "list",
                 items: [
-                  String.raw`**Seen classes:** both supervised metric losses beat PCA clearly (0.988 and 0.976 vs 0.927 recall@1 in 4 dimensions). **Unseen classes:** they are worse than PCA (0.620 and 0.603 vs 0.788). With only 7 training classes the embedding specialises in separating those 7 and discards directions that would separate 7, 8 and 9. Real verification systems avoid this by training on thousands of identities; the lesson is to always evaluate metric learning on **held-out classes**.`,
-                  String.raw`NT-Xent uses no labels, so it is slightly worse on seen digits (0.908 at $\tau = 0.2$) but the best of the learned embeddings on unseen digits (0.783): augmentation invariance is less specific to the training classes. Both $\tau = 0.1$ and $\tau = 0.5$ are worse than 0.2 — the temperature is a real hyperparameter.`,
-                  "F.kl_div(input, target) expects the **log**-probabilities of the model as input and probabilities as target (the opposite convention to the mathematical KL(p‖q) argument order), and reduction='batchmean' gives the true KL per example; the default 'mean' divides by the number of elements as well. The result reproduces the hand computation (0.2117).",
-                  "With logits −3 everywhere (p ≈ 0.047), the combined loss's gradient is about 31 times larger on a foreground pixel than on a background pixel.",
-                  "For the box one unit to the right of the target, the IoU loss gradient is exactly zero; GIoU gives a usable direction.",
+                  String.raw`**Seen classes:** both supervised metric losses clearly beat PCA (0.988 and 0.976 vs 0.927 recall@1 in 4 dimensions). **Unseen classes:** they are worse than PCA (0.620 and 0.603 vs 0.788). With only 7 training classes, the embedding specialises in those 7 and throws away directions that would separate 7, 8 and 9. Real systems train on thousands of identities. Always evaluate metric learning on **held-out classes**.`,
+                  String.raw`NT-Xent uses no labels, so it is a bit worse on seen digits (0.908 at $\tau = 0.2$) but the best learned embedding on unseen digits (0.783): augmentation invariance is less tied to the training classes. Both $\tau = 0.1$ and $\tau = 0.5$ do worse than 0.2 — temperature really is a hyperparameter.`,
+                  "F.kl_div(input, target) expects the model's **log**-probabilities as input and probabilities as target (the reverse of the maths KL(p‖q) order). reduction='batchmean' gives the true KL per example; the default 'mean' also divides by the number of elements. The result matches the hand computation (0.2117).",
+                  "With logits −3 everywhere (p ≈ 0.047), the combined loss's gradient is about 31 times larger on a foreground pixel than on a background one.",
+                  "For the box one unit right of the target, the IoU loss gradient is exactly zero; GIoU gives a usable direction.",
                 ],
               },
             ],
@@ -957,7 +970,7 @@ const lesson: Lesson = {
                 t: "list",
                 items: [
                   "tf.keras.losses.KLDivergence takes (y_true, y_pred) as **probabilities** and computes KL(y_true ‖ y_pred) — unlike PyTorch's kl_div, which takes log-probabilities for the prediction.",
-                  "TensorFlow Addons used to ship triplet losses with semi-hard and hard mining; the add-on library is no longer maintained, so writing the few lines yourself, as above, is the safer option.",
+                  "TensorFlow Addons used to ship triplet losses with semi-hard and hard mining, but it is no longer maintained, so writing the few lines yourself, as above, is safer.",
                 ],
               },
             ],
@@ -972,13 +985,13 @@ const lesson: Lesson = {
         t: "table",
         head: ["Loss", "Key idea", "Advantages", "Disadvantages", "Typical use"],
         rows: [
-          ["Contrastive (pairs)", "pull similar pairs, push dissimilar ones beyond margin m", "simple; works with pair labels only", "absolute margin for all classes; most negative pairs easy", "siamese verification, dimensionality reduction"],
-          ["Triplet", "anchor closer to positive than to negative by m", "relative constraint; allows varying class spread", String.raw`$O(N^3)$ triplets; needs mining; collapse with hardest negatives`, "face recognition, person re-identification, retrieval"],
+          ["Contrastive (pairs)", "pull similar pairs, push dissimilar ones beyond margin m", "simple; needs only pair labels", "one absolute margin for all classes; most negative pairs easy", "siamese verification, dimensionality reduction"],
+          ["Triplet", "anchor closer to positive than to negative by m", "relative constraint; classes may spread differently", String.raw`$O(N^3)$ triplets; needs mining; collapse with hardest negatives`, "face recognition, person re-identification, retrieval"],
           ["Batch-hard / batch-all triplet", "online mining within a P×K batch", "no offline mining; efficient", "sensitive to label noise (batch-hard)", "re-identification"],
-          ["N-pair / InfoNCE / NT-Xent", "softmax over one positive and many negatives", "uses all negatives in the batch; implicit soft hard-negative weighting", "needs large batches (or a memory bank); temperature to tune", "self-supervised learning, CLIP-style multimodal training"],
+          ["N-pair / InfoNCE / NT-Xent", "softmax over one positive and many negatives", "uses all negatives in the batch; built-in soft hard-negative weighting", "needs large batches (or a memory bank); temperature to tune", "self-supervised learning, CLIP-style multimodal training"],
           ["Supervised contrastive", "InfoNCE with all same-class samples as positives (Khosla et al., 2020)", "label-aware, robust", "large batches", "representation learning with labels"],
           ["Margin-softmax (ArcFace etc.)", "classification with an angular margin on normalised features (Deng et al., 2019)", "no mining; stable", "needs a class list at training time", "large-scale face recognition"],
-          ["KL divergence", "match a target distribution", "uses full soft targets; closed form for Gaussians", "asymmetric: direction matters", "distillation, VAE prior, policy regularisation"],
+          ["KL divergence", "match a target distribution", "uses full soft targets; closed form for Gaussians", "not symmetric: direction matters", "distillation, VAE prior, policy regularisation"],
           ["Soft Dice / soft IoU", "differentiable overlap", "insensitive to background size", "noisy gradients for tiny or empty masks; uncalibrated", "medical and small-object segmentation"],
           ["Tversky / focal variants", "weight false positives vs false negatives differently", "tunable precision/recall trade-off", "extra hyperparameters", "highly imbalanced segmentation"],
           ["Lovász-softmax", "convex surrogate of IoU", "directly targets mean IoU", "more complex to implement", "semantic segmentation benchmarks"],
@@ -993,14 +1006,14 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "**Face verification and recognition.** FaceNet trained a 128-D face embedding with the triplet loss and semi-hard online mining; verification thresholds a distance, recognition is nearest-neighbour search, and clustering groups photos of the same person. Later systems mostly moved to margin-based softmax losses such as ArcFace.",
+          "**Face verification and recognition.** FaceNet trained a 128-D face embedding with the triplet loss and semi-hard online mining: verification thresholds a distance, recognition is nearest-neighbour search, clustering groups photos of one person. Later systems mostly moved to margin-based softmax losses such as ArcFace.",
           "**Person re-identification.** Matching pedestrians across cameras with triplet losses and batch-hard mining (Hermans et al., 2017) is a standard baseline.",
-          "**Image and product retrieval.** Embeddings trained with contrastive or triplet losses power \"find similar items\" search over large catalogues using approximate nearest-neighbour indexes.",
-          "**Self-supervised and multimodal pretraining.** SimCLR (NT-Xent between augmented views) and CLIP (InfoNCE between images and their captions) learn general representations without class labels; CLIP's embeddings enable zero-shot classification by comparing an image with text prompts.",
-          "**Model compression.** Knowledge distillation with a KL term trains small students from large teachers — DistilBERT (Sanh et al., 2019) is a well-known example of a distilled language model.",
-          "**Medical image segmentation.** Organs and lesions are small relative to scans; Dice + cross-entropy is the default loss of nnU-Net, which performs strongly across many medical segmentation challenges.",
-          "**Object detection.** IoU-family losses (GIoU, DIoU, CIoU) are used for box regression in many modern detectors in place of or alongside smooth L1.",
-          "**Generative models.** VAEs combine a reconstruction loss with a KL term; denoising autoencoders and many image-to-image models use L1/MSE plus perceptual losses.",
+          "**Image and product retrieval.** Embeddings trained with contrastive or triplet losses power \"find similar items\" search over large catalogues with approximate nearest-neighbour indexes.",
+          "**Self-supervised and multimodal pretraining.** SimCLR (NT-Xent between augmented views) and CLIP (InfoNCE between images and captions) learn general representations without class labels; CLIP's embeddings allow zero-shot classification by comparing an image with text prompts.",
+          "**Model compression.** Knowledge distillation with a KL term trains small students from large teachers — DistilBERT (Sanh et al., 2019) is a well-known distilled language model.",
+          "**Medical image segmentation.** Organs and lesions are small relative to scans; Dice + cross-entropy is nnU-Net's default loss, strong across many medical challenges.",
+          "**Object detection.** IoU-family losses (GIoU, DIoU, CIoU) handle box regression in many modern detectors, instead of or alongside smooth L1.",
+          "**Generative models.** VAEs add a KL term to a reconstruction loss; many image-to-image models use L1/MSE plus perceptual losses.",
         ],
       },
     ],
@@ -1010,13 +1023,13 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "**Open-set capability vs. training difficulty.** Metric losses generalise to unseen classes in principle, but they are harder to optimise than softmax classification: most tuples are uninformative, and progress depends on batch construction and mining.",
-          "**Mining is a bias–variance knob.** Harder negatives give larger, more informative gradients but amplify label noise and can collapse the embedding; easier ones are stable but slow. Semi-hard and soft weighting (InfoNCE temperature) sit in between.",
-          "**Batch size matters.** InfoNCE's negatives come from the batch, so small batches mean few negatives and a weaker training signal; memory banks or queues of past embeddings are a common workaround.",
-          "**Margins and temperatures interact with normalisation.** On the unit sphere, distances are at most 2, so a margin of 1 is enormous while 0.2 is typical; without normalisation the network can satisfy any margin by scaling up its outputs.",
-          "**Overlap losses match the metric but have global, noisier gradients.** Dice/IoU need care with empty masks and tiny objects and produce poorly calibrated probabilities; pairing them with cross-entropy is the usual compromise.",
+          "**Works for new classes, but harder to train.** Metric losses can generalise to unseen classes, but are harder to optimise than softmax classification: most tuples are uninformative, and progress depends on batch construction and mining.",
+          "**Mining is a bias–variance knob.** Harder negatives give bigger, more informative gradients but amplify label noise and can collapse the embedding; easier ones are stable but slow. Semi-hard and soft weighting (InfoNCE temperature) sit between.",
+          "**Batch size matters.** InfoNCE's negatives come from the batch, so small batches mean few negatives and a weaker signal; memory banks or queues of past embeddings are a common fix.",
+          "**Margins and temperatures depend on normalisation.** On the unit sphere distances are at most 2, so a margin of 1 is huge and 0.2 is typical; without normalisation the network can meet any margin by scaling up its outputs.",
+          "**Overlap losses match the metric but have global, noisier gradients.** Dice/IoU need care with empty masks and tiny objects and give poorly calibrated probabilities; adding cross-entropy is the usual compromise.",
           "**GIoU fixes zero gradients but converges slowly** for distant boxes because it first enlarges the prediction; DIoU/CIoU add explicit centre-distance terms.",
-          "**KL direction is a modelling decision**, not a detail: forward KL averages over modes, reverse KL picks one.",
+          "**KL direction is a modelling choice**, not a detail: forward KL averages over modes, reverse KL picks one.",
         ],
       },
     ],
@@ -1026,33 +1039,33 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "**Batches without positives.** Sampling a random batch from thousands of identities gives almost no same-identity pairs, so the triplet or contrastive loss has nothing to pull together. Fix: P×K sampling (P classes, K examples each).",
-          "**Forgetting to normalise embeddings** (or normalising after the loss). Without L2 normalisation the network can satisfy a margin by scaling, and cosine-based InfoNCE assumes unit vectors. Fix: normalise inside the model before computing distances, and choose margins in the normalised geometry.",
-          "**Taking the norm of a zero vector.** The gradient of ‖a − b‖ is undefined when a = b (e.g. duplicate images, or an anchor compared with itself). Fix: exclude the diagonal, add a small ε inside the square root, or use squared distances.",
-          "**Including the anchor itself as a negative or positive.** In NT-Xent the diagonal of the similarity matrix must be masked; in batch-hard mining the anchor must not be its own hardest positive (distance 0 is harmless there but wrong as a negative).",
-          "**Mining the hardest negatives from the start.** Can collapse the embedding (demonstrated above) and over-fits to mislabelled pairs. Fix: semi-hard mining, warm-up with easier negatives, or InfoNCE with a moderate temperature.",
-          "**Evaluating metric learning on training classes only.** The point of the embedding is to work for new identities; recall@k on seen classes can look excellent while unseen-class retrieval is poor (as in the PyTorch example).",
-          "**Calling F.kl_div with probabilities as input, or with the arguments swapped.** PyTorch expects log-probabilities of the model first and target probabilities second; swapping computes a different divergence. Also use reduction='batchmean' for the mathematically correct value, and multiply by T² in distillation.",
-          "**Computing Dice per pixel or over the wrong axes.** Dice is a ratio of sums: summing over the whole batch and per-image Dice averaged over images are different losses (the latter weights small objects more). Decide deliberately, and handle images with empty ground truth with ε.",
-          "**Applying sigmoid twice** (sigmoid in the model and again in the Dice/BCE code) or feeding logits to a loss that expects probabilities.",
-          "**Using IoU loss alone from random initial boxes.** Non-overlapping boxes get zero gradient. Fix: GIoU/DIoU, or combine IoU loss with an L1 term on coordinates.",
-          "**Reporting BCE as a reconstruction error for non-binary images.** Its minimum is the entropy of the targets, not 0. Report MSE/PSNR.",
+          "**Batches without positives.** A random batch from thousands of identities has almost no same-identity pairs, so nothing gets pulled together. Fix: P×K sampling (P classes, K examples each).",
+          "**Forgetting to normalise embeddings** (or normalising after the loss). Without L2 normalisation the network can meet a margin by scaling, and cosine-based InfoNCE assumes unit vectors. Fix: normalise inside the model before computing distances, and pick margins for the normalised geometry.",
+          "**Taking the norm of a zero vector.** The gradient of ‖a − b‖ is undefined when a = b (duplicate images, or an anchor compared with itself). Fix: exclude the diagonal, add a small ε inside the square root, or use squared distances.",
+          "**Using the anchor itself as a negative or positive.** In NT-Xent the diagonal of the similarity matrix must be masked; in batch-hard mining the anchor must not be its own hardest positive (distance 0 is harmless there but wrong as a negative).",
+          "**Mining the hardest negatives from the start.** Can collapse the embedding (shown above) and over-fits mislabelled pairs. Fix: semi-hard mining, warm-up with easier negatives, or InfoNCE with a moderate temperature.",
+          "**Evaluating metric learning on training classes only.** The embedding's whole point is to work for new identities; recall@k on seen classes can look great while unseen-class retrieval is poor (as in the PyTorch example).",
+          "**Calling F.kl_div with probabilities as input, or with swapped arguments.** PyTorch expects the model's log-probabilities first and target probabilities second; swapping computes a different divergence. Use reduction='batchmean' for the correct value, and multiply by T² in distillation.",
+          "**Computing Dice per pixel or over the wrong axes.** Dice is a ratio of sums: one Dice over the whole batch and per-image Dice averaged over images are different losses (the latter weights small objects more). Choose on purpose, and handle images with empty ground truth with ε.",
+          "**Applying sigmoid twice** (in the model and again in the Dice/BCE code), or feeding logits to a loss that expects probabilities.",
+          "**Using IoU loss alone from random initial boxes.** Non-overlapping boxes get zero gradient. Fix: GIoU/DIoU, or add an L1 term on coordinates.",
+          "**Reporting BCE as a reconstruction error for non-binary images.** Its minimum is the targets' entropy, not 0. Report MSE/PSNR.",
         ],
       },
     ],
 
     /* ------------------------------------------------------------------ */
     interview: [
-      { t: "qa", level: "beginner", q: "Why use metric learning instead of a softmax classifier for face verification?", a: "A softmax classifier has one output per identity known at training time and cannot represent new people. Verification asks whether two images show the same person, including people never seen before. Metric learning trains an embedding in which distance reflects identity, so any two faces can be compared by thresholding their distance, and the system works for new identities without retraining." },
-      { t: "qa", level: "beginner", q: "What does the margin in the contrastive and triplet losses do?", a: String.raw`In the contrastive loss, dissimilar pairs are only penalised if they are closer than $m$; beyond the margin they contribute nothing, which prevents the trivial collapsed solution and stops the network wasting effort on pairs that are already far apart. In the triplet loss, the margin demands that the negative be farther than the positive by at least $m$, so the network cannot satisfy the constraint with all distances equal (or zero).` },
-      { t: "qa", level: "beginner", q: "What is the Dice coefficient and why is it used for segmentation?", a: String.raw`Dice $= 2|A\cap B|/(|A| + |B|)$, the overlap between predicted and true masks relative to their sizes (equal to the F1 score of the foreground). Unlike pixel accuracy or pixel-averaged cross-entropy, it does not reward predicting the dominant background class, so it is suited to small structures such as lesions.` },
-      { t: "qa", level: "intermediate", q: "Explain easy, semi-hard and hard negatives, and why mining matters.", a: String.raw`For anchor–positive distance $d_{ap}$ and margin $m$: easy negatives have $d_{an} \ge d_{ap} + m$ (zero loss, zero gradient), semi-hard have $d_{ap} < d_{an} < d_{ap} + m$ (correct order but within the margin), hard have $d_{an} < d_{ap}$. Most random triplets become easy early, so random sampling wastes computation. Mining picks informative triplets; semi-hard mining (FaceNet) is stable, while always using the hardest negatives can amplify noise and collapse the embedding.` },
-      { t: "qa", level: "intermediate", q: "Show that InfoNCE is a cross-entropy, and explain the role of the temperature.", a: String.raw`With logits $s_j/\tau$ for the positive and $K$ negatives, InfoNCE is $-\log\mathrm{softmax}(s/\tau)_+$ — cross-entropy with the positive as the correct class. Its gradient is $(q_+ - 1)/\tau$ for the positive and $q_k/\tau$ for each negative, where $q$ are the softmax weights. A small $\tau$ makes the softmax peaky, concentrating the push on the hardest negatives (soft hard-negative mining) and scaling gradients by $1/\tau$; a large $\tau$ spreads it evenly. It must be tuned: too small is unstable and sensitive to false negatives, too large is uninformative.` },
-      { t: "qa", level: "intermediate", q: "Why multiply the distillation loss by T²?", a: String.raw`The gradient of $\mathrm{KL}(p^T\|q^T)$ with respect to the student logits is $(q^T - p^T)/T$, and for large $T$ the difference $q^T - p^T$ itself shrinks roughly like $1/T$, so the gradients scale like $1/T^2$. Multiplying by $T^2$ keeps the soft-target term's contribution roughly independent of $T$, so its weight relative to the hard-label cross-entropy does not change when $T$ is tuned.` },
-      { t: "qa", level: "intermediate", q: "Why does the IoU loss fail for non-overlapping boxes, and how does GIoU fix it?", a: String.raw`If the boxes do not overlap, IoU is 0 for every position of the prediction, so $1 - \mathrm{IoU}$ is constant and its gradient is zero: the box receives no signal. GIoU subtracts $|C\setminus(B\cup G)|/|C|$, the empty fraction of the smallest enclosing box, which grows as the boxes move apart; its gradient therefore points towards the target even without overlap. GIoU $\le$ IoU, and they coincide when the union fills its enclosing box.` },
-      { t: "qa", level: "advanced", q: "Derive the gradient of the soft Dice loss and explain how it handles class imbalance.", a: String.raw`With $I = \sum p_ig_i$ and $S = \sum p_i + \sum g_i + \varepsilon$, $\mathcal{L} = 1 - (2I + \varepsilon)/S$ and $\partial\mathcal{L}/\partial p_i = -(2g_iS - 2I - \varepsilon)/S^2$: a negative constant for every foreground pixel and the positive constant $(2I + \varepsilon)/S^2$ for every background pixel. Both scale with the object's size, not the image's, so the many background pixels cannot dominate: adding background pixels with $p \approx 0$ changes nothing. The cost is that gradients are global (all pixels of a class get the same value) and noisy when the object is tiny or absent; hence Dice is usually combined with cross-entropy.` },
-      { t: "qa", level: "advanced", q: "Why can hardest-negative triplet mining collapse an embedding, and what are the remedies?", a: String.raw`If for many anchors the hardest negative is closer than the (random or hardest) positive, the loss $d_{ap} - d_{an} + m$ exceeds $m$. Shrinking all embeddings towards a single point drives every distance to 0 and the loss to exactly $m$ — lower than the current value — so gradient descent can slide into the collapsed solution $f(x) = $ const, a stationary point where gradients are undefined or uninformative. Hardest negatives are also disproportionately mislabelled examples. Remedies: semi-hard mining, warm-up with random negatives, larger and well-structured P×K batches, L2 normalisation (which prevents shrinking to 0 but not to a single direction), soft weighting such as InfoNCE, or margin-based softmax losses.` },
-      { t: "qa", level: "advanced", q: "When would you choose forward KL and when reverse KL as a training objective?", a: String.raw`Forward $\mathrm{KL}(p\,\|\,q_\theta)$ (equivalent to maximum likelihood / cross-entropy with targets $p$) is used when samples or probabilities of the target $p$ are available, as in distillation; it is mass-covering — $q$ must put probability wherever $p$ does, and averages modes if it cannot represent them all. Reverse $\mathrm{KL}(q_\theta\,\|\,p)$ needs only an unnormalised $p$ and samples from $q$, as in variational inference (the VAE's ELBO contains a reverse KL to the posterior); it is mode-seeking — $q$ fits one mode well and ignores others. The choice decides whether the model over-generalises (forward) or under-covers (reverse).` },
+      { t: "qa", level: "beginner", q: "Why use metric learning instead of a softmax classifier for face verification?", a: "A softmax classifier has one output per identity known at training time and cannot handle new people. Verification asks whether two images show the same person, including people never seen before. Metric learning trains an embedding where distance reflects identity, so any two faces can be compared by thresholding their distance, and new identities need no retraining." },
+      { t: "qa", level: "beginner", q: "What does the margin in the contrastive and triplet losses do?", a: String.raw`In the contrastive loss, dissimilar pairs are penalised only if closer than $m$; beyond it they contribute nothing. This prevents collapse and wastes no effort on pairs already far apart. In the triplet loss, the margin demands the negative be farther than the positive by at least $m$, so the network cannot satisfy the constraint with all distances equal (or zero).` },
+      { t: "qa", level: "beginner", q: "What is the Dice coefficient and why is it used for segmentation?", a: String.raw`Dice $= 2|A\cap B|/(|A| + |B|)$: the overlap of predicted and true masks relative to their sizes (equal to the foreground F1 score). Unlike pixel accuracy or pixel-averaged cross-entropy, it does not reward predicting the dominant background, so it suits small structures such as lesions.` },
+      { t: "qa", level: "intermediate", q: "Explain easy, semi-hard and hard negatives, and why mining matters.", a: String.raw`For anchor–positive distance $d_{ap}$ and margin $m$: easy negatives have $d_{an} \ge d_{ap} + m$ (zero loss and gradient), semi-hard have $d_{ap} < d_{an} < d_{ap} + m$ (right order, inside the margin), hard have $d_{an} < d_{ap}$. Most random triplets become easy early, so random sampling wastes computation. Mining picks informative triplets; semi-hard mining (FaceNet) is stable, while always using the hardest negatives can amplify noise and collapse the embedding.` },
+      { t: "qa", level: "intermediate", q: "Show that InfoNCE is a cross-entropy, and explain the role of the temperature.", a: String.raw`With logits $s_j/\tau$ for the positive and $K$ negatives, InfoNCE is $-\log\mathrm{softmax}(s/\tau)_+$ — cross-entropy with the positive as the correct class. Its gradient is $(q_+ - 1)/\tau$ for the positive and $q_k/\tau$ for each negative, where $q$ are the softmax weights. Small $\tau$ makes the softmax peaky, focusing the push on the hardest negatives (soft hard-negative mining) and scaling gradients by $1/\tau$; large $\tau$ spreads it evenly. Tune it: too small is unstable and sensitive to false negatives, too large is uninformative.` },
+      { t: "qa", level: "intermediate", q: "Why multiply the distillation loss by T²?", a: String.raw`The gradient of $\mathrm{KL}(p^T\|q^T)$ with respect to the student logits is $(q^T - p^T)/T$, and for large $T$ the difference $q^T - p^T$ itself shrinks roughly like $1/T$, so gradients scale like $1/T^2$. Multiplying by $T^2$ keeps the soft-target term's contribution roughly independent of $T$, so its weight relative to the hard-label cross-entropy stays put when $T$ is tuned.` },
+      { t: "qa", level: "intermediate", q: "Why does the IoU loss fail for non-overlapping boxes, and how does GIoU fix it?", a: String.raw`Without overlap, IoU is 0 wherever the prediction is, so $1 - \mathrm{IoU}$ is constant and its gradient is zero: the box gets no signal. GIoU subtracts $|C\setminus(B\cup G)|/|C|$, the empty fraction of the smallest enclosing box, which grows as the boxes move apart; so its gradient points toward the target even without overlap. GIoU $\le$ IoU, with equality when the union fills its enclosing box.` },
+      { t: "qa", level: "advanced", q: "Derive the gradient of the soft Dice loss and explain how it handles class imbalance.", a: String.raw`With $I = \sum p_ig_i$ and $S = \sum p_i + \sum g_i + \varepsilon$, $\mathcal{L} = 1 - (2I + \varepsilon)/S$ and $\partial\mathcal{L}/\partial p_i = -(2g_iS - 2I - \varepsilon)/S^2$: one negative constant for every foreground pixel, the positive constant $(2I + \varepsilon)/S^2$ for every background pixel. Both scale with the object's size, not the image's, so the many background pixels cannot dominate: adding background pixels with $p \approx 0$ changes nothing. The cost: gradients are global (all pixels of a class get the same value) and noisy when the object is tiny or absent, so Dice is usually combined with cross-entropy.` },
+      { t: "qa", level: "advanced", q: "Why can hardest-negative triplet mining collapse an embedding, and what are the remedies?", a: String.raw`If for many anchors the hardest negative is closer than the (random or hardest) positive, the loss $d_{ap} - d_{an} + m$ exceeds $m$. Shrinking all embeddings toward one point drives every distance to 0 and the loss to exactly $m$ — lower than now — so gradient descent can slide into the collapsed solution $f(x) = $ const, a stationary point where gradients are undefined or uninformative. Hardest negatives are also disproportionately mislabelled. Remedies: semi-hard mining, warm-up with random negatives, larger well-structured P×K batches, L2 normalisation (stops shrinking to 0, not to one direction), soft weighting such as InfoNCE, or margin-based softmax losses.` },
+      { t: "qa", level: "advanced", q: "When would you choose forward KL and when reverse KL as a training objective?", a: String.raw`Forward $\mathrm{KL}(p\,\|\,q_\theta)$ (equivalent to maximum likelihood / cross-entropy with targets $p$) is used when samples or probabilities of $p$ are available, as in distillation. It is mass-covering: $q$ must put probability wherever $p$ does, and averages modes it cannot represent. Reverse $\mathrm{KL}(q_\theta\,\|\,p)$ needs only an unnormalised $p$ and samples from $q$, as in variational inference (the VAE's ELBO contains a reverse KL to the posterior). It is mode-seeking: $q$ fits one mode well and ignores others. The choice decides whether the model over-generalises (forward) or under-covers (reverse).` },
     ],
 
     /* ------------------------------------------------------------------ */
@@ -1078,18 +1091,18 @@ const lesson: Lesson = {
         prompt: "(a) For a = (0, 0), p = (0, 2), n = (1, 0) and margin m = 0.5 (Euclidean triplet loss), classify the negative (easy / semi-hard / hard), compute the loss and the gradients with respect to a, p and n. (b) Boxes G = [0, 0, 4, 4] and B = [2, 2, 6, 6]: compute IoU, GIoU and both losses.",
         hint: "u = (a − p)/d(a,p) and v = (a − n)/d(a,n); ∂L/∂a = u − v, ∂L/∂p = −u, ∂L/∂n = v.",
         solution: [
-          { t: "p", text: String.raw`(a) $d(a,p) = 2$, $d(a,n) = 1 < 2$: a **hard** negative (wrong order). $\mathcal{L} = 2 - 1 + 0.5 = 1.5$. $u = (0, -2)/2 = (0, -1)$, $v = (-1, 0)/1 = (-1, 0)$. Gradients: $\partial\mathcal{L}/\partial a = u - v = (1, -1)$, $\partial\mathcal{L}/\partial p = (0, 1)$, $\partial\mathcal{L}/\partial n = (-1, 0)$. A descent step moves $a$ towards $(-1, +1)$ (up towards $p$, left away from $n$), $p$ down towards $a$, and $n$ to the right, away from $a$.` },
-          { t: "p", text: String.raw`(b) Intersection $[2,2,4,4]$, area 4; each box has area 16, so the union is $16 + 16 - 4 = 28$ and IoU $= 4/28 = 0.142857$. The enclosing box $[0,0,6,6]$ has area 36, its empty part is $36 - 28 = 8$, so GIoU $= 0.142857 - 8/36 = 0.142857 - 0.222222 = -0.079365$. IoU loss $0.857143$, GIoU loss $1.079365$ — the same numbers as the quiz example, because the configuration is that example scaled by 2: both measures are scale-invariant.` },
+          { t: "p", text: String.raw`(a) $d(a,p) = 2$, $d(a,n) = 1 < 2$: a **hard** negative (wrong order). $\mathcal{L} = 2 - 1 + 0.5 = 1.5$. $u = (0, -2)/2 = (0, -1)$, $v = (-1, 0)/1 = (-1, 0)$. Gradients: $\partial\mathcal{L}/\partial a = u - v = (1, -1)$, $\partial\mathcal{L}/\partial p = (0, 1)$, $\partial\mathcal{L}/\partial n = (-1, 0)$. A descent step moves $a$ toward $(-1, +1)$ (up toward $p$, left away from $n$), $p$ down toward $a$, and $n$ right, away from $a$.` },
+          { t: "p", text: String.raw`(b) Intersection $[2,2,4,4]$, area 4; each box has area 16, so the union is $16 + 16 - 4 = 28$ and IoU $= 4/28 = 0.142857$. The enclosing box $[0,0,6,6]$ has area 36 and empty part $36 - 28 = 8$, so GIoU $= 0.142857 - 8/36 = 0.142857 - 0.222222 = -0.079365$. IoU loss $0.857143$, GIoU loss $1.079365$ — the same as the quiz example, because this is that example scaled by 2: both measures are scale-invariant.` },
         ],
       },
       {
         t: "exercise",
         title: "Coding: count easy, semi-hard and hard triplets in a batch",
-        prompt: "Write a vectorised NumPy function that, for a P×K batch of embeddings, counts the easy, semi-hard and hard (anchor, positive, negative) triplets for a margin m and returns all the batch-all triplet losses. Verify it against a triple loop, then generate embeddings around 4 class centres with decreasing spread (from \"untrained\" to \"well trained\") and report how the counts and the mean loss change.",
+        prompt: "Write a vectorised NumPy function that, for a P×K batch of embeddings, counts the easy, semi-hard and hard (anchor, positive, negative) triplets for a margin m and returns all the batch-all triplet losses. Check it against a triple loop, then generate embeddings around 4 class centres with shrinking spread (from \"untrained\" to \"well trained\") and report how the counts and the mean loss change.",
         hint: "Build the B×B distance matrix; broadcast d_ap as D[:, :, None] and d_an as D[:, None, :] to get a B×B×B tensor indexed (a, p, n), and mask invalid triplets.",
         solution: [
           { t: "code", lang: "python", title: "count_triplets.py", code: EXERCISE, output: EXERCISE_OUT },
-          { t: "p", text: String.raw`The vectorised counts match the loop exactly (the assert passes). There are $24\times5\times18 = 2160$ valid triplets (24 anchors, 5 positives, 18 negatives each). As the classes tighten, hard triplets fall from 472 to 8 and easy ones rise to 97% of the total. The mean over **all** triplets (0.014 at the end) is dominated by zeros, while the mean over non-zero triplets (0.509) shows the remaining ones still carry a real signal — which is why batch-all implementations usually average only over the active triplets.` },
+          { t: "p", text: String.raw`The vectorised counts match the loop exactly (the assert passes). There are $24\times5\times18 = 2160$ valid triplets (24 anchors, 5 positives, 18 negatives each). As the classes tighten, hard triplets fall from 472 to 8 and easy ones rise to 97%. The mean over **all** triplets (0.014 at the end) is mostly zeros; over non-zero triplets it is 0.509 — which is why batch-all code usually averages only over active triplets.` },
         ],
       },
     ],
@@ -1099,7 +1112,7 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`**Metric learning** trains an embedding $f_\theta(x)$ in which distance encodes similarity; it supports verification, retrieval and clustering of classes never seen in training. Evaluate on held-out classes.`,
+          String.raw`**Metric learning** trains an embedding $f_\theta(x)$ where distance encodes similarity; it supports verification, retrieval and clustering of classes never seen in training. Evaluate on held-out classes.`,
           String.raw`**Contrastive** (Hadsell et al., 2006): $(1 - Y)\tfrac12D^2 + Y\tfrac12\max(0, m - D)^2$; similar pairs are pulled with force $D$, dissimilar pairs pushed with force $m - D$ only inside the margin.`,
           String.raw`**Triplet** (FaceNet, 2015): $[\,d(a,p) - d(a,n) + m\,]_+$ (squared distances on the unit sphere in FaceNet); gradients $u - v$, $-u$, $v$ with unit vectors $u, v$. Negatives are easy / semi-hard / hard; mine semi-hard or batch-hard; hardest-only can collapse.`,
           String.raw`**InfoNCE / NT-Xent**: softmax cross-entropy over similarities $s/\tau$; gradient $q_k/\tau$ per negative = automatic soft hard-negative mining; chance loss $\log(2N - 1)$; temperature must be tuned.`,
@@ -1118,7 +1131,7 @@ const lesson: Lesson = {
         items: [
           "[Self-Supervised Learning](/learn/m15/self-supervised) — InfoNCE in context: augmentations, SimCLR, momentum encoders and non-contrastive methods.",
           "[Semantic Segmentation](/learn/m12/segmentation) — the architectures (U-Net and successors) that the Dice + cross-entropy loss trains.",
-          "[Object Detection](/learn/m12/object-detection) — where box regression losses (smooth L1, IoU, GIoU) sit inside a detector.",
+          "[Object Detection](/learn/m12/object-detection) — where box losses (smooth L1, IoU, GIoU) sit inside a detector.",
           "[Autoencoders](/learn/m14/autoencoders) and [Variational Autoencoders](/learn/m14/vae) — reconstruction losses and the KL term in full models.",
           "[Gradient Descent](/learn/m06/gradient-descent) — how the optimiser uses these gradients; batch size and learning rate interact strongly with mining and temperature.",
         ],

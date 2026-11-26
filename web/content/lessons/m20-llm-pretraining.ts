@@ -385,7 +385,7 @@ const lesson: Lesson = {
   id: "m20/llm-pretraining",
   title: "Pretraining Large Language Models",
   summary:
-    "How a decoder-only Transformer becomes a large language model: the next-token objective, the data pipeline (crawl, filter, deduplicate, tokenize, mix), the modern architecture recipe (pre-norm RMSNorm, RoPE, SwiGLU, no biases, tied embeddings), the optimisation recipe (AdamW, warm-up + cosine, clipping, mixed precision), the compute budget C ≈ 6ND, and how to read loss and perplexity curves — ending with a tiny GPT pretrained for real on public-domain text.",
+    "How a decoder-only Transformer becomes a large language model: the next-token objective, the data pipeline (crawl, filter, deduplicate, tokenize, mix), the modern architecture recipe (pre-norm RMSNorm, RoPE, SwiGLU, no biases, tied embeddings), the training recipe (AdamW, warm-up + cosine, clipping, mixed precision), the compute budget C ≈ 6ND, and how to read loss and perplexity curves — ending with a tiny GPT really pretrained on public-domain text.",
   minutes: 75,
   level: "advanced",
   prerequisites: ["m11/transformer-architecture", "m11/training-inference", "m11/tokens-embeddings", "m13/language-modeling", "m06/lr-schedules"],
@@ -394,9 +394,15 @@ const lesson: Lesson = {
   sections: {
     // ------------------------------------------------------------------ intro
     intro: [
-      { t: "p", text: "**Pretraining** is the expensive first phase of building a large language model (LLM): a decoder-only Transformer is trained to predict the next token on hundreds of billions to trillions of tokens of text. Nothing else is asked of it — no labels, no task — yet to predict the next token of arbitrary documents well, the model must absorb spelling, grammar, facts, styles, code syntax and some reasoning patterns. The result is a **base model**: an excellent continuer of documents that later stages ([Alignment](/learn/m20/alignment)) turn into an assistant." },
-      { t: "p", text: "The recipe was established step by step: GPT (Radford et al., 2018) showed that generative pretraining followed by fine-tuning works; GPT-2 (Radford et al., 2019, *Language Models are Unsupervised Multitask Learners*) scaled it to 1.5B parameters on web text; GPT-3 (Brown et al., 2020, *Language Models are Few-Shot Learners*) at 175B parameters showed in-context learning; scaling-law studies (Kaplan et al., 2020; Hoffmann et al., 2022) turned model and data sizing into a quantitative decision; and open models such as LLaMA (Touvron et al., 2023) fixed the now-standard architectural tweaks." },
-      { t: "p", text: "The Transformer itself is taught in [Transformer Architecture](/learn/m11/transformer-architecture), the causal-LM loss and the basic optimiser recipe in [Training, Autoregressive Generation and Complexity](/learn/m11/training-inference), and scaling-law mathematics in [Scaling Laws, LoRA, QLoRA and PEFT](/learn/m19/scaling-efficiency). This lesson is about what changes at LLM scale: the **data**, the **architecture details**, the **compute budget** and the **evaluation**." },
+      { t: "p", text: "**Pretraining** is the first, most expensive phase of building a large language model (LLM). A decoder-only Transformer learns to predict the next token over hundreds of billions to trillions of tokens of text. No labels, no task — yet predicting the next token of any document well forces the model to soak up spelling, grammar, facts, styles, code syntax and some reasoning patterns. The result is a **base model**: a great continuer of documents, which later stages ([Alignment](/learn/m20/alignment)) turn into an assistant." },
+      { t: "list", items: [
+        "**GPT** (Radford et al., 2018): generative pretraining, then fine-tuning, works.",
+        "**GPT-2** (Radford et al., 2019, *Language Models are Unsupervised Multitask Learners*): scaled to 1.5B parameters on web text.",
+        "**GPT-3** (Brown et al., 2020, *Language Models are Few-Shot Learners*): 175B parameters, showing in-context learning.",
+        "**Scaling laws** (Kaplan et al., 2020; Hoffmann et al., 2022) made choosing model and data size a calculation.",
+        "**LLaMA** (Touvron et al., 2023) and other open models fixed today's standard architecture tweaks.",
+      ] },
+      { t: "p", text: "The Transformer, the causal-LM loss and scaling-law maths have their own lessons ([Transformer Architecture](/learn/m11/transformer-architecture), [Training, Autoregressive Generation and Complexity](/learn/m11/training-inference), [Scaling Laws, LoRA, QLoRA and PEFT](/learn/m19/scaling-efficiency)). Here we cover what changes at LLM scale: **data**, **architecture details**, **compute budget** and **evaluation**." },
     ],
 
     // ------------------------------------------------------------------ prerequisites
@@ -406,102 +412,108 @@ const lesson: Lesson = {
         "[Training, Autoregressive Generation and Complexity](/learn/m11/training-inference) — the causal-LM loss, perplexity, AdamW, warm-up + decay, gradient clipping and mixed precision.",
         "[Tokenization, Embeddings and Context Windows](/learn/m11/tokens-embeddings) — BPE tokenizers and context windows.",
         "[Language Modeling](/learn/m13/language-modeling) — perplexity and bits per character.",
-        "[Learning-Rate Schedules](/learn/m06/lr-schedules) and [Normalization](/learn/m07/normalization) — warm-up/cosine schedules and LayerNorm, which RMSNorm simplifies.",
+        "[Learning-Rate Schedules](/learn/m06/lr-schedules) and [Normalization](/learn/m07/normalization) — warm-up/cosine schedules, and LayerNorm, which RMSNorm simplifies.",
         "[Positional Encoding](/learn/m10/positional-encoding) — absolute positions, which RoPE replaces.",
       ] },
     ],
 
     // ------------------------------------------------------------------ intuition
     intuition: [
-      { t: "callout", kind: "analogy", title: "Learning a language by finishing other people's sentences", text: "Imagine learning everything you know by reading an enormous library with one exercise only: cover the next word, guess it, uncover, adjust. At first you learn that 'the' is common. Then that adjectives come before nouns. To guess the next word of a chemistry textbook you must learn chemistry; to guess the next line of a program you must learn to program. Pretraining is this exercise at the scale of the internet. The **data pipeline** is the librarian deciding which books are worth reading (and throwing away the hundredth copy of the same spam page); the **data mixture** decides how much time you spend on novels, encyclopedias and code; the **compute budget** is how many hours you have — and the question of whether to grow a bigger brain or read more books with it is what compute-optimal training answers." },
-      { t: "p", text: "Why does such a simple objective work? Because the loss can only keep falling if the model captures ever more subtle structure. Early in training, loss drops fast as frequency and local grammar are learned; later, every hundredth of a nat requires knowledge or reasoning that appears in a small fraction of documents. That is also why pretraining is so expensive: the easy gains come first." },
+      { t: "callout", kind: "analogy", title: "Learning a language by finishing other people's sentences", text: "Imagine learning everything from a giant library with one exercise: cover the next word, guess, uncover, adjust. First you learn 'the' is common, then that adjectives come before nouns. To guess the next word of a chemistry book you must learn chemistry. Pretraining is this at internet scale. The **data pipeline** is the librarian picking books worth reading (and binning the hundredth copy of a spam page); the **data mixture** sets time spent on novels, encyclopedias and code; the **compute budget** is your hours — and whether to grow a bigger brain or read more books is what compute-optimal training answers." },
+      { t: "p", text: "Why does such a simple goal work? The loss can only keep falling if the model captures ever subtler structure. Early on it drops fast (word frequencies, local grammar); later, every hundredth of a nat needs knowledge or reasoning found in few documents. The easy gains come first — which is why pretraining is so expensive." },
     ],
 
     // ------------------------------------------------------------------ mechanism
     mechanism: [
       { t: "h", text: "The data pipeline" },
       { t: "steps", items: [
-        { title: "Collect", text: "Web crawls (Common Crawl snapshots), books, encyclopedias, scientific papers, code repositories, forums. Raw crawl data is mostly boilerplate, navigation menus, spam and duplicates." },
-        { title: "Extract and identify language", text: "Strip HTML to text; detect language with a classifier; keep the target languages." },
-        { title: "Quality filtering", text: "Heuristics (document length, fraction of alphabetic characters, repeated lines or words, 'lorem ipsum', bad-word lists — the C4 corpus of Raffel et al., 2020 used rules of this kind) and model-based filters (a classifier trained to distinguish reference-quality text, or the perplexity of a small language model)." },
-        { title: "Deduplicate", text: "Exact duplicates by hashing normalised text; near-duplicates with **MinHash** (Broder, 1997) over character or word n-gram shingles and locality-sensitive hashing. Lee et al. (2022, *Deduplicating Training Data Makes Language Models Better*) found that deduplication reduces memorised output and wasted compute." },
-        { title: "Decontaminate and clean", text: "Remove benchmark test sets (so evaluations are not inflated) and personal information where possible." },
-        { title: "Tokenize", text: "Train a BPE or similar tokenizer on a sample (see [Text Preprocessing](/learn/m13/text-preprocessing)); convert everything to token ids; concatenate documents separated by an end-of-document token and cut into fixed-length training sequences ('packing')." },
-        { title: "Mix", text: "Sample sources by chosen weights, not raw sizes: high-quality sources (books, encyclopedias, code) are **up-sampled** to several epochs, while the huge web source is seen less than once. The weights are tuned with small proxy models." },
+        { title: "Collect", text: "Web crawls (Common Crawl snapshots), books, encyclopedias, papers, code, forums. Raw crawl data is mostly boilerplate, menus, spam and duplicates." },
+        { title: "Extract and identify language", text: "Strip HTML to text, detect the language with a classifier, keep the target languages." },
+        { title: "Quality filtering", text: "Rules (document length, share of letters, repeated lines or words, 'lorem ipsum', bad-word lists — as in the C4 corpus of Raffel et al., 2020) plus model-based filters (a classifier that spots reference-quality text, or a small language model's perplexity)." },
+        { title: "Deduplicate", text: "Exact duplicates by hashing normalised text. Near-duplicates with **MinHash** (Broder, 1997) over character or word n-gram shingles plus locality-sensitive hashing. Lee et al. (2022, *Deduplicating Training Data Makes Language Models Better*) found that deduplication cuts memorised output and wasted compute." },
+        { title: "Decontaminate and clean", text: "Remove benchmark test sets (so scores aren't inflated) and personal information where possible." },
+        { title: "Tokenize", text: "Train a BPE or similar tokenizer on a sample (see [Text Preprocessing](/learn/m13/text-preprocessing)) and convert everything to token ids. Join documents with an end-of-document token and cut into fixed-length training sequences ('packing')." },
+        { title: "Mix", text: "Sample sources by chosen weights, not raw size: high-quality sources (books, encyclopedias, code) are **up-sampled** to several epochs, while the huge web source is seen less than once. Small proxy models tune the weights." },
       ] },
       { t: "h", text: "The modern architecture recipe (decoder-only)" },
       { t: "list", items: [
-        "**Pre-norm** blocks $x \\leftarrow x + F(\\mathrm{Norm}(x))$ with a final norm before the output head — stable without long warm-ups (see [Transformer Architecture](/learn/m11/transformer-architecture)).",
-        "**RMSNorm** (Zhang and Sennrich, 2019) instead of LayerNorm: rescale by the root-mean-square, no mean subtraction, no bias — cheaper, and empirically as good.",
-        "**RoPE** — rotary position embedding (Su et al., 2021, *RoFormer*): rotate query and key vectors by position-dependent angles, so attention scores depend on relative position; no learned position table.",
-        "**SwiGLU** feed-forward (Shazeer, 2020, *GLU Variants Improve Transformer*): $W_{\\text{down}}(\\mathrm{SiLU}(xW_{\\text{gate}}) \\odot xW_{\\text{up}})$ with hidden width $\\approx \\tfrac{8}{3}d$ to keep the parameter count of a $4d$ MLP.",
+        "**Pre-norm** blocks $x \\leftarrow x + F(\\mathrm{Norm}(x))$, with a final norm before the output head — stable without long warm-ups (see [Transformer Architecture](/learn/m11/transformer-architecture)).",
+        "**RMSNorm** (Zhang and Sennrich, 2019) instead of LayerNorm: divide by the root-mean-square, with no mean subtraction and no bias. Cheaper, and works as well in practice.",
+        "**RoPE** — rotary position embedding (Su et al., 2021, *RoFormer*): rotate query and key vectors by angles that depend on position, so attention scores depend on relative position. No learned position table.",
+        "**SwiGLU** feed-forward (Shazeer, 2020, *GLU Variants Improve Transformer*): $W_{\\text{down}}(\\mathrm{SiLU}(xW_{\\text{gate}}) \\odot xW_{\\text{up}})$, a gated layer with hidden width $\\approx \\tfrac{8}{3}d$ so it has the same parameter count as a $4d$ MLP.",
         "**No biases** in linear layers, often **tied** input/output embeddings for small models, and **grouped-query attention** for cheaper inference ([Efficient Inference](/learn/m20/llm-inference)).",
         "LLaMA (Touvron et al., 2023) combined pre-norm RMSNorm, SwiGLU and RoPE; most open LLMs since follow this template.",
       ] },
       { t: "h", text: "The optimisation recipe" },
       { t: "steps", items: [
-        { title: "Optimizer", text: "AdamW (Loshchilov and Hutter, 2019) with $\\beta_2 \\approx 0.95$, weight decay $\\approx 0.1$ on matrices only (not norms/biases)." },
-        { title: "Schedule", text: "Linear warm-up over the first few thousand steps, then cosine decay to about 10% of the peak learning rate at the end of the planned run." },
-        { title: "Stability", text: "Global gradient-norm clipping at 1.0; loss spikes are handled by skipping batches or restarting from a checkpoint with a lower learning rate." },
-        { title: "Precision and parallelism", text: "bf16 mixed precision (Micikevicius et al., 2018 introduced mixed-precision training with fp16 and loss scaling), with data, tensor and pipeline parallelism and sharded optimizer states across thousands of accelerators." },
-        { title: "Batch", text: "Millions of tokens per optimizer step (sequences × context length), often ramped up during training." },
-        { title: "Monitor", text: "Training loss, held-out loss on several domains, and periodic downstream evaluations; checkpoints are saved regularly." },
+        { title: "Optimizer", text: "AdamW (Loshchilov and Hutter, 2019) with $\\beta_2 \\approx 0.95$ and weight decay $\\approx 0.1$ on matrices only (not norms/biases)." },
+        { title: "Schedule", text: "Linear warm-up over the first few thousand steps, then cosine decay to about 10% of the peak learning rate by the end of the planned run." },
+        { title: "Stability", text: "Clip the global gradient norm at 1.0. Handle loss spikes by skipping batches or restarting from a checkpoint with a lower learning rate." },
+        { title: "Precision and parallelism", text: "bf16 mixed precision (Micikevicius et al., 2018 introduced mixed-precision training with fp16 and loss scaling), plus data, tensor and pipeline parallelism and sharded optimizer states across thousands of accelerators." },
+        { title: "Batch", text: "Millions of tokens per optimizer step (sequences × context length), often increased during training." },
+        { title: "Monitor", text: "Training loss, held-out loss on several domains, regular downstream evaluations; save checkpoints often." },
       ] },
     ],
 
     // ------------------------------------------------------------------ math
     math: [
       { t: "h", text: "The objective" },
-      { t: "math", tex: String.raw`\mathcal L(\theta) = -\frac{1}{|\mathcal D|}\sum_{x\in\mathcal D}\ \sum_{t=1}^{|x|} \log p_\theta(x_t \mid x_{<t}), \qquad \mathrm{PPL} = \exp(\mathcal L)`, caption: "$\\mathcal D$ = training tokens, $x_t$ = token at position $t$; the loss is in nats per token. Derivation and the one-pass causal-mask trick: [Training, Autoregressive Generation and Complexity](/learn/m11/training-inference)." },
-      { t: "p", text: String.raw`Perplexity is only comparable between models **with the same tokenizer**: a model with a larger vocabulary predicts fewer, harder tokens. For tokenizer-independent comparisons use bits per byte (or per character): $\text{bits/char} = \mathcal L_{\text{token}} \cdot (\text{tokens}/\text{chars}) / \ln 2$. Worked example from the training run below: held-out loss 2.441 nats/char at step 150 gives perplexity $e^{2.441} = 11.48$ and $2.441/\ln 2 = 3.52$ bits/char, against $\ln 37 = 3.611$ nats ($\mathrm{PPL} = 37$) for uniform guessing over the 37-character vocabulary.` },
+      { t: "math", tex: String.raw`\mathcal L(\theta) = -\frac{1}{|\mathcal D|}\sum_{x\in\mathcal D}\ \sum_{t=1}^{|x|} \log p_\theta(x_t \mid x_{<t}), \qquad \mathrm{PPL} = \exp(\mathcal L)`, caption: "$\\mathcal D$ = training tokens, $x_t$ = token at position $t$; loss is in nats per token. Derivation and the one-pass causal-mask trick: [Training, Autoregressive Generation and Complexity](/learn/m11/training-inference)." },
+      { t: "p", text: String.raw`In words: loss is the average surprise at each true next token; perplexity is "how many choices the model is torn between". Compare perplexity only between models **with the same tokenizer**: a bigger vocabulary means fewer, harder tokens. To compare across tokenizers, use bits per byte (or per character): $\text{bits/char} = \mathcal L_{\text{token}} \cdot (\text{tokens}/\text{chars}) / \ln 2$. Example from the run below: held-out loss 2.441 nats/char at step 150 gives perplexity $e^{2.441} = 11.48$ and $2.441/\ln 2 = 3.52$ bits/char. Uniform guessing over the 37-character vocabulary would give $\ln 37 = 3.611$ nats ($\mathrm{PPL} = 37$).` },
       { t: "h", text: "RMSNorm" },
-      { t: "math", tex: String.raw`\mathrm{RMSNorm}(x) = g \odot \frac{x}{\sqrt{\frac1d\sum_{i=1}^d x_i^2 + \epsilon}}`, caption: "$x \\in \\mathbb R^d$ one token's vector, $g$ learned gain, $\\epsilon$ small constant. Equal to LayerNorm (without bias) when $x$ already has zero mean." },
-      { t: "p", text: String.raw`Example: $x = (1, 2, 3, 4)$, $\mathrm{rms} = \sqrt{30/4} = 2.738613$, so with $g = 1$ the output is $(0.365148,\ 0.730297,\ 1.095445,\ 1.460593)$, whose root-mean-square is 1.` },
+      { t: "math", tex: String.raw`\mathrm{RMSNorm}(x) = g \odot \frac{x}{\sqrt{\frac1d\sum_{i=1}^d x_i^2 + \epsilon}}`, caption: "$x \\in \\mathbb R^d$ is one token's vector, $g$ a learned gain, $\\epsilon$ a small constant. Same as LayerNorm (without bias) when $x$ already has zero mean." },
+      { t: "p", text: String.raw`Example: $x = (1, 2, 3, 4)$, $\mathrm{rms} = \sqrt{30/4} = 2.738613$. With $g = 1$ the output is $(0.365148,\ 0.730297,\ 1.095445,\ 1.460593)$, whose root-mean-square is 1.` },
       { t: "h", text: "Rotary position embedding" },
-      { t: "p", text: String.raw`Split a $d_{\text{head}}$-dimensional query into $d_{\text{head}}/2$ pairs $(u_i, v_i)$ and rotate pair $i$ at position $m$ by angle $m\theta_i$ with $\theta_i = b^{-2i/d_{\text{head}}}$ ($b = 10{,}000$):` },
+      { t: "p", text: String.raw`Split a $d_{\text{head}}$-dimensional query into $d_{\text{head}}/2$ pairs $(u_i, v_i)$. Rotate pair $i$ at position $m$ by angle $m\theta_i$, with $\theta_i = b^{-2i/d_{\text{head}}}$ ($b = 10{,}000$):` },
       { t: "math", tex: String.raw`\begin{pmatrix}u_i'\\ v_i'\end{pmatrix} = \begin{pmatrix}\cos m\theta_i & -\sin m\theta_i\\ \sin m\theta_i & \cos m\theta_i\end{pmatrix}\begin{pmatrix}u_i\\ v_i\end{pmatrix}, \qquad \langle R_m q,\ R_n k\rangle = \langle q,\ R_{n-m} k\rangle` },
-      { t: "p", text: String.raw`Because rotations are orthogonal ($R_m^\top R_n = R_{n-m}$), the attention score between a query at $m$ and a key at $n$ depends only on the offset $n-m$, and vector norms are unchanged. One-pair example with $q = k = (1, 0)$, $\theta = 0.5$, $m=3$, $n=1$: the score is $\cos((3-1)\cdot0.5) = \cos 1 = 0.540302$, the same for $m=13, n=11$. Low-index pairs rotate fast (fine position), high-index pairs slowly (coarse position). The code below confirms the relative-position property numerically.` },
+      { t: "p", text: String.raw`Rotations are orthogonal ($R_m^\top R_n = R_{n-m}$), so the score between a query at $m$ and a key at $n$ depends only on the offset $n-m$, and vector lengths don't change. One-pair example with $q = k = (1, 0)$, $\theta = 0.5$, $m=3$, $n=1$: the score is $\cos((3-1)\cdot0.5) = \cos 1 = 0.540302$, the same as for $m=13, n=11$. Low-index pairs rotate fast (fine position), high-index pairs slowly (coarse position). The code below checks the relative-position property numerically.` },
       { t: "h", text: "SwiGLU" },
       { t: "math", tex: String.raw`\mathrm{FFN}_{\text{SwiGLU}}(x) = \big(\mathrm{SiLU}(xW_{g}) \odot xW_{u}\big)W_{d}, \qquad \mathrm{SiLU}(z) = z\,\sigma(z)`, caption: "$W_g, W_u \\in \\mathbb R^{d\\times h}$, $W_d \\in \\mathbb R^{h\\times d}$: $3dh$ parameters; $h = 8d/3$ matches a GELU MLP's $2d\\cdot4d = 8d^2$." },
       { t: "h", text: "Training compute: C ≈ 6ND" },
-      { t: "p", text: String.raw`A forward pass costs about 2 FLOPs per parameter per token (one multiply and one add in each matrix product); the backward pass about twice that. So training a model with $N$ parameters on $D$ tokens costs` },
-      { t: "math", tex: String.raw`C \approx 6\,N\,D \ \text{FLOPs}`, caption: "Ignores the attention term $\\propto n_{\\text{ctx}}$, which is small unless the context is long relative to $d$. Scaling-law details: [Scaling Laws](/learn/m19/scaling-efficiency)." },
+      { t: "p", text: String.raw`A forward pass costs about 2 FLOPs per parameter per token (one multiply and one add in each matrix product); the backward pass about twice that. So training $N$ parameters on $D$ tokens costs` },
+      { t: "math", tex: String.raw`C \approx 6\,N\,D \ \text{FLOPs}`, caption: "Ignores the attention term $\\propto n_{\\text{ctx}}$, which is small unless the context is long compared with $d$. Scaling-law details: [Scaling Laws](/learn/m19/scaling-efficiency)." },
       { t: "steps", items: [
         { title: "Worked example: 7B parameters, 140B tokens", tex: String.raw`C = 6 \times 7\times10^9 \times 1.4\times10^{11} = 5.88\times10^{21}\ \text{FLOPs}` },
         { title: "Wall-clock at 312 TFLOP/s peak (bf16) and 40% utilisation", tex: String.raw`\frac{5.88\times10^{21}}{0.4\times3.12\times10^{14}} = 4.71\times10^{7}\ \text{GPU-seconds} \approx 545\ \text{GPU-days}` },
-        { title: "Compute-optimal split", text: String.raw`Hoffmann et al. (2022, *Training Compute-Optimal Large Language Models*, "Chinchilla") found that $N$ and $D$ should grow in proportion, at roughly 20 tokens per parameter. Then $C = 6N(20N) = 120N^2$: for $C = 10^{21}$ FLOPs, $N = \sqrt{10^{21}/120} \approx 2.9\times10^9$ and $D \approx 5.8\times10^{10}$ tokens.` },
+        { title: "Compute-optimal split", text: String.raw`Hoffmann et al. (2022, *Training Compute-Optimal Large Language Models*, "Chinchilla") found $N$ and $D$ should grow together, at roughly 20 tokens per parameter. Then $C = 6N(20N) = 120N^2$: for $C = 10^{21}$ FLOPs, $N = \sqrt{10^{21}/120} \approx 2.9\times10^9$ and $D \approx 5.8\times10^{10}$ tokens.` },
       ] },
-      { t: "p", text: "Compute-optimal is optimal for the *training* budget only. Models that will serve many requests are often trained on far more tokens than 20 per parameter, because a smaller model trained longer is cheaper to run (see [Efficient Inference](/learn/m20/llm-inference)). Our tiny run below uses $D/N \\approx 10.7$ tokens per parameter, but its 3,761 training characters are revisited about 163 times — far from the regime where scaling laws (which assume mostly unique data) apply." },
+      { t: "p", text: "Compute-optimal is optimal for the *training* budget only. Models serving many requests are often trained on far more than 20 tokens per parameter, because a smaller model trained longer is cheaper to run (see [Efficient Inference](/learn/m20/llm-inference)). Our tiny run below uses $D/N \\approx 10.7$ tokens per parameter, but its 3,761 training characters are revisited about 163 times — far from the mostly-unique-data regime that scaling laws assume." },
     ],
 
     // ------------------------------------------------------------------ visual
     visual: [
       { t: "sim", id: "transformer", caption: "A small pretrained decoder-only Transformer (61,488 parameters, Alice in Wonderland Chapter I) running in your browser." },
       { t: "list", items: [
-        "Open the **Logits** stage and step through positions of the prompt: every position predicts the next character simultaneously — one forward pass gives a training signal at all 64 positions.",
-        "Note the aside: train loss 0.53 but held-out loss 2.51 nats/char. On 6,759 characters the model memorised the chapter. Real pretraining sees each token roughly once, so train and held-out loss stay close.",
-        "Generate with greedy decoding and observe the recognisable phrases from the book: memorisation of repeated training data is what deduplication tries to prevent.",
+        "Open the **Logits** stage and step through the prompt: every position predicts its next character at once, so one forward pass trains all 64 positions.",
+        "Note the aside: train loss 0.53 but held-out loss 2.51 nats/char. On 6,759 characters the model memorised the chapter. Real pretraining sees each token about once, so train and held-out loss stay close.",
+        "Generate greedily and spot phrases straight from the book — the memorisation deduplication tries to prevent.",
       ] },
       { t: "sim", id: "lr-schedule", caption: "Warm-up, cosine and other schedules driving real training runs." },
-      { t: "p", text: "Select the warm-up + cosine schedule and compare it with a constant learning rate: the warm-up avoids early instability, and the decay lets the loss settle at the end — the reason the tiny GPT below improves fastest in its first 150 steps and then flattens as the learning rate decays." },
+      { t: "p", text: "Compare warm-up + cosine with a constant learning rate: warm-up avoids early instability, and the decay lets the loss settle. That's why the tiny GPT below improves fastest in its first 150 steps, then flattens as the learning rate decays." },
       { t: "sim", id: "decoding", caption: "Text from a base model depends on how you decode it." },
     ],
 
     // ------------------------------------------------------------------ scratch
     scratch: [
-      { t: "p", text: "The pieces of the recipe that are pure arithmetic, in NumPy: a miniature data pipeline (normalisation, exact deduplication by SHA-256, heuristic quality filtering, near-duplicate detection with MinHash), the effect of mixture weights, RMSNorm, RoPE's relative-position property, SwiGLU's parameter matching, the warm-up + cosine schedule and the 6ND compute budget." },
+      { t: "p", text: "The parts of the recipe that are pure arithmetic, in NumPy: a mini data pipeline (normalisation, exact dedup by SHA-256, rule-based quality filtering, MinHash near-duplicate detection), the effect of mixture weights, RMSNorm, RoPE's relative-position property, SwiGLU's parameter matching, the warm-up + cosine schedule and the 6ND budget." },
       { t: "code", lang: "python", title: "pretraining_pieces_numpy.py", code: SCRATCH, output: SCRATCH_OUT },
-      { t: "p", text: "Highlights: MinHash estimated the Jaccard similarity of the 'river bank' near-duplicate as 0.80 (true value 0.85) from 64 hashes and removed it; the mixture weights mean the small high-quality sources are repeated 1.7–2.5 times while the web source is only one-third used; the RoPE dot product is identical for positions (5, 3), (12, 10) and (102, 100); SwiGLU with hidden width $\\lfloor 8d/3 \\rfloor$ matches the GELU MLP's parameter count to 0.006%." },
+      { t: "list", items: [
+        "MinHash estimated the Jaccard similarity of the 'river bank' near-duplicate as 0.80 (true value 0.85) from 64 hashes, and removed it.",
+        "With the mixture weights, the small high-quality sources repeat 1.7–2.5 times while only a third of the web source is used.",
+        "The RoPE dot product is identical for positions (5, 3), (12, 10) and (102, 100).",
+        "SwiGLU with hidden width $\\lfloor 8d/3 \\rfloor$ matches the GELU MLP's parameter count to 0.006%.",
+      ] },
     ],
 
     // ------------------------------------------------------------------ framework
     framework: [
       { t: "tabs", tabs: [
         { label: "PyTorch", blocks: [
-          { t: "p", text: "Pretraining a tiny modern GPT for real: character tokens, RMSNorm pre-norm blocks, RoPE, SwiGLU, no biases, tied embeddings, AdamW ($\\beta_2 = 0.95$, decoupled weight decay on matrices only), linear warm-up + cosine decay, global-norm clipping — on the first 4,179 characters of *Alice's Adventures in Wonderland* (public domain), embedded in the program. Runs in about 20 seconds on one CPU thread." },
+          { t: "p", text: "A tiny modern GPT, really pretrained: character tokens, RMSNorm pre-norm blocks, RoPE, SwiGLU, no biases, tied embeddings, AdamW ($\\beta_2 = 0.95$, decoupled weight decay on matrices only), linear warm-up + cosine decay and global-norm clipping. The data is the first 4,179 characters of *Alice's Adventures in Wonderland* (public domain), built into the program. About 20 seconds on one CPU thread." },
           { t: "code", lang: "python", title: "pretrain_tiny_gpt.py", code: TORCH, output: TORCH_OUT },
-          { t: "p", text: "Read the curve like a pretraining engineer. At step 0 the loss is 3.654 — close to $\\ln 37 = 3.611$, as it should be with a small embedding initialisation (the first version of this program used PyTorch's default $\\mathcal N(0,1)$ embeddings with the tied head and started at a loss of 61, a classic initialisation bug). Held-out loss falls to 2.441 (perplexity 11.5) at step 150 and then **rises** while training loss keeps falling: with 3,761 training characters each seen about 163 times, the model starts memorising. Real pretraining avoids this regime by having more unique data than it can consume. The greedy sample — 'the was the the the' — shows a small model collapsing to its most frequent tokens; better decoding helps ([Decoding](/learn/m20/decoding)), but mostly more data and parameters do." },
-          { t: "callout", kind: "tip", text: "On a GPU you would add `torch.autocast(\"cuda\", dtype=torch.bfloat16)` around the forward pass and `torch.compile(model)`; on CPU we keep float32 so that the output is bit-reproducible." },
+          { t: "p", text: "Read the curve like a pretraining engineer. Step-0 loss is 3.654 — close to $\\ln 37 = 3.611$, as expected with small initial embeddings. (A first version with PyTorch's default $\\mathcal N(0,1)$ embeddings and the tied head started at loss 61 — a classic initialisation bug.)" },
+          { t: "p", text: "Held-out loss falls to 2.441 (perplexity 11.5) at step 150, then **rises** while training loss keeps falling. With 3,761 training characters each seen about 163 times, the model starts memorising. Real pretraining has more unique data than it can use. The greedy sample — 'the was the the the' — shows a small model collapsing onto its most frequent tokens; better decoding helps ([Decoding](/learn/m20/decoding)), but more data and parameters help most." },
+          { t: "callout", kind: "tip", text: "On a GPU you would wrap the forward pass in `torch.autocast(\"cuda\", dtype=torch.bfloat16)` and use `torch.compile(model)`. On CPU we keep float32 so the output is bit-reproducible." },
         ] },
         { label: "TensorFlow / Keras", blocks: [
           { t: "code", lang: "python", title: "modern_block_parts_keras.py (not executed in CI)", code: KERAS, output: "Prints (2, 8, 48): the shape after RMSNorm and a SwiGLU feed-forward block; the schedule and AdamW optimiser are configured as in the PyTorch run." },
@@ -512,65 +524,65 @@ const lesson: Lesson = {
     // ------------------------------------------------------------------ variations
     variations: [
       { t: "table", head: ["Choice", "Options", "Advantages", "Disadvantages", "Typical modern default"], rows: [
-        ["Objective", "Causal LM / masked LM / span corruption / prefix LM", "Causal LM directly enables generation and in-context learning", "Masked LM is better for some encoders, cannot generate", "Causal LM (decoder-only)"],
+        ["Objective", "Causal LM / masked LM / span corruption / prefix LM", "Causal LM directly allows generation and in-context learning", "Masked LM suits some encoders but cannot generate", "Causal LM (decoder-only)"],
         ["Normalisation", "Post-LN / pre-LN LayerNorm / pre-RMSNorm", "Pre-RMSNorm is stable and cheap", "Pre-norm can let the residual stream grow", "Pre-RMSNorm"],
-        ["Positions", "Learned absolute / sinusoidal / RoPE / ALiBi", "RoPE: relative, no table, extendable with scaling", "Extrapolation beyond training length still needs care", "RoPE"],
-        ["FFN", "ReLU / GELU MLP / SwiGLU", "SwiGLU improves quality at equal parameters", "Three matrices instead of two", "SwiGLU"],
+        ["Positions", "Learned absolute / sinusoidal / RoPE / ALiBi", "RoPE: relative, no table, can be stretched with scaling", "Going beyond the training length still needs care", "RoPE"],
+        ["FFN", "ReLU / GELU MLP / SwiGLU", "SwiGLU gives better quality at equal parameters", "Three matrices instead of two", "SwiGLU"],
         ["Attention", "MHA / MQA / GQA", "GQA shrinks the KV cache", "Slight quality loss vs MHA", "GQA"],
-        ["Dense vs MoE", "Dense / mixture of experts", "MoE: more parameters at same FLOPs", "Memory, routing, communication", "Both in use"],
+        ["Dense vs MoE", "Dense / mixture of experts", "MoE: more parameters at the same FLOPs", "Memory, routing, communication", "Both in use"],
         ["Tokenizer", "Byte-level BPE / SentencePiece unigram / bytes", "BPE: no unknown tokens, efficient", "Vocabulary affects multilingual fairness and arithmetic", "Byte-level BPE, 32k–256k tokens"],
         ["Training length", "Compute-optimal (~20 tokens/param) / over-trained", "Over-training gives cheaper inference", "More training compute", "Over-trained for deployed models"],
       ] },
-      { t: "p", text: "Pretraining is often followed by **continued pretraining** (more tokens on a domain such as code or a new language), **long-context extension** (a short phase at longer sequence length with adjusted RoPE frequencies) and an **annealing** phase with the highest-quality data at the end of the learning-rate decay." },
+      { t: "p", text: "After pretraining there is often **continued pretraining** (more tokens from a domain such as code or a new language), **long-context extension** (a short phase at longer sequence length with adjusted RoPE frequencies), and an **annealing** phase on the best data at the end of the learning-rate decay." },
     ],
 
     // ------------------------------------------------------------------ applications
     applications: [
       { t: "list", items: [
-        "**Foundation models**: GPT-3 (Brown et al., 2020), LLaMA (Touvron et al., 2023) and their successors are base models produced exactly by this recipe at scale, then post-trained for chat.",
+        "**Foundation models**: GPT-3 (Brown et al., 2020), LLaMA (Touvron et al., 2023) and successors are base models made with this recipe at scale, then post-trained for chat.",
         "**Domain models**: continued pretraining on code, biomedical or legal text gives specialised base models.",
-        "**Scientific sequence models**: the same next-token objective is applied to protein sequences, DNA and source code.",
-        "**Evaluation proxies**: small models trained with the same pipeline are used to choose data mixtures and hyperparameters before the expensive run.",
-        "**Embeddings and retrieval**: representations from pretrained decoders are fine-tuned into text-embedding models (see [Multimodal Models, CLIP and RAG Foundations](/learn/m15/multimodal)).",
+        "**Scientific sequence models**: the same next-token goal is used on protein sequences, DNA and source code.",
+        "**Cheap stand-ins**: small models trained with the same pipeline pick data mixtures and hyperparameters before the expensive run.",
+        "**Embeddings and retrieval**: pretrained decoders are fine-tuned into text-embedding models (see [Multimodal Models, CLIP and RAG Foundations](/learn/m15/multimodal)).",
       ] },
     ],
 
     // ------------------------------------------------------------------ tradeoffs
     tradeoffs: [
       { t: "list", items: [
-        "**Strength**: one simple, unsupervised objective scales with data and compute and yields broadly useful representations and in-context learning.",
-        "**Cost**: training compute grows as $6ND$; frontier runs need thousands of accelerators for months, and mistakes are expensive — hence the reliance on small proxy experiments.",
-        "**Data limits**: high-quality text is finite; repetition beyond a few epochs gives diminishing returns, as the overfitting in our tiny run shows in extreme form.",
-        "**What a base model is not**: it does not follow instructions reliably, can reproduce biases, toxic content and memorised personal data from the corpus, and has a knowledge cut-off.",
-        "**Tokenizer lock-in**: the tokenizer is fixed before pretraining; changing it later requires substantial retraining.",
-        "**Evaluation is hard**: loss is smooth and predictable, but downstream abilities can appear abruptly and benchmarks can be contaminated by training data.",
+        "**Strength**: one simple, label-free objective scales with data and compute, giving broadly useful representations and in-context learning.",
+        "**Cost**: compute grows as $6ND$; frontier runs need thousands of accelerators for months, so mistakes are expensive — hence small proxy experiments first.",
+        "**Data limits**: high-quality text is finite; repeating it beyond a few epochs gives shrinking returns (our tiny run's overfitting is the extreme case).",
+        "**What a base model is not**: it doesn't follow instructions reliably, can reproduce biases, toxic content and memorised personal data from the corpus, and has a knowledge cut-off.",
+        "**Tokenizer lock-in**: the tokenizer is fixed before pretraining; changing it later needs a lot of retraining.",
+        "**Evaluation is hard**: loss is smooth and predictable, but downstream abilities can appear suddenly, and benchmarks can leak into training data.",
       ] },
     ],
 
     // ------------------------------------------------------------------ mistakes
     mistakes: [
       { t: "list", items: [
-        "**Comparing perplexities across tokenizers.** A 50k-token vocabulary and a character vocabulary give incomparable per-token losses; convert to bits per byte/character.",
+        "**Comparing perplexities across tokenizers.** A 50k-token vocabulary and a character vocabulary give per-token losses you can't compare. Convert to bits per byte/character.",
         "**Evaluating on data that leaked into training** (duplicates across the split, benchmark contamination). Deduplicate across splits and decontaminate against test sets.",
-        "**Bad initialisation with tied embeddings**: unit-variance embeddings make initial logits huge (our first attempt started at loss 61 instead of ≈ 3.6). Check that the step-0 loss is close to $\\ln|\\mathcal V|$.",
-        "**Applying weight decay to norm gains and biases**, which pulls the gains toward 0. Decay matrices only.",
-        "**No warm-up with Adam at a high learning rate**: early updates are huge because the second-moment estimate is poor, causing divergence.",
-        "**Forgetting the end-of-document separator when packing**: the model learns spurious dependencies between unrelated documents. Some setups also mask attention across document boundaries.",
-        "**Reading the training loss only.** With repeated data, training loss keeps falling while held-out loss rises (see the run above). Always track held-out loss.",
-        "**Using C ≈ 6ND with total instead of non-embedding parameters for small models**, or ignoring the attention term for very long contexts — both distort the budget.",
+        "**Bad initialisation with tied embeddings**: unit-variance embeddings make the first logits huge (our first attempt started at loss 61 instead of ≈ 3.6). Check the step-0 loss is close to $\\ln|\\mathcal V|$.",
+        "**Weight decay on norm gains and biases** pulls the gains toward 0. Decay matrices only.",
+        "**No warm-up with Adam at a high learning rate**: the second-moment estimate is still poor, so early updates are huge and training diverges.",
+        "**No end-of-document separator when packing**: the model learns fake links between unrelated documents. Some setups also block attention across document boundaries.",
+        "**Watching only training loss.** With repeated data, training loss keeps falling while held-out loss rises (see the run above). Always track held-out loss.",
+        "**Using total instead of non-embedding parameters in C ≈ 6ND for small models**, or ignoring the attention term for very long contexts — both distort the budget.",
       ] },
     ],
 
     // ------------------------------------------------------------------ interview
     interview: [
-      { t: "qa", level: "beginner", q: "What is the pretraining objective of a GPT-style model?", a: "Next-token prediction: minimise the average negative log-likelihood −log p(x_t | x_<t) over all positions of the training text, computed in one causally masked forward pass per sequence. No labels are needed; the text supplies its own targets." },
-      { t: "qa", level: "beginner", q: "Why deduplicate pretraining data?", a: "Duplicates waste compute on content the model has already seen, skew the effective data mixture toward whatever is copied most, increase verbatim memorisation (privacy and copyright risk), and can leak evaluation data. Exact dedup uses hashes of normalised text; near-dup uses MinHash/LSH over n-gram shingles." },
-      { t: "qa", level: "beginner", q: "How do you convert a validation loss into perplexity, and what does perplexity 11.5 mean?", a: "PPL = exp(loss in nats per token). A perplexity of 11.5 means the model is, on average, as uncertain as if it were choosing uniformly among about 11.5 tokens at each step." },
+      { t: "qa", level: "beginner", q: "What is the pretraining objective of a GPT-style model?", a: "Next-token prediction: minimise the average negative log-likelihood −log p(x_t | x_<t) over every position of the training text, computed in one causally masked forward pass per sequence. No labels are needed — the text provides its own targets." },
+      { t: "qa", level: "beginner", q: "Why deduplicate pretraining data?", a: "Duplicates waste compute on seen content, tilt the mixture toward whatever is copied most, increase word-for-word memorisation (privacy and copyright risk), and can leak evaluation data. Exact dedup hashes normalised text; near-dup uses MinHash/LSH over n-gram shingles." },
+      { t: "qa", level: "beginner", q: "How do you convert a validation loss into perplexity, and what does perplexity 11.5 mean?", a: "PPL = exp(loss in nats per token). Perplexity 11.5 means the model is, on average, as unsure as if it picked uniformly among about 11.5 tokens at each step." },
       { t: "qa", level: "intermediate", q: "Estimate the training compute of a 13B-parameter model trained on 1T tokens.", a: "C ≈ 6ND = 6 × 1.3·10^10 × 10^12 = 7.8·10^22 FLOPs. At 312 TFLOP/s and 40% utilisation that is 7.8e22 / 1.248e14 ≈ 6.25·10^8 GPU-seconds ≈ 7,200 GPU-days." },
-      { t: "qa", level: "intermediate", q: "What do RMSNorm, RoPE and SwiGLU change relative to the original Transformer, and why?", a: "RMSNorm drops LayerNorm's mean subtraction and bias, saving computation with no quality loss. RoPE replaces added position vectors with rotations of queries and keys so that attention scores depend on relative offsets and no position table is learned. SwiGLU replaces the ReLU/GELU MLP with a gated unit (SiLU(xW_g) ⊙ xW_u)W_d, which improved quality at equal parameter count in Shazeer (2020); the hidden width is set to ~8d/3 to match parameters." },
-      { t: "qa", level: "intermediate", q: "What is a data mixture and how is it chosen?", a: "The sampling proportions of each source (web, code, books, encyclopedias, papers…) in the training stream, independent of their raw sizes. Small, high-quality sources are up-sampled (several epochs), huge noisy ones down-sampled. Weights are chosen by training small proxy models on candidate mixtures and comparing held-out losses and downstream evaluations." },
-      { t: "qa", level: "advanced", q: "Why is 'compute-optimal' (≈20 tokens per parameter) not what most deployed models use?", a: "Compute-optimal minimises training loss for a fixed training budget. Deployment cost depends on model size (every generated token costs ≈2N FLOPs and memory for N parameters). Training a smaller model on many more tokens costs more training compute for the same loss, but much less inference compute over its lifetime, so total cost is lower. The loss keeps improving with more tokens, just less efficiently." },
-      { t: "qa", level: "advanced", q: "A run shows a sudden loss spike at step 80k. What could cause it and what would you do?", a: "Possible causes: a bad batch (corrupted or extremely repetitive data), an optimizer instability (attention logits or the residual stream growing, Adam's second moment underestimating a sudden large gradient), or a learning rate that is too high for the current state. Remedies: roll back to a checkpoint before the spike and skip the offending batches, lower the learning rate, tighten gradient clipping, inspect the data, and consider stabilisers such as normalising queries/keys or lowering β2." },
+      { t: "qa", level: "intermediate", q: "What do RMSNorm, RoPE and SwiGLU change relative to the original Transformer, and why?", a: "RMSNorm drops LayerNorm's mean subtraction and bias: less compute, no quality loss. RoPE rotates queries and keys instead of adding position vectors, so scores depend on relative offsets and no position table is learned. SwiGLU swaps the ReLU/GELU MLP for a gated unit (SiLU(xW_g) ⊙ xW_u)W_d, which improved quality at equal parameter count in Shazeer (2020); hidden width ~8d/3 keeps parameters equal." },
+      { t: "qa", level: "intermediate", q: "What is a data mixture and how is it chosen?", a: "The share of each source (web, code, books, encyclopedias, papers…) in the training stream, independent of raw sizes. Small, high-quality sources are up-sampled (several epochs); huge noisy ones down-sampled. Weights are chosen by training small proxy models on candidate mixtures and comparing held-out losses and downstream scores." },
+      { t: "qa", level: "advanced", q: "Why is 'compute-optimal' (≈20 tokens per parameter) not what most deployed models use?", a: "Compute-optimal minimises training loss for a fixed training budget. Serving cost depends on model size (≈2N FLOPs per generated token, plus memory for N parameters). A smaller model trained on many more tokens costs more training compute for the same loss but far less inference compute over its life, so the total is lower. Loss keeps improving with more tokens, just less efficiently." },
+      { t: "qa", level: "advanced", q: "A run shows a sudden loss spike at step 80k. What could cause it and what would you do?", a: "Causes: a bad batch (corrupted or very repetitive data); an optimizer instability (growing attention logits or residual stream, or Adam's second moment underestimating a sudden large gradient); or a learning rate too high for the current state. Fixes: roll back to a checkpoint before the spike and skip those batches, lower the learning rate, tighten clipping, inspect the data, and consider stabilisers such as normalising queries/keys or lowering β2." },
     ],
 
     // ------------------------------------------------------------------ practice
@@ -578,30 +590,30 @@ const lesson: Lesson = {
       { t: "quiz", questions: [
         { kind: "numeric", q: "Training compute in FLOPs for N = 1e9 parameters and D = 2e10 tokens, using C ≈ 6ND? (enter in units of 1e20)", answer: 1.2, tolerance: 0.001, explain: "6 × 10^9 × 2·10^10 = 1.2·10^20 FLOPs." },
         { kind: "numeric", q: "Under the ≈20 tokens-per-parameter rule, how many parameters (in billions) are compute-optimal for C = 1.2e22 FLOPs?", answer: 10, tolerance: 0.05, explain: "C = 120 N² ⇒ N = √(1.2·10^22 / 120) = √(10^20) = 10^10 = 10 B parameters, trained on 200 B tokens." },
-        { kind: "numeric", q: "A held-out loss of 2.0 nats/token corresponds to what perplexity? (2 decimals)", answer: 7.39, tolerance: 0.01, explain: "e² = 7.389." },
-        { q: "Which property makes RoPE attention scores depend only on relative position?", options: ["The rotation angles are learned", "Rotations are orthogonal, so ⟨R_m q, R_n k⟩ = ⟨q, R_{n−m} k⟩", "It adds a bias proportional to distance", "It normalises queries and keys"], answer: 1, explain: "R_mᵀR_n = R_{n−m}: only the offset survives." },
+        { kind: "numeric", q: "What perplexity does a held-out loss of 2.0 nats/token give? (2 decimals)", answer: 7.39, tolerance: 0.01, explain: "e² = 7.389." },
+        { q: "Which property makes RoPE attention scores depend only on relative position?", options: ["The rotation angles are learned", "Rotations are orthogonal, so ⟨R_m q, R_n k⟩ = ⟨q, R_{n−m} k⟩", "It adds a bias proportional to distance", "It normalises queries and keys"], answer: 1, explain: "R_mᵀR_n = R_{n−m}: only the offset is left." },
         { kind: "numeric", q: "RMSNorm of x = (3, 4) with unit gain (ignore ε): what is the first output component? (4 decimals)", answer: 0.8485, tolerance: 0.0002, explain: "rms = √((9+16)/2) = √12.5 = 3.5355; 3 / 3.5355 = 0.8485." },
-        { q: "Why is weight decay usually not applied to RMSNorm gains?", options: ["They have no gradient", "Decay would pull them toward zero and shrink every normalised activation, which is not a meaningful regularisation", "PyTorch forbids it", "They are integers"], answer: 1, explain: "Gains set the scale of normalised activations; decaying them fights the normalisation." },
-        { q: "In the tiny GPT run, held-out loss rises after step 150 while training loss falls. The best explanation is…", options: ["The learning rate is too low", "The model memorises a tiny training set seen ~163 times", "RoPE fails at long contexts", "Gradient clipping is too aggressive"], answer: 1, explain: "Severe data repetition leads to overfitting; real pretraining sees most tokens about once." },
+        { q: "Why is weight decay usually not applied to RMSNorm gains?", options: ["They have no gradient", "Decay would pull them toward zero and shrink every normalised activation, which is not a meaningful regularisation", "PyTorch forbids it", "They are integers"], answer: 1, explain: "Gains set the scale of normalised activations; decaying them works against the normalisation." },
+        { q: "In the tiny GPT run, held-out loss rises after step 150 while training loss falls. The best explanation is…", options: ["The learning rate is too low", "The model memorises a tiny training set seen ~163 times", "RoPE fails at long contexts", "Gradient clipping is too aggressive"], answer: 1, explain: "Heavy data repetition causes overfitting; real pretraining sees most tokens about once." },
       ] },
-      { t: "exercise", title: "Plan a pretraining run", prompt: "You have 512 GPUs at 312 TFLOP/s (bf16 peak) for 30 days at 40% utilisation. (a) What compute budget C is that? (b) Using C = 6ND and 20 tokens per parameter, what N and D are compute-optimal? (c) If you instead train a 7B model, how many tokens can you afford?", hint: "C = GPUs × peak × utilisation × seconds.", solution: [
+      { t: "exercise", title: "Plan a pretraining run", prompt: "You have 512 GPUs at 312 TFLOP/s (bf16 peak) for 30 days at 40% utilisation. (a) What compute budget C is that? (b) Using C = 6ND and 20 tokens per parameter, which N and D are compute-optimal? (c) If you train a 7B model instead, how many tokens can you afford?", hint: "C = GPUs × peak × utilisation × seconds.", solution: [
         { t: "steps", items: [
           { title: "Budget", tex: String.raw`C = 512 \times 3.12\times10^{14} \times 0.4 \times 30\times86400 = 1.656\times10^{23}\ \text{FLOPs}` },
           { title: "Compute-optimal", tex: String.raw`N = \sqrt{C/120} = \sqrt{1.380\times10^{21}} = 3.71\times10^{10},\quad D = 20N = 7.43\times10^{11}` },
           { title: "Fixed 7B model", tex: String.raw`D = C/(6N) = 1.656\times10^{23}/(4.2\times10^{10}) = 3.94\times10^{12}\ \text{tokens} \;(\approx 563 \text{ tokens/parameter})` },
         ] },
-        { t: "p", text: "About a 37B model on 0.74T tokens minimises training loss; a 7B model on 3.9T tokens reaches a somewhat higher loss but is about 5× cheaper per generated token at inference." },
+        { t: "p", text: "A ~37B model on 0.74T tokens gives the lowest training loss. A 7B model on 3.9T tokens ends with a somewhat higher loss but is about 5× cheaper per generated token at inference." },
       ] },
-      { t: "exercise", title: "Ablate the modern recipe", prompt: "Modify the PyTorch program: (1) replace RMSNorm with `nn.LayerNorm`, (2) replace RoPE by a learned position embedding, (3) replace SwiGLU by a GELU MLP with hidden width 4d. Run each change separately with the same seed and compare the best held-out loss. Why should you not over-interpret differences at this scale?", hint: "Keep the parameter count similar; record min over evaluation steps of the validation loss.", solution: [
+      { t: "exercise", title: "Ablate the modern recipe", prompt: "Change the PyTorch program: (1) replace RMSNorm with `nn.LayerNorm`, (2) replace RoPE with a learned position embedding, (3) replace SwiGLU with a GELU MLP of hidden width 4d. Run each change on its own with the same seed and compare the best held-out loss. Why shouldn't you read too much into differences at this scale?", hint: "Keep the parameter count similar; record the minimum validation loss over evaluation steps.", solution: [
         { t: "p", text: "Each change is a few lines: `self.n1 = nn.LayerNorm(d)`; add `self.pos = nn.Embedding(CTX, d)` and `x = self.emb(idx) + self.pos(torch.arange(idx.shape[1]))` while calling attention without `rope`; and `self.mlp = nn.Sequential(nn.Linear(d, 4*d, bias=False), nn.GELU(), nn.Linear(4*d, d, bias=False))`." },
-        { t: "p", text: "Differences between variants on a 4k-character corpus are typically comparable to the run-to-run variation from changing the seed, because the run is dominated by overfitting and noise. The published advantages of RMSNorm, RoPE and SwiGLU were measured at much larger scale and averaged over many evaluations. A sound ablation reports several seeds and the spread, and uses enough unique data that the model is not memorising." },
+        { t: "p", text: "On a 4k-character corpus, differences between variants are usually about as big as the noise from changing the seed, because overfitting and noise dominate. The published gains of RMSNorm, RoPE and SwiGLU were measured at much larger scale over many evaluations. A sound ablation reports several seeds with their spread and uses enough unique data that the model isn't memorising." },
       ] },
     ],
 
     // ------------------------------------------------------------------ summary
     summary: [
       { t: "list", items: [
-        String.raw`Objective: minimise $-\frac1{|\mathcal D|}\sum\log p_\theta(x_t\mid x_{<t})$; perplexity $= e^{\mathcal L}$ (compare only with the same tokenizer; otherwise bits/byte).`,
+        String.raw`Objective: minimise $-\frac1{|\mathcal D|}\sum\log p_\theta(x_t\mid x_{<t})$; perplexity $= e^{\mathcal L}$ (compare only with the same tokenizer; otherwise use bits/byte).`,
         "Data pipeline: extract → language ID → quality filter → exact + MinHash near-dedup → decontaminate → tokenize and pack → mix sources by weights.",
         "Architecture: pre-norm RMSNorm, RoPE, SwiGLU (hidden ≈ 8d/3), no biases, GQA, tied embeddings for small models.",
         "Optimisation: AdamW (β₂ ≈ 0.95, decay on matrices), warm-up + cosine to ~10%, clip at 1.0, bf16 mixed precision, million-token batches.",
@@ -613,7 +625,7 @@ const lesson: Lesson = {
     // ------------------------------------------------------------------ next
     next: [
       { t: "list", items: [
-        "[Decoding: Greedy, Beam, Temperature, Top-k, Top-p](/learn/m20/decoding) — turning the base model's distributions into text.",
+        "[Decoding: Greedy, Beam, Temperature, Top-k, Top-p](/learn/m20/decoding) — turning the base model's probabilities into text.",
         "[Instruction Tuning, RLHF and DPO](/learn/m20/alignment) — turning a base model into an assistant.",
         "[Efficient Inference: KV Cache, FlashAttention, MoE](/learn/m20/llm-inference) — serving what you trained.",
         "[Scaling Laws, LoRA, QLoRA and PEFT](/learn/m19/scaling-efficiency) — the power laws behind compute-optimal sizing, and cheap fine-tuning afterwards.",

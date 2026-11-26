@@ -209,23 +209,23 @@ export default function RnnSim() {
   if (sub === "input") {
     eq = "W_xh · x_t";
     lines = [`unit 1: ${expandRow(w.Wxh, st.x, 0, st.xin[0])}`, `W_xh·x_t = ${vec(st.xin)}`];
-    explain = mode === "chars" ? `x_t is the one-hot vector of "${input.labels[t].replace(/"/g, "")}" over the vocabulary [${input.vocab.join(", ")}], so W_xh·x_t simply selects one column of W_xh.` : "The input is projected into the hidden space. The same W_xh is used at every time step.";
+    explain = mode === "chars" ? `x_t is the one-hot vector of "${input.labels[t].replace(/"/g, "")}" over the vocabulary [${input.vocab.join(", ")}]. It is all zeros except one 1, so W_xh·x_t just picks out one column of W_xh.` : "The input is mapped into the hidden space. The same W_xh is used at every time step.";
   } else if (sub === "recurrent") {
     eq = "W_hh · h_{t−1}";
     lines = [`h_{t−1} = ${vec(st.hPrev)}`, `unit 1: ${expandRow(w.Whh, st.hPrev, 0, st.rec[0])}`, `W_hh·h_{t−1} = ${vec(st.rec)}`];
-    explain = t === 0 ? "At t = 1 the previous state is h₀ = 0, so the recurrent term is exactly zero." : "This is the memory path: the previous state, mixed by the recurrent matrix. Its size relative to the input term decides how much the past matters.";
+    explain = t === 0 ? "At t = 1 the previous state is h₀ = 0, so the recurrent term is exactly zero." : "This is the memory path: the previous state, mixed by the recurrent matrix. How big it is next to the input term decides how much the past matters.";
   } else if (sub === "sum") {
     eq = "z_t = W_xh·x_t + W_hh·h_{t−1} + b";
     lines = [`z_t = ${vec(st.xin)} + ${vec(st.rec)} + ${vec(w.b)}`, `z_t = ${vec(st.z)}`];
-    explain = "The two terms and the bias are added. Old memory and new input now share one vector.";
+    explain = "Add the two terms and the bias. Old memory and new input now live in one vector.";
   } else if (sub === "tanh") {
     eq = "h_t = tanh(z_t)";
     lines = [`h_t = tanh(${vec(st.z)})`, `h_t = ${vec(st.h)}`, `1 − h_t² = ${vec(st.h.map((v) => 1 - v * v))}`];
-    explain = "tanh squashes every unit into (−1, 1). Units near ±1 are saturated (1 − h² ≈ 0): they barely respond to further changes — important for backpropagation through time.";
+    explain = "tanh squashes every unit into the range −1 to 1. Units near ±1 are saturated (1 − h² ≈ 0), so they barely react to changes. This matters a lot when training with backpropagation through time.";
   } else {
     eq = "y_t = W_hy · h_t + b_y";
     lines = [`y_t = ${st.h.map((v, k) => `${fmt(w.Why[k], 2)}×${fmt(v, 2)}`).join(" + ")} + ${fmt(w.by, 2)}`, `y_t = ${fmt(st.y, 4)}`];
-    explain = t + 1 < T ? `h_t is passed right to step ${t + 2}; the output head reads it out at every step (use it or ignore it, depending on the task).` : "Last step. In a many-to-one task (e.g. sentiment) only this y_T would be used.";
+    explain = t + 1 < T ? `h_t is passed on to step ${t + 2}. The output head reads it at every step; use that output or ignore it, depending on the task.` : "Last step. In a many-to-one task (like judging a review as positive or negative), only this y_T would be used.";
   }
 
   const rows = [
@@ -244,7 +244,7 @@ export default function RnnSim() {
   return (
     <SimShell
       title="Vanilla RNN, Unrolled Through Time"
-      subtitle={`Input size ${I}, hidden size ${hidden}, seeded weights, W_hh rescaled to spectral radius ${fmt(rho, 2)}. Every number is computed live.`}
+      subtitle={`Input size ${I}, hidden size ${hidden}, fixed random weights. W_hh is scaled to spectral radius ${fmt(rho, 2)}. Every number is computed live.`}
       controls={
         <div className="space-y-2">
           <Controls s={s} />
@@ -293,7 +293,7 @@ export default function RnnSim() {
             </div>
           </Narration>
           <div className="text-xs text-muted">
-            Try: keep the default pulse sequence and move ρ from 0.3 to 1.5 while watching the memory probe — the change caused by x₁ fades in a few steps for small ρ and survives much longer for large ρ. Then switch to Characters and type a word with up to four distinct letters.
+            Try this: keep the default sequence and move ρ from 0.3 to 1.5 while watching the memory test. With small ρ, the effect of x₁ fades in a few steps. With large ρ, it lasts much longer. Then switch to Characters and type a word with up to four different letters.
           </div>
         </div>
       }
@@ -309,7 +309,7 @@ export default function RnnSim() {
       </div>
 
       <div className="mt-4 text-xs text-muted">
-        Memory probe: x₁ is changed by ε and the whole sequence is recomputed. Bars show ‖h_t(perturbed) − h_t‖ on a log scale — how much of the first input each hidden state still carries.
+        Memory test: we change x₁ by ε and run the whole sequence again. Bars show ‖h_t(perturbed) − h_t‖ on a log scale: how much of the first input each hidden state still carries.
       </div>
       <div className="overflow-x-auto">
         <ProbeChart dh={probe.dh} eps={eps} />

@@ -262,27 +262,27 @@ export default function BatchNormSim() {
     const cs = groupStats(X, "batch");
     body = (
       <>
-        A mini-batch of <b className="text-text">N = {n}</b> examples × {NF} features (pre-activations of one layer). Per-feature spread: {FEATS.map((f, d) => `${f} σ≈${num(Math.sqrt(cs.var[d]))}`).join(", ")}. The gold dot is example #1, which we track. {isBN ? "BatchNorm will compute one mean and variance per feature column (gold outline)." : "LayerNorm will compute one mean and variance per example row (gold outline)."}
+        A mini-batch (a small group of examples) of <b className="text-text">N = {n}</b> examples × {NF} features. These are one layer&apos;s values before its activation. Spread of each feature: {FEATS.map((f, d) => `${f} σ≈${num(Math.sqrt(cs.var[d]))}`).join(", ")}. The gold dot is example #1; we will follow it. {isBN ? "BatchNorm will compute one mean and variance for each feature column (gold outline)." : "LayerNorm will compute one mean and variance for each example row (gold outline)."}
       </>
     );
   } else if (stage === 1) {
     body = evalBN ? (
       <>
-        Eval mode: <b className="text-text">no batch statistics are computed</b>. The layer uses the running mean accumulated during training: μ̂<sub>{FEATS[g]}</sub> = <b className="text-text">{num(usedMean[g])}</b> (after {warm} training batches; current batch mean would be {num(batchStats.mean[g])}).
+        Eval mode: <b className="text-text">the batch&apos;s own statistics are not used</b>. The layer uses the running mean it collected during training: μ̂<sub>{FEATS[g]}</sub> = <b className="text-text">{num(usedMean[g])}</b> (after {warm} training batches; this batch&apos;s own mean would be {num(batchStats.mean[g])}).
       </>
     ) : (
       <>
-        Mean of {gName} over its {M} values: μ = ({listVals(groupVals)}) / {M} = {num(sum)} / {M} = <b className="text-text">{num(usedMean[g])}</b>.
+        Mean (average) of {gName} over its {M} values: μ = ({listVals(groupVals)}) / {M} = {num(sum)} / {M} = <b className="text-text">{num(usedMean[g])}</b>.
       </>
     );
   } else if (stage === 2) {
     body = evalBN ? (
       <>
-        Running variance σ̂²<sub>{FEATS[g]}</sub> = <b className="text-text">{num(usedVar[g])}</b> (the current batch&apos;s biased variance would be {num(batchStats.var[g])}). The shaded band is μ̂ ± σ̂.
+        Running variance σ̂²<sub>{FEATS[g]}</sub> = <b className="text-text">{num(usedVar[g])}</b> (this batch&apos;s own biased variance would be {num(batchStats.var[g])}). The shaded band is μ̂ ± σ̂.
       </>
     ) : (
       <>
-        Biased variance (divide by M = {M}): σ² = (1/{M}) Σ (x − {num(usedMean[g])})² = <b className="text-text">{num(usedVar[g])}</b>, so σ = {num(Math.sqrt(usedVar[g]))}. The band shows μ ± σ.
+        Variance tells how spread out the values are. Biased variance (divide by M = {M}): σ² = (1/{M}) Σ (x − {num(usedMean[g])})² = <b className="text-text">{num(usedVar[g])}</b>, so σ = {num(Math.sqrt(usedVar[g]))}. The band shows μ ± σ.
         {n === 1 && isBN ? " With one example, x − μ = 0 for every value, so σ² = 0." : ""}
       </>
     );
@@ -291,8 +291,8 @@ export default function BatchNormSim() {
     body = (
       <>
         x̂ = (x − μ)/√(σ² + ε), ε = 10⁻⁵. For example #{isBN ? 1 : g + 1}, {FEATS[tCol]}: ({num(tx)} − {num(usedMean[g])}) / {num(sd)} = <b className="text-text">{num(Xh[isBN ? 0 : g][tCol])}</b>. The {gName} now has mean {num(after.mean[g])} and std {num(Math.sqrt(after.var[g]))}
-        {evalBN ? " — not exactly 0 and 1, because the running statistics are estimates, not this batch's own statistics." : "."}
-        {isBN && !evalBN && n === 1 ? " With N = 1 every x̂ is 0: the output carries no information about the input (PyTorch refuses to train on such a batch)." : ""}
+        {evalBN ? ". Not exactly 0 and 1, because the running statistics are estimates, not this batch's own numbers." : "."}
+        {isBN && !evalBN && n === 1 ? " With N = 1 every x̂ is 0, so the output says nothing about the input (PyTorch refuses to train on such a batch)." : ""}
       </>
     );
   } else if (stage === 4) {
@@ -300,21 +300,21 @@ export default function BatchNormSim() {
     const row = isBN ? 0 : g;
     body = (
       <>
-        y = γ·x̂ + β with learnable per-feature γ, β. For {FEATS[d]}: γ = {num(gamma[d])}, β = {num(beta[d])}, so example #{row + 1} gives {num(gamma[d])} × {num(Xh[row][d])} + {num(beta[d])} = <b className="text-text">{num(Y[row][d])}</b>. Setting γ = √(σ² + ε), β = μ would undo the normalisation exactly — so the layer can never lose representational power.
+        y = γ·x̂ + β, where γ (scale) and β (shift) are learned for each feature. For {FEATS[d]}: γ = {num(gamma[d])}, β = {num(beta[d])}, so example #{row + 1} gives {num(gamma[d])} × {num(Xh[row][d])} + {num(beta[d])} = <b className="text-text">{num(Y[row][d])}</b>. Setting γ = √(σ² + ε), β = μ would undo the normalisation exactly. So normalising never takes away what the layer can express.
       </>
     );
   } else {
     if (!isBN) {
       title = "6. No running statistics";
-      body = <>LayerNorm computes its statistics from each example alone, so it keeps no running buffers and behaves identically in training and inference — and example #1&apos;s output never depends on the other rows.</>;
+      body = <>LayerNorm computes its statistics from each example alone. So it keeps no running averages, and it behaves the same in training and inference. Example #1&apos;s output never depends on the other rows.</>;
     } else if (evalBN) {
-      title = "6. Buffers are frozen";
-      body = <>In eval mode the running mean and variance are only read, never updated, and the output of each example is a fixed affine function of that example: y = γ(x − μ̂)/√(σ̂² + ε) + β. Resampling the other examples changes nothing.</>;
+      title = "6. Running averages are frozen";
+      body = <>In eval mode the running mean and variance are only read, never updated. Each example&apos;s output is a fixed scale-and-shift of that example alone: y = γ(x − μ̂)/√(σ̂² + ε) + β. Resampling the other examples changes nothing.</>;
     } else if (ema) {
       const m = momentum;
       body = (
         <>
-          PyTorch-style EMA (momentum m = {m} is the weight of the new batch):
+          PyTorch-style EMA (a running average; momentum m = {m} is how much the new batch counts):
           <br />
           running_mean ← (1 − {m})·{num(running.mean[g])} + {m}·{num(batchStats.mean[g])} = <b className="text-text">{num(ema.newMean[g])}</b>
           <br />
@@ -322,10 +322,10 @@ export default function BatchNormSim() {
             <>
               running_var ← (1 − {m})·{num(running.var[g])} + {m}·({n}/{n - 1})·{num(batchStats.var[g])} = (1 − {m})·{num(running.var[g])} + {m}·{num(ema.unbiasedVar[g])} = <b className="text-text">{num(ema.newVar[g])}</b>
               <br />
-              Note the unbiased variance N/(N−1)·σ² is stored, while the biased σ² normalised the batch.
+              Notice: the running average stores the unbiased variance N/(N−1)·σ², but the batch was normalised with the biased σ².
             </>
           ) : (
-            <>running_var: undefined — the unbiased variance needs N ≥ 2 (PyTorch raises &quot;Expected more than 1 value per channel when training&quot;).</>
+            <>running_var: undefined. The unbiased variance needs N ≥ 2 (PyTorch raises &quot;Expected more than 1 value per channel when training&quot;).</>
           )}
         </>
       );
@@ -339,7 +339,7 @@ export default function BatchNormSim() {
   return (
     <SimShell
       title="Batch Normalization, step by step"
-      subtitle="Normalise a real mini-batch: per-feature statistics (BatchNorm) or per-example statistics (LayerNorm), learnable γ/β, running averages, and train vs eval behaviour."
+      subtitle="Normalise a real mini-batch, per feature (BatchNorm) or per example (LayerNorm). See learnable γ/β, running averages, and train vs eval mode."
       controls={
         <div className="space-y-2.5">
           <Controls s={s} />
@@ -450,7 +450,7 @@ export default function BatchNormSim() {
             </table>
           </div>
           <div className="rounded-lg border border-border p-2.5 text-xs">
-            <div className="mb-1 font-medium">Batch dependence — output y of example #1</div>
+            <div className="mb-1 font-medium">Does the batch matter? Output y of example #1</div>
             <div className="font-mono">now: [{Y[0].map((v) => num(v)).join(", ")}]</div>
             {prevY ? (
               <>
@@ -458,12 +458,12 @@ export default function BatchNormSim() {
                 <div className="mt-1">
                   max change: <b className={prevDelta !== null && prevDelta > 1e-9 ? "text-clay" : "text-accent"}>{num(prevDelta ?? 0)}</b>{" "}
                   {prevDelta !== null && prevDelta > 1e-9
-                    ? "— example #1 did not change, but its output did, because the other examples changed the batch statistics."
-                    : "— unaffected by the rest of the batch."}
+                    ? "— example #1 did not change, but its output did. The other examples changed the batch statistics."
+                    : "— the rest of the batch had no effect."}
                 </div>
               </>
             ) : (
-              <div className="mt-1 text-muted">Press “Resample other examples”: example #1 stays fixed, the rest of the batch is redrawn.</div>
+              <div className="mt-1 text-muted">Press “Resample other examples”. Example #1 stays the same; the rest of the batch is redrawn.</div>
             )}
           </div>
         </div>
@@ -472,9 +472,9 @@ export default function BatchNormSim() {
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
           <span className="font-medium text-text">
-            {stage <= 2 ? "Raw values x" : stage === 3 ? "Standardised x̂" : "Output y = γx̂ + β"} — one strip per {isBN ? "feature (statistics over the batch)" : "example (statistics over its features)"}
+            {stage <= 2 ? "Raw values x" : stage === 3 ? "Standardised x̂" : "Output y = γx̂ + β"} — one strip per {isBN ? "feature (stats over the batch)" : "example (stats over its features)"}
           </span>
-          <span>line = mean, band = ±1 std · gold = example #1 · click a strip to inspect it</span>
+          <span>line = mean, band = ±1 std · gold = example #1 · click a strip to look closer</span>
         </div>
         <StripPlot
           strips={strips}
@@ -486,7 +486,7 @@ export default function BatchNormSim() {
         <div className="flex flex-wrap items-start gap-4">
           <div className="min-w-0 flex-1 basis-[260px]">
             <div className="mb-1 text-xs text-muted">
-              <span className="font-medium text-text">Mini-batch matrix</span> (rows = examples, columns = features). Gold outline = the cells that share one mean and variance in {isBN ? "BatchNorm (a column)" : "LayerNorm (a row)"}.
+              <span className="font-medium text-text">Mini-batch matrix</span> (rows = examples, columns = features). Gold outline = cells that share one mean and variance in {isBN ? "BatchNorm (a column)" : "LayerNorm (a row)"}.
             </div>
             <MatrixView
               M={shown}
@@ -504,12 +504,12 @@ export default function BatchNormSim() {
               <span className="font-medium text-text">Current setting:</span> {isBN ? "BatchNorm" : "LayerNorm"}, {phase} mode, N = {n}
               {isBN && phase === "eval" ? `, running statistics from ${warm} earlier batches` : ""}.
             </p>
-            {isBN && n === 1 && phase === "train" && <p className="mb-2 text-clay">N = 1 in train mode: every x̂ is 0, so y = β regardless of the input. Switch to Eval to see the running statistics rescue it.</p>}
-            {isBN && n === 1 && phase === "eval" && <p className="mb-2 text-accent">N = 1 in eval mode works: the running statistics do not depend on the batch.</p>}
-            <p>Try: set N = 2 in Train mode — each BatchNorm column becomes ±1 (up to ε): two values always sit exactly one σ either side of their mean.</p>
+            {isBN && n === 1 && phase === "train" && <p className="mb-2 text-clay">N = 1 in train mode: every x̂ is 0, so y = β whatever the input is. Switch to Eval to see the running statistics fix it.</p>}
+            {isBN && n === 1 && phase === "eval" && <p className="mb-2 text-accent">N = 1 works in eval mode, because the running statistics do not depend on the batch.</p>}
+            <p>Try this: set N = 2 in Train mode. Each BatchNorm column becomes ±1 (up to ε), because two values always sit exactly one σ either side of their mean.</p>
           </div>
         </div>
-        <p className="text-xs text-faint">ε = {EPS}. Running buffers start at mean 0, variance 1 (PyTorch defaults) and are updated by {warm} earlier batches of the same distribution before this one.</p>
+        <p className="text-xs text-faint">ε = {EPS}. Running averages start at mean 0, variance 1 (PyTorch defaults). Then {warm} earlier batches from the same data update them before this one.</p>
       </div>
     </SimShell>
   );

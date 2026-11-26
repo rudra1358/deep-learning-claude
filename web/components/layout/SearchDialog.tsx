@@ -62,7 +62,7 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
           <kbd className="rounded border border-border px-1.5 font-mono text-[0.65rem] text-faint">Esc</kbd>
         </div>
         <div className="max-h-[60vh] overflow-y-auto">
-          {!docs && <div className="p-6 text-sm text-faint">Loading index…</div>}
+          {!docs && <div className="p-6 text-sm text-faint">Loading search…</div>}
           {docs && q.length >= 2 && hits.length === 0 && <div className="p-6 text-sm text-faint">No results for “{q}”.</div>}
           {docs && q.length < 2 && <div className="p-6 text-sm text-faint">Try “backpropagation”, “softmax”, “stride”, “np.einsum” or “KL divergence”.</div>}
           <ul>

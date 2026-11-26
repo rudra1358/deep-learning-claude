@@ -163,7 +163,7 @@ function Legend({ beamMode }: { beamMode: boolean }) {
       )}
       {!beamMode && (
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2 w-4 rounded-sm" style={{ background: "var(--accent)" }} /> renormalised (sampled from)
+          <span className="inline-block h-2 w-4 rounded-sm" style={{ background: "var(--accent)" }} /> rescaled to sum to 1 (sampled from)
         </span>
       )}
       <span className="flex items-center gap-1">
@@ -215,7 +215,7 @@ export default function DecodingSim() {
 
   const inputLower = input.toLowerCase();
   const unknown = model ? encode(model, inputLower).unknown : [];
-  const inputError = !model ? null : inputLower.length === 0 ? "Type at least one character." : unknown.length ? `Not in the model's vocabulary: ${unknown.map((c) => `'${c}'`).join(" ")}` : null;
+  const inputError = !model ? null : inputLower.length === 0 ? "Type at least one character." : unknown.length ? `The model does not know these characters: ${unknown.map((c) => `'${c}'`).join(" ")}` : null;
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   useEffect(() => {
     if (model && !inputError) setPrompt(inputLower);
@@ -232,11 +232,11 @@ export default function DecodingSim() {
   useEffect(() => reset(), [reset, prompt, mode, opts, penalty, seed, width]);
 
   const title = "Decoding Strategies (trained model)";
-  const subtitle = "Turn a real Transformer's next-character distribution into text: greedy, sampling with temperature / top-k / top-p, or beam search.";
+  const subtitle = "A real Transformer gives odds for the next character. Turn them into text with greedy, sampling (temperature / top-k / top-p), or beam search.";
   if (error) {
     return (
       <SimShell title={title} subtitle={subtitle}>
-        <p className="text-sm text-clay">Could not load the model ({error}). Check your connection and reload the page.</p>
+        <p className="text-sm text-clay">Could not load the model ({error}). Check your internet connection and reload the page.</p>
       </SimShell>
     );
   }
@@ -244,7 +244,7 @@ export default function DecodingSim() {
     return (
       <SimShell title={title} subtitle={subtitle}>
         <div className="flex h-40 items-center justify-center text-sm text-muted" role="status">
-          Loading the trained model (≈300 KB of weights)…
+          Loading the trained model (about 300 KB of weights)…
         </div>
       </SimShell>
     );
@@ -277,12 +277,12 @@ export default function DecodingSim() {
     narration =
       mode === "greedy" ? (
         <>
-          The model gives <span className="font-mono">{nextC}</span> the highest {penalty !== 1 ? "penalised " : ""}logit ({fmt(st.zPen[st.next], 2)}), so greedy takes it with model probability {pct(raw[st.next])}%. Greedy is deterministic: it ignores temperature, top-k and top-p (none of them can change the arg-max). It already generated {k} characters with total log-probability {fmt(seqLogp, 3)} nats.
+          The model gives <span className="font-mono">{nextC}</span> the highest {penalty !== 1 ? "penalised " : ""}logit (raw score, {fmt(st.zPen[st.next], 2)}), so greedy takes it. Model probability: {pct(raw[st.next])}%. Greedy has no randomness. Temperature, top-k and top-p cannot change which score is biggest, so it ignores them. So far it has written {k} characters with total log-probability {fmt(seqLogp, 3)} nats.
           {penalty !== 1 && ` The repetition penalty θ = ${penalty.toFixed(2)} shrinks the logits of all ${new Set([...promptIds, ...st.gen]).size} characters already in the text.`}
         </>
       ) : (
         <>
-          Temperature T = {temperature.toFixed(2)} {temperature < 1 ? "sharpens" : temperature > 1 ? "flattens" : "leaves"} the distribution (entropy {fmt(entropy(raw), 3)} → {fmt(entropy(f.probsT), 3)} nats). Truncation keeps {f.keptCount} of {vocab.length} characters holding {pct(f.keptMass)}% of the mass; their probabilities are divided by {fmt(f.keptMass, 4)} so they sum to 1. The seeded uniform u = {fmt(st.u ?? 0, 4)} falls in the slot of <span className="font-mono">{nextC}</span> (q = {pct(f.probs[st.next])}%)
+          Temperature T = {temperature.toFixed(2)} {temperature < 1 ? "sharpens" : temperature > 1 ? "flattens" : "leaves"} the odds (entropy, a measure of uncertainty: {fmt(entropy(raw), 3)} → {fmt(entropy(f.probsT), 3)} nats). Truncation keeps {f.keptCount} of {vocab.length} characters, holding {pct(f.keptMass)}% of the probability. We divide their probabilities by {fmt(f.keptMass, 4)} so they add up to 1. A random number u = {fmt(st.u ?? 0, 4)} lands in the slot of <span className="font-mono">{nextC}</span> (q = {pct(f.probs[st.next])}%)
           {st.next !== top ? `, not the most likely '${show(vocab[top])}'` : ""}.
         </>
       );
@@ -296,14 +296,14 @@ export default function DecodingSim() {
     generated = decodeIds(bs.beams[0].ids);
     seqLogp = bs.beams[0].logp;
     const g = gr.beams[0];
-    narrTitle = k === 0 ? "Beam search: start" : `Step ${k}: keep the best ${bs.beams.length} of ${bs.scored} candidates`;
+    narrTitle = k === 0 ? "Beam search: start" : `Step ${k}: keep the best ${bs.beams.length} of ${bs.scored} options`;
     narration =
       k === 0 ? (
-        `Beam search keeps the ${width} highest-scoring partial continuations. Each step extends every beam by all ${vocab.length} characters, scores each candidate by its total log-probability Σ ln p, and keeps the best ${width}. Width 1 is exactly greedy decoding. Press Step.`
+        `Beam search keeps the ${width} best partial texts (beams) at once. Each step tries every beam with all ${vocab.length} characters. It scores each option by its total log-probability Σ ln p and keeps the best ${width}. Width 1 is exactly greedy decoding. Press Step.`
       ) : (
         <>
-          {bs.scored} candidates were scored ({k === 1 ? "one beam" : `${Math.min(width, bs.beams.length)} beams`} × {vocab.length} characters). The best beam has Σ ln p = {fmt(bs.beams[0].logp, 3)} (mean {fmt(bs.beams[0].logp / k, 3)} per character); greedy&apos;s continuation of the same length has {fmt(g.logp, 3)}.{" "}
-          {bs.beams[0].logp > g.logp + 1e-9 ? "Beam search found a more probable sequence than greedy — greedy committed early to a locally best character." : "So far greedy's path is still the best one found."}
+          We scored {bs.scored} options ({k === 1 ? "one beam" : `${Math.min(width, bs.beams.length)} beams`} × {vocab.length} characters). The best beam has Σ ln p = {fmt(bs.beams[0].logp, 3)} (average {fmt(bs.beams[0].logp / k, 3)} per character). Greedy&apos;s text of the same length has {fmt(g.logp, 3)}.{" "}
+          {bs.beams[0].logp > g.logp + 1e-9 ? "Beam search found a more likely text than greedy. Greedy locked in a character that looked best right then, but was not best overall." : "So far greedy's path is still the best one found."}
         </>
       );
     body = (
@@ -377,7 +377,7 @@ export default function DecodingSim() {
           <Slider label="Repetition θ" value={penalty} min={1} max={2} step={0.05} onChange={setPenalty} fmt={(v) => (v === 1 ? "off" : v.toFixed(2))} />
         </div>
       )}
-      {mode === "greedy" && <p className="text-[11px] text-muted">Greedy always takes the arg-max: the temperature and truncation sliders reshape the chart but cannot change its pick (only the repetition penalty can).</p>}
+      {mode === "greedy" && <p className="text-[11px] text-muted">Greedy always takes the top choice. Temperature and truncation reshape the chart but cannot change its pick. Only the repetition penalty can.</p>}
     </div>
   );
 
@@ -402,8 +402,8 @@ export default function DecodingSim() {
         )}
       </div>
       <div className="rounded-lg border border-border p-2.5 text-[11px] leading-snug text-muted">
-        <span className="font-medium text-accent">A real trained model.</span> The same {model.nParams.toLocaleString()}-parameter character-level Transformer as the Transformer Explorer ({model.json.config.n_layers} layers, d_model = {model.json.config.d_model}, {model.json.config.context}-character context), trained on Chapter I of Lewis Carroll&apos;s <i>Alice&apos;s Adventures in Wonderland</i> (public domain). Each generated character is one forward pass in your browser; every probability shown is computed live.
-        {check && <span className="font-mono"> browser vs PyTorch max |Δlogit| = {check.maxAbsDiff.toExponential(1)} {check.maxAbsDiff < 1e-3 ? "✓" : "✗"}</span>}
+        <span className="font-medium text-accent">This is a real trained model.</span> It is the same {model.nParams.toLocaleString()}-parameter, character-level Transformer as in the Transformer Explorer ({model.json.config.n_layers} layers, d_model = {model.json.config.d_model}, {model.json.config.context}-character context). It was trained on Chapter I of Lewis Carroll&apos;s <i>Alice&apos;s Adventures in Wonderland</i> (public domain). Each new character is one forward pass in your browser, and every probability is computed live.
+        {check && <span className="font-mono"> your browser vs PyTorch max |Δlogit| = {check.maxAbsDiff.toExponential(1)} {check.maxAbsDiff < 1e-3 ? "✓" : "✗"}</span>}
       </div>
     </div>
   );
@@ -417,10 +417,10 @@ export default function DecodingSim() {
         <span className="animate-pulse text-gold">▍</span>
       </p>
       <p className="mb-3 mt-1 text-[11px] text-muted">
-        {k} of {MAX_GEN} characters generated{mode !== "beam" && k < MAX_GEN ? "; the gold character is the next pick" : mode === "beam" ? " (best beam shown)" : ""}.
+        {k} of {MAX_GEN} characters generated{mode !== "beam" && k < MAX_GEN ? ". The gold character is the next pick" : mode === "beam" ? " (best beam shown)" : ""}.
       </p>
       <div className="mb-1 text-xs font-medium">
-        {mode === "beam" ? "Next-character distribution after the best beam (T = 1, no truncation)" : `Next-character distribution: top ${ROWS} of ${vocab.length}, sorted by probability`}
+        {mode === "beam" ? "Odds for the next character after the best beam (T = 1, no truncation)" : `Odds for the next character: top ${ROWS} of ${vocab.length}, most likely first`}
       </div>
       <DistChart f={f} raw={raw} vocab={vocab} chosen={chosen} showCum={mode !== "beam" && topP < 1} beamMode={mode === "beam"} />
       <Legend beamMode={mode === "beam"} />

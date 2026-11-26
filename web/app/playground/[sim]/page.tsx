@@ -34,7 +34,7 @@ export default async function SimPage({ params }: { params: Promise<{ sim: strin
       <SimEmbed id={sim as SimId} />
       {lesson && (
         <p className="text-sm text-muted">
-          The theory behind this simulator is taught in{" "}
+          You can learn the ideas behind this simulator in{" "}
           <Link href={`/learn/${s.lesson}`} className="text-accent underline underline-offset-2">
             {lesson.topic.title}
           </Link>

@@ -199,13 +199,13 @@ export default function ReceptiveFieldSim() {
   /* ---------------- narration ---------------- */
   let narr: { title: string; body: string } = { title: "", body: "" };
   if (broken) {
-    narr = { title: "Stack too deep for this input", body: "Some layer would have an output of size 0. Increase the input size, use padding “same”, or remove a downsampling layer." };
+    narr = { title: "Too many layers for this input", body: "Some layer would end up with an output of size 0. Make the input bigger, use padding “same”, or remove a layer that shrinks the image." };
   } else if (colProj) {
     const { masks, ranges } = colProj;
     if (step === 0) {
       narr = {
         title: `Start: output unit ${unit} of layer ${L}`,
-        body: `Layer ${L} has ${outN} units per row. We pick unit ${unit} (gold) and ask which units of every earlier layer can change its value. The recurrence in the table predicts the answer before we look: r = ${last.r} input pixels, jump j = ${last.j}. Press Step to project it down one layer at a time.`,
+        body: `Layer ${L} has ${outN} units per row. We pick unit ${unit} (gold) and ask: which units in each earlier layer can change its value? The formula in the table predicts the answer before we look: r = ${last.r} input pixels, jump j = ${last.j}. Press Step to trace it down one layer at a time.`,
       };
     } else {
       const layer = layers[level];
@@ -223,12 +223,12 @@ export default function ReceptiveFieldSim() {
         title: `Layer ${level + 1} (${layerName(layer)}, padding ${p}) → level ${level === 0 ? "input" : level}`,
         body:
           `Unit i of this layer reads positions i·${layer.s} − ${p} + a·${d} (a = 0…${layer.k - 1}) of the level below. ` +
-          `The highlighted interval [${up.lo}, ${up.hi}] therefore maps to [${up.lo}·${layer.s} − ${p}, ${up.hi}·${layer.s} − ${p} + ${kTerm}] = [${here.lo}, ${here.hi}]: ${span} position${span === 1 ? "" : "s"}. ` +
-          (clippedLo + clippedHi > 0 ? `${clippedLo + clippedHi} of them fall in the zero padding beyond the border, so they cannot carry information. ` : "") +
-          (holes > 0 ? `${holes} position${holes === 1 ? " is" : "s are"} skipped by the dilated taps — a hole (“gridding”). ` : "") +
+          `So the highlighted range [${up.lo}, ${up.hi}] maps to [${up.lo}·${layer.s} − ${p}, ${up.hi}·${layer.s} − ${p} + ${kTerm}] = [${here.lo}, ${here.hi}]: ${span} position${span === 1 ? "" : "s"}. ` +
+          (clippedLo + clippedHi > 0 ? `${clippedLo + clippedHi} of them land in the zero padding past the edge, so they carry no information. ` : "") +
+          (holes > 0 ? `${holes} position${holes === 1 ? " is" : "s are"} skipped by the spread-out (dilated) kernel, leaving a hole (“gridding”). ` : "") +
           (level === 0
-            ? `At the input the region is ${span} pixels wide — exactly the r = ${last.r} predicted by r_l = r_(l−1) + (k_eff − 1)·j_(l−1). In 2-D it is ${last.r}×${last.r}.`
-            : `${count} unit${count === 1 ? "" : "s"} of level ${level} contribute. Each of them is ${info[level].j} input pixel${info[level].j === 1 ? "" : "s"} from its neighbour (jump), which is why deeper layers widen the region faster.`),
+            ? `At the input the region is ${span} pixels wide. That is exactly the r = ${last.r} predicted by r_l = r_(l−1) + (k_eff − 1)·j_(l−1). In 2-D it is ${last.r}×${last.r}.`
+            : `${count} unit${count === 1 ? "" : "s"} of level ${level} contribute. Neighbouring units are ${info[level].j} input pixel${info[level].j === 1 ? "" : "s"} apart (the jump). That is why deeper layers widen the region faster.`),
       };
     }
   }
@@ -297,10 +297,10 @@ export default function ReceptiveFieldSim() {
       {erfStats && (
         <div className="rounded-lg border border-border p-3 text-xs text-muted">
           <div className="mb-1 font-medium text-[var(--text)]">Effective receptive field</div>
-          Theoretical RF: <span className="font-mono">{last.r}×{last.r}</span>. Half of the gradient magnitude lies in the central{" "}
+          Theoretical receptive field (RF): <span className="font-mono">{last.r}×{last.r}</span>. But half of the real influence (gradient size) sits in the central{" "}
           <span className="font-mono">{erfStats.w50}×{erfStats.w50}</span> square, 90% in{" "}
           <span className="font-mono">{erfStats.w90}×{erfStats.w90}</span>
-          {last.r > n ? " (the theoretical RF is wider than the input here)" : ""}. Influence is concentrated near the centre because many more paths pass through central pixels.
+          {last.r > n ? " (the theoretical RF is wider than the input here)" : ""}. Influence bunches up near the centre because many more paths pass through central pixels.
         </div>
       )}
     </div>
@@ -309,7 +309,7 @@ export default function ReceptiveFieldSim() {
   return (
     <SimShell
       title="Receptive Field Explorer"
-      subtitle="Build a stack of conv / pool layers and back-project one output unit to see exactly which inputs it can see."
+      subtitle="Stack conv and pool layers, then trace one output unit back down to see exactly which input pixels it can see."
       controls={<Controls s={s} />}
       aside={aside}
     >
@@ -417,19 +417,19 @@ export default function ReceptiveFieldSim() {
         <div className="mt-4 flex flex-col gap-4">
           <figure className="min-w-0">
             <figcaption className="mb-1 text-xs text-muted">
-              One row per layer (output at the top). Units sit at the input position of their centre, so the spacing shows the jump j. Gold dashes mark the back-projected interval.
+              One row per layer (output at the top). Each unit sits above the input pixel at its centre, so the spacing shows the jump j. Gold dashes mark the range traced back so far.
             </figcaption>
             <StripDiagram layers={layers} info={info} masks={colProj.masks} ranges={colProj.ranges} level={level} mode={mode} />
           </figure>
           <figure className="min-w-0">
             <figcaption className="mb-1 text-xs text-muted">
-              Input {n}×{n}: receptive field of unit (row {centre}, column {unit}) of the last layer{showErf ? " — shaded by |∂output/∂input| of a random linear version of the stack (24 weight draws)" : step === L ? " — shaded pixels can influence it" : " — press Step until the input row is reached"}.
+              Input {n}×{n}: receptive field of unit (row {centre}, column {unit}) of the last layer{showErf ? " — shaded by |∂output/∂input| of a random linear version of the stack (24 weight draws)" : step === L ? " — shaded pixels can affect it" : " — press Step until you reach the input row"}.
             </figcaption>
             {rf2d}
           </figure>
         </div>
       ) : (
-        <p className="mt-4 text-sm text-clay">The current stack produces an empty feature map — see the table.</p>
+        <p className="mt-4 text-sm text-clay">This stack shrinks the image to nothing. See the table.</p>
       )}
     </SimShell>
   );

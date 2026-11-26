@@ -75,8 +75,8 @@ export default function BpttSim() {
   let explain = "";
   let lines: string[] = [];
   if (cur === null) {
-    title = "Forward pass done — loss computed";
-    explain = mode === "last" ? `The loss sits only at the last step: L = ½(y_T − 1)². Press Step to send its gradient backwards through all ${T} steps.` : `Every step has a loss term ½(y_t − y*_t)². Each one injects gradient at its own step, and all of it flows left.`;
+    title = "Forward pass done: we have the loss";
+    explain = mode === "last" ? `The loss sits only at the last step: L = ½(y_T − 1)². Press Step to send its gradient backwards through all ${T} steps.` : `Every step has its own loss term ½(y_t − y*_t)². Each one adds gradient at its own step, and all of it flows left.`;
     lines = [`L = ${sci3(res.loss, 4)}`, `ρ(W_hh) = ${fmt(res.rhoActual, 3)},  ‖W_hh‖₂ = ${fmt(res.whhNorm, 3)}`];
   } else {
     const t = cur;
@@ -97,14 +97,14 @@ export default function BpttSim() {
     const r = res.dhNorm[i] / res.dhNorm[T - 1];
     explain =
       t === T
-        ? "The gradient enters at the last hidden state. Going one step left multiplies it by W_hhᵀ diag(1 − h²)."
-        : `‖∂L/∂h_${t}‖ is ${sci(r)} × ‖∂L/∂h_${T}‖. ${r < 1e-3 ? "The signal from the loss has almost vanished: the weights get essentially no information about how step " + t + " influenced the loss." : r > 1e3 ? "The signal has exploded: without clipping, one update would be dominated by these far-away steps." : "The signal is still of usable size."}`;
+        ? "The gradient enters at the last hidden state. Each step to the left multiplies it by W_hhᵀ diag(1 − h²)."
+        : `‖∂L/∂h_${t}‖ is ${sci(r)} × ‖∂L/∂h_${T}‖. ${r < 1e-3 ? "The signal from the loss has almost vanished. The weights learn almost nothing about how step " + t + " affected the loss." : r > 1e3 ? "The signal has exploded. Without clipping, these far-away steps would swamp the whole update." : "The signal is still a useful size."}`;
   }
 
   return (
     <SimShell
       title="Backpropagation Through Time"
-      subtitle={`Vanilla RNN, input 1, hidden 4, T = ${T}. The forward pass is computed once; the stepper then runs the backward pass right → left.`}
+      subtitle={`A plain RNN: input size 1, hidden size 4, T = ${T}. The forward pass runs once. Then each Step runs the backward pass, right → left.`}
       controls={
         <div className="space-y-2">
           <Controls s={s} />
@@ -154,7 +154,7 @@ export default function BpttSim() {
             </div>
           </Narration>
           <div className="text-xs text-muted">
-            Try: T = 40, tanh, ρ = 0.9 — the bars fall by many orders of magnitude (vanishing). Switch to linear and drag ρ above 1 — they grow geometrically (exploding); then tick clipping. Finally set k = 5 and see which contributions to ∂L/∂W_hh truncation throws away.
+            Try: T = 40, tanh, ρ = 0.9. The bars shrink by many powers of ten (vanishing). Switch to linear and drag ρ above 1: they multiply up fast (exploding). Then tick clipping. Last, set k = 5 and see which parts of ∂L/∂W_hh truncation throws away.
           </div>
         </div>
       }
@@ -259,7 +259,7 @@ export default function BpttSim() {
             );
           })}
           <text x={W - 4} y={rowY.cBot + 12} textAnchor="end" fontSize={9} fill="var(--text-muted)">
-            outline = full BPTT contribution · filled = kept with truncation k = {k >= T ? "full" : k}
+            outline = full BPTT share · filled = part kept with truncation k = {k >= T ? "full" : k}
           </text>
         </svg>
       </div>
@@ -271,10 +271,10 @@ export default function BpttSim() {
         </div>
         <div className="rounded border border-border p-2">
           <div className="text-muted">‖∂L/∂h_1‖ / ‖∂L/∂h_T‖</div>
-          <div>{finished ? sci(ratio) : "run the backward pass"}</div>
+          <div>{finished ? sci(ratio) : "run the backward pass first"}</div>
         </div>
         <div className="rounded border border-border p-2">
-          <div className="text-muted">‖∂L/∂W_hh‖ accumulated so far (full | truncated)</div>
+          <div className="text-muted">‖∂L/∂W_hh‖ summed so far (full | truncated)</div>
           <div>
             {sci(accFull)} | {sci(accKept)}
           </div>
@@ -304,7 +304,7 @@ export default function BpttSim() {
                 </div>
               );
             })}
-            {clipOn && <div className="text-muted">scale factor min(1, c/‖g‖) = {sci3(scale, 4)} — direction unchanged</div>}
+            {clipOn && <div className="text-muted">scale factor min(1, c/‖g‖) = {sci3(scale, 4)}. The direction never changes</div>}
           </div>
         </div>
       </div>

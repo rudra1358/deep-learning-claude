@@ -114,7 +114,7 @@ export function CodePlayground() {
 
   async function run() {
     setRunning(true);
-    setRes({ stdout: "Loading the Python runtime (first run downloads ~10 MB)…", ms: 0 });
+    setRes({ stdout: "Loading Python (the first run downloads about 10 MB)…", ms: 0 });
     setRes(await runPython(code));
     setRunning(false);
   }
@@ -174,7 +174,7 @@ export function CodePlayground() {
             {res && res.ms > 0 && <span>{(res.ms / 1000).toFixed(2)} s</span>}
           </div>
           <div className="flex-1 overflow-auto p-3">
-            {!res && <div className="text-sm text-faint">Press Run to execute.</div>}
+            {!res && <div className="text-sm text-faint">Press Run to see the output.</div>}
             {res && <pre className="font-mono text-[0.8rem] whitespace-pre-wrap">{res.stdout}</pre>}
             {res?.error && <pre className="mt-2 rounded bg-clay-soft p-2 font-mono text-[0.78rem] whitespace-pre-wrap">{res.error}</pre>}
             {res?.images?.map((src, i) => (
@@ -187,7 +187,7 @@ export function CodePlayground() {
       <div className="mt-4 flex gap-2 rounded-lg border border-border bg-surface-2 p-3 text-sm text-muted">
         <Info size={16} className="mt-0.5 shrink-0" />
         <div>
-          <strong className="text-text">Execution limits.</strong> Runs on your CPU, single-threaded, inside the browser sandbox. NumPy, Matplotlib, pandas and scikit-learn are available. PyTorch and TensorFlow have no WebAssembly build, so the PyTorch/Keras examples in lessons must be run locally (each lesson shows their real output). For GPU work use a local machine or a cloud notebook.
+          <strong className="text-text">What it can and can&apos;t do.</strong> Code runs on your CPU, one thread at a time, safely inside the browser. NumPy, Matplotlib, pandas and scikit-learn are ready to use. PyTorch and TensorFlow can&apos;t run in the browser, so run the lessons&apos; PyTorch/Keras examples on your own computer (each lesson shows their real output). For GPU work, use your own machine or a cloud notebook.
         </div>
       </div>
     </div>

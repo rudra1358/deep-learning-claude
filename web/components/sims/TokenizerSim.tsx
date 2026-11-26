@@ -64,18 +64,18 @@ export default function TokenizerSim() {
   let narr: string;
   if (!justMerged) {
     narrTitle = "Step 0 · characters only";
-    narr = `Every word is split into characters plus the end-of-word marker "${EOW}". The base vocabulary is the ${trace.alphabet.length} distinct symbols. The table shows how often each adjacent pair occurs, weighted by word frequency. Press Step to merge the most frequent pair.`;
+    narr = `Every word is split into single characters, plus the end-of-word marker "${EOW}". So the starting vocabulary is just the ${trace.alphabet.length} different symbols. The table counts how often each side-by-side pair appears (common words count more). Press Step to merge the most common pair.`;
   } else {
     const runner = tablePairs[1];
     narrTitle = `Merge ${k} · "${justMerged.a}" + "${justMerged.b}" → "${newTok}"`;
-    narr = `This pair occurred ${justMerged.count} times, more than any other${runner && runner.count === justMerged.count ? ` (tied with "${runner.a}"+"${runner.b}"; ties are broken alphabetically)` : ""}. Every occurrence in the corpus is replaced by the new symbol "${newTok}", which becomes vocabulary entry ${vocab.length - 1}. Pair counts are then recomputed, because merging changes which symbols are adjacent.`;
+    narr = `This pair appeared ${justMerged.count} times, more than any other${runner && runner.count === justMerged.count ? ` (tied with "${runner.a}"+"${runner.b}"; ties go in alphabetical order)` : ""}. Everywhere it appears, we swap in the new symbol "${newTok}". It becomes vocabulary entry ${vocab.length - 1}. Then we count pairs again, because merging changes which symbols sit side by side.`;
   }
-  if (k === total - 1 && total - 1 < numMerges) narr += ` Training stopped after ${total - 1} merges: no remaining pair occurs at least twice.`;
+  if (k === total - 1 && total - 1 < numMerges) narr += ` Training stopped after ${total - 1} merges: no pair appears twice or more any more.`;
 
   return (
     <SimShell
       title="Byte-Pair Encoding, Merge by Merge"
-      subtitle="Text is lowercased, NFKC-normalized and stripped of punctuation; “_” marks the end of a word."
+      subtitle="BPE builds a vocabulary by gluing the most common pair of symbols together, again and again. Text is lowercased, NFKC-normalized and stripped of punctuation. “_” marks the end of a word."
       controls={
         <div className="space-y-2">
           <Controls s={s} />
@@ -114,7 +114,7 @@ export default function TokenizerSim() {
       }
     >
       <label className="block text-xs text-muted" htmlFor="bpe-corpus">
-        Training corpus (edit me)
+        Training text (edit me)
       </label>
       <textarea id="bpe-corpus" className="mt-1 w-full rounded border border-border bg-surface p-2 font-mono text-xs" rows={4} value={corpus} onChange={(e) => setCorpus(e.target.value)} />
 
@@ -188,7 +188,7 @@ export default function TokenizerSim() {
         </div>
         <div className="mt-2 font-mono text-xs text-muted">
           {probeChars} characters → {encoded.length} tokens
-          {unkCount > 0 && <span className="text-clay"> · {unkCount} unknown symbol{unkCount === 1 ? "" : "s"} mapped to &lt;unk&gt; (id 0), highlighted</span>}
+          {unkCount > 0 && <span className="text-clay"> · {unkCount} unknown symbol{unkCount === 1 ? "" : "s"} turned into &lt;unk&gt; (id 0), highlighted</span>}
         </div>
       </div>
     </SimShell>

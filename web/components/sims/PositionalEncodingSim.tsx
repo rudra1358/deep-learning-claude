@@ -161,14 +161,14 @@ export default function PositionalEncodingSim() {
   const aside = (
     <div className="flex flex-col gap-3">
       <Narration title={`Position p = ${p}, dimension j = ${j}`}>
-        Dimension {j} is the {j % 2 === 0 ? "sine" : "cosine"} of pair i = {i}, with angular frequency ω<sub>{i}</sub> = 1/{PE_BASE}
-        <sup>{(2 * i)}/{dModel}</sup> = {fmt(omega, 4)} rad per position, so its wavelength is 2π/ω = {lambda < 1e4 ? lambda.toFixed(1) : lambda.toExponential(2)} positions.
-        Low j oscillate fast (fine position), high j barely move (coarse position): a geometric ladder of clocks from 2π to about {(2 * Math.PI * PE_BASE).toFixed(0)}.
+        Dimension {j} is the {j % 2 === 0 ? "sine" : "cosine"} wave of pair i = {i}. Its speed (angular frequency) is ω<sub>{i}</sub> = 1/{PE_BASE}
+        <sup>{(2 * i)}/{dModel}</sup> = {fmt(omega, 4)} rad per position. So one full wave takes 2π/ω = {lambda < 1e4 ? lambda.toFixed(1) : lambda.toExponential(2)} positions.
+        Think of clock hands. Low j spin fast and tell nearby positions apart. High j barely move and track the big picture. Wave lengths grow step by step from 2π to about {(2 * Math.PI * PE_BASE).toFixed(0)}.
       </Narration>
       <div className="rounded-lg border border-border p-2.5 text-xs">
-        <div className="mb-1 font-medium">Similarity depends only on the offset</div>
+        <div className="mb-1 font-medium">Similarity depends only on the distance</div>
         <p className="text-muted">
-          PE(p)·PE(q) = Σ<sub>i</sub> cos(ω<sub>i</sub>(p − q)). Self-similarity is always d/2 = {dModel / 2}.
+          PE(p)·PE(q) = Σ<sub>i</sub> cos(ω<sub>i</sub>(p − q)). A position compared with itself always gives d/2 = {dModel / 2}.
         </p>
         <ul className="mt-1 space-y-0.5 font-mono text-[11px] text-muted">
           <li>PE({p})·PE({p}) = {fmt(sim[p], 3)}</li>
@@ -187,9 +187,9 @@ export default function PositionalEncodingSim() {
   );
 
   return (
-    <SimShell title="Positional Encoding" subtitle="The sinusoidal encoding matrix, its frequencies, and why dot products between positions depend on distance." controls={controls} aside={aside}>
+    <SimShell title="Positional Encoding" subtitle="Each position gets a unique pattern of sine and cosine waves. See the waves, and why comparing two positions depends only on how far apart they are." controls={controls} aside={aside}>
       <div className="mb-1 flex flex-wrap justify-between text-xs text-muted">
-        <span>PE matrix: positions 0…{maxPos - 1} → (horizontal), dimensions 0…{dModel - 1} ↓ (vertical). Click to select.</span>
+        <span>PE matrix: positions 0…{maxPos - 1} → (across), dimensions 0…{dModel - 1} ↓ (down). Click to pick a cell.</span>
         <span>
           <span className="text-accent">■</span> +1 &nbsp; <span className="text-clay">■</span> −1
         </span>
@@ -219,7 +219,7 @@ export default function PositionalEncodingSim() {
           marker={p}
           yMin={Math.min(0, Math.floor(Math.min(...sim)))}
           yMax={dModel / 2}
-          label={`PE(${p}) · PE(q) for every q (solid) and closed form Σ cos(ω·(q−${p})) (dashed): identical`}
+          label={`PE(${p}) · PE(q) for every q (solid) and the formula Σ cos(ω·(q−${p})) (dashed): they match`}
           xLabel="q"
           ariaLabel={`Dot product between the encoding of position ${p} and every other position.`}
         />

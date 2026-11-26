@@ -80,17 +80,17 @@ function narrate(cfg: GanConfig, m: MetricRec | null, hist: MetricRec[], ref: { 
   const lossName = LOSSES.find((l) => l.id === cfg.loss)!.label;
   if (!m || m.iter === 0) {
     return {
-      title: "Iteration 0 — two untrained networks",
-      text: `G maps ${cfg.zDim}-D Gaussian noise through two hidden layers of ${cfg.hidden} leaky-ReLU units to a point in the plane; its ${600} samples (gold) start as a small blob. D (2 → ${cfg.hidden} → ${cfg.hidden} → 1) shades the background by how "real" it thinks each location is. Press Play: each iteration does ${cfg.dSteps} D update${cfg.dSteps > 1 ? "s" : ""} on a batch of ${cfg.batch} real and ${cfg.batch} generated points, then one G update that back-propagates the ${lossName} generator loss through D into G.`,
+      title: "Iteration 0: two untrained networks",
+      text: `The generator G turns ${cfg.zDim}-D random noise into a point on the plane, using two hidden layers of ${cfg.hidden} leaky-ReLU units. Its ${600} samples (gold) start as a small blob. The discriminator D (2 → ${cfg.hidden} → ${cfg.hidden} → 1) shades the background by how "real" each spot looks to it. Press Play. Each iteration does ${cfg.dSteps} D update${cfg.dSteps > 1 ? "s" : ""} on ${cfg.batch} real and ${cfg.batch} generated points. Then one G update sends the ${lossName} generator loss back through D into G.`,
     };
   }
   const parts: string[] = [];
   const cls = isClassifier(cfg.loss);
   const ring = cfg.target === "ring";
   let state = "G chasing D";
-  if (cls) parts.push(`Mean D on real data ${fmt(m.dReal, 2)}, on generated data ${fmt(m.dFake, 2)} (the theoretical equilibrium is 0.5 on both).`);
-  else if (cfg.loss === "wgangp") parts.push(`Critic gap E[f(real)] − E[f(fake)] = ${fmt(m.dReal - m.dFake, 2)}: an estimate of the Wasserstein-1 distance (up to scale), which shrinks as G improves.`);
-  else parts.push(`LSGAN targets: D → 1 on real, 0 on fake. Mean D(real) ${fmt(m.dReal, 2)}, D(fake) ${fmt(m.dFake, 2)}; at equilibrium both approach 0.5.`);
+  if (cls) parts.push(`Mean D on real data is ${fmt(m.dReal, 2)}, on generated data ${fmt(m.dFake, 2)}. In theory both settle at 0.5 (equilibrium).`);
+  else if (cfg.loss === "wgangp") parts.push(`Critic gap E[f(real)] − E[f(fake)] = ${fmt(m.dReal - m.dFake, 2)}. This estimates the Wasserstein-1 distance (up to scale), how far apart the two clouds are. It shrinks as G improves.`);
+  else parts.push(`LSGAN targets: D → 1 on real, 0 on fake. Mean D(real) ${fmt(m.dReal, 2)}, D(fake) ${fmt(m.dFake, 2)}. At equilibrium both get close to 0.5.`);
 
   const dWins = cls && m.dReal > 0.75 && m.dFake < 0.2;
   const maxShare = Math.max(...m.modeCounts) / 600;
@@ -99,34 +99,34 @@ function narrate(cfg: GanConfig, m: MetricRec | null, hist: MetricRec[], ref: { 
 
   if (ring && m.modes <= 2 && maxShare > 0.3) {
     state = "mode collapse";
-    parts.push(`Mode collapse: ${fmt(100 * maxShare, 0)}% of all samples sit in a single mode and only ${m.modes} of 8 modes are covered. Every sample there looks real to D, so G has no incentive to spread out; D can only push it away by lowering D(x) at that mode, and G then follows the gradient to wherever D is now highest.`);
+    parts.push(`Mode collapse: ${fmt(100 * maxShare, 0)}% of all samples sit in one cluster (mode), and only ${m.modes} of 8 modes are covered. Every sample there looks real to D, so G has no reason to spread out. D can only push it away by lowering D(x) at that mode. Then G follows the gradient to wherever D is now highest.`);
   } else if (ring && hops >= 3) {
     state = "oscillation";
-    parts.push(`Oscillation: over the last few checkpoints the fullest mode changed ${hops - 1}+ times. G concentrates its samples, D learns to reject that region, G jumps to the next region D still likes — the alternating updates circle around the equilibrium instead of settling into it.`);
+    parts.push(`Oscillation: over the last few checks, the busiest mode changed ${hops - 1}+ times. G piles its samples in one spot, D learns to reject it, and G jumps to the next spot D still likes. The two keep circling the equilibrium instead of settling.`);
   } else if (ring && m.hq < 0.15 && m.recall < 0.5 && m.iter > 1500) {
     state = "collapsed off the data";
-    parts.push(`G's samples are squeezed into a small region (only ${fmt(100 * m.recall, 0)}% of real points have a generated neighbour within 0.15) and few land on a mode (${fmt(100 * m.hq, 0)}% high quality). With G learning much faster than D, each G step overshoots to wherever D currently scores highest.`);
+    parts.push(`G's samples are squeezed into a small area. Only ${fmt(100 * m.recall, 0)}% of real points have a generated neighbour within 0.15, and few samples land on a mode (${fmt(100 * m.hq, 0)}% high quality). G learns much faster than D, so each G step overshoots to wherever D scores highest right now.`);
   } else if (dWins) {
     state = "D winning";
     parts.push(
       cfg.loss === "minimax"
-        ? `D is winning: it rejects the fakes with high confidence. With the original loss G minimises log(1 − D(G(z))), whose gradient −σ(l)·∇l is weighted by D(G(z)) itself: samples D confidently rejects get almost no push. At this very D the saturating loss gives a mean push of ${fmt(m.satGrad, 3)} per sample, the non-saturating loss would give ${fmt(m.nsGrad, 3)} (${fmt(m.nsGrad / Math.max(m.satGrad, 1e-12), 1)}×). Try the non-saturating loss with the same learning rates.`
-        : `D is winning, but the non-saturating loss −log D(G(z)) has gradient −(1 − σ(l))·∇l, which is largest for the samples D rejects: here a mean push of ${fmt(m.nsGrad, 3)} per sample, versus ${fmt(m.satGrad, 3)} with the original loss. The danger now is that G follows that strong signal to D's single favourite region.`,
+        ? `D is winning: it rejects the fakes with high confidence. With the original loss, G minimises log(1 − D(G(z))). Its gradient −σ(l)·∇l is scaled by D(G(z)) itself, so samples D firmly rejects get almost no push. With this exact D, the saturating loss gives a mean push of ${fmt(m.satGrad, 3)} per sample. The non-saturating loss would give ${fmt(m.nsGrad, 3)} (${fmt(m.nsGrad / Math.max(m.satGrad, 1e-12), 1)}×). Try the non-saturating loss with the same learning rates.`
+        : `D is winning. But the non-saturating loss −log D(G(z)) has gradient −(1 − σ(l))·∇l, which is biggest for the samples D rejects. Here that is a mean push of ${fmt(m.nsGrad, 3)} per sample, versus ${fmt(m.satGrad, 3)} with the original loss. The risk now: G follows that strong signal to D's one favourite spot.`,
     );
   } else if (ring && m.modes === N_MODES && m.hq > 0.6) {
     state = "all modes covered";
-    parts.push(`All 8 modes hold at least ${MODE_FRACTION * 100}% of their fair share of samples and ${fmt(100 * m.hq, 0)}% of the samples lie within 3σ of a mode. D's background is nearly flat near the data: it can no longer tell real from generated, so G receives little further pressure.`);
+    parts.push(`All 8 modes hold at least ${MODE_FRACTION * 100}% of their fair share of samples, and ${fmt(100 * m.hq, 0)}% of samples lie within 3σ of a mode. D's background is nearly flat near the data. It can no longer tell real from fake, so G gets little more pressure.`);
   } else if (!ring && m.precision > 0.85 * ref.precision && m.recall > 0.85 * ref.recall) {
     state = "good fit";
-    parts.push(`Precision ${fmt(m.precision, 2)} and recall ${fmt(m.recall, 2)} are close to the values a perfect generator would get with these sample sizes (${fmt(ref.precision, 2)} / ${fmt(ref.recall, 2)}): the generated cloud matches the data.`);
+    parts.push(`Precision ${fmt(m.precision, 2)} and recall ${fmt(m.recall, 2)} are close to what a perfect generator would get with these sample sizes (${fmt(ref.precision, 2)} / ${fmt(ref.recall, 2)}). The generated cloud matches the data.`);
   } else {
     parts.push(
       ring
-        ? `${m.modes} of 8 modes covered, ${fmt(100 * m.hq, 0)}% of samples within 3σ of a mode. G moves its samples up D's slope (the arrows show −∂L_G/∂x); D then re-draws its boundary around the new fakes.`
-        : `Precision ${fmt(m.precision, 2)} (generated points near real ones) and recall ${fmt(m.recall, 2)} (real points near generated ones); a perfect generator scores ${fmt(ref.precision, 2)} / ${fmt(ref.recall, 2)}. G moves its samples up D's slope (arrows); D re-draws its boundary.`,
+        ? `${m.modes} of 8 modes covered, ${fmt(100 * m.hq, 0)}% of samples within 3σ of a mode. G moves its samples uphill on D's scores (the arrows show −∂L_G/∂x). Then D redraws its boundary around the new fakes.`
+        : `Precision ${fmt(m.precision, 2)} (generated points near real ones) and recall ${fmt(m.recall, 2)} (real points near generated ones). A perfect generator scores ${fmt(ref.precision, 2)} / ${fmt(ref.recall, 2)}. G moves its samples uphill on D's scores (arrows); D redraws its boundary.`,
     );
   }
-  return { title: `Iteration ${m.iter} — ${state}`, text: parts.join(" ") };
+  return { title: `Iteration ${m.iter}: ${state}`, text: parts.join(" ") };
 }
 
 /* ---------------------------------------------------------------- component */
@@ -421,7 +421,7 @@ export default function GanSim() {
   return (
     <SimShell
       title="GAN Training"
-      subtitle="A real generator and discriminator trained live in your browser (hand-written backprop + Adam). Gold = generated samples, dark = real data, background = D(x)."
+      subtitle="A real generator and discriminator train live in your browser (hand-written backprop + Adam). Gold = generated samples, dark = real data, background = D(x)."
       controls={
         <Controls
           s={stepper}
@@ -448,7 +448,7 @@ export default function GanSim() {
       aside={
         <div className="space-y-3">
           <div>
-            <div className="mb-1 text-xs text-muted">Presets (verified runs)</div>
+            <div className="mb-1 text-xs text-muted">Presets (tested runs)</div>
             <div className="flex flex-wrap gap-1.5">
               {PRESETS.map((p) => (
                 <button key={p.id} className={`sim-btn text-xs ${presetId === p.id ? "primary" : ""}`} aria-pressed={presetId === p.id} onClick={() => applyPreset(p.id)}>
@@ -546,7 +546,7 @@ export default function GanSim() {
           </div>
           <Narration title={title}>{text}</Narration>
           <p className="text-xs text-faint">
-            G: {cfg.zDim}→{cfg.hidden}→{cfg.hidden}→2 ({tr ? nParams(tr.G) : 0} params) · D: 2→{cfg.hidden}→{cfg.hidden}→1 ({tr ? nParams(tr.D) : 0} params) · batch {cfg.batch} · Adam β = (0.5, 0.9). Metrics use 600 fixed noise vectors and 1000 real points.
+            G: {cfg.zDim}→{cfg.hidden}→{cfg.hidden}→2 ({tr ? nParams(tr.G) : 0} params) · D: 2→{cfg.hidden}→{cfg.hidden}→1 ({tr ? nParams(tr.D) : 0} params) · batch {cfg.batch} · Adam β = (0.5, 0.9). Scores use 600 fixed noise inputs and 1000 real points.
           </p>
         </div>
       }
@@ -558,7 +558,7 @@ export default function GanSim() {
           <span>■ real data</span>
           <span className="text-accent">background: D says real</span>
           <span className="text-clay">· D says fake</span>
-          {showFlow && <span>→ −∂L_G/∂x (where G is pushing its samples)</span>}
+          {showFlow && <span>→ −∂L_G/∂x (where G pushes its samples)</span>}
           {ring && <span>dashed: 3σ around each mode</span>}
         </figcaption>
       </figure>
@@ -586,7 +586,7 @@ export default function GanSim() {
             )}
             {!lossChart && (
               <text x={LW / 2} y={LH / 2} fontSize="11" textAnchor="middle" fill="var(--text-muted)">
-                losses appear after 20 iterations
+                losses show up after 20 iterations
               </text>
             )}
           </svg>
@@ -651,15 +651,15 @@ export default function GanSim() {
           <figcaption className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted">
             {ring ? (
               <>
-                <span>bars: high-quality samples per mode (dashed = coverage threshold, {MODE_FRACTION * 100}% of fair share)</span>
+                <span>bars: good samples per mode (dashed = covered line, {MODE_FRACTION * 100}% of a fair share)</span>
                 <span className="text-accent">— modes covered / 8</span>
-                <span className="text-gold">— high-quality fraction</span>
+                <span className="text-gold">— share of good samples</span>
               </>
             ) : (
               <>
                 <span className="text-accent">— precision</span>
                 <span className="text-gold">— recall</span>
-                <span>dashed: perfect-generator values</span>
+                <span>dashed: what a perfect generator gets</span>
               </>
             )}
           </figcaption>

@@ -91,21 +91,21 @@ export type Block =
 
 export const SECTION_ORDER = [
   ["intro", "Introduction"],
-  ["prerequisites", "Prerequisites"],
-  ["intuition", "Intuitive Explanation"],
-  ["mechanism", "How It Actually Works"],
-  ["math", "Mathematical Explanation"],
-  ["visual", "Interactive Visualization"],
+  ["prerequisites", "Before You Start"],
+  ["intuition", "The Big Idea"],
+  ["mechanism", "How It Works"],
+  ["math", "The Math, Step by Step"],
+  ["visual", "Try It Yourself"],
   ["scratch", "Code From Scratch (NumPy)"],
-  ["framework", "Framework Implementation"],
+  ["framework", "Using a Framework"],
   ["variations", "Types and Variations"],
-  ["applications", "Practical Applications"],
-  ["tradeoffs", "Advantages and Limitations"],
+  ["applications", "Where It's Used"],
+  ["tradeoffs", "Strengths and Limits"],
   ["mistakes", "Common Mistakes"],
   ["interview", "Interview Questions"],
   ["practice", "Knowledge Check"],
   ["summary", "Summary"],
-  ["next", "Next Learning Path"],
+  ["next", "What to Learn Next"],
 ] as const;
 
 export type SectionKey = (typeof SECTION_ORDER)[number][0];

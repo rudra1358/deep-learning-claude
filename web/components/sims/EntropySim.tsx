@@ -286,35 +286,35 @@ export default function EntropySim() {
     story = (
       <>
         <p>
-          H(p) = {u(ms.Hp)} {uName} is the average surprise of outcomes drawn from p when you code them with p itself; the maximum possible for K = {K} is log K = {fmt(toUnit(Math.log(K), unit), 4)}.
-          Coding them with q instead costs H(p,q) = {u(ms.Hpq)} {uName}; the excess, KL(p‖q) = {u(ms.klPQ)}, is the price of believing q when the truth is p.
+          H(p) = {u(ms.Hp)} {uName} is the average surprise of outcomes from p, when you code them using p itself. The most it can be for K = {K} is log K = {fmt(toUnit(Math.log(K), unit), 4)}.
+          Coding them with q instead costs H(p,q) = {u(ms.Hpq)} {uName}. The extra, KL(p‖q) = {u(ms.klPQ)}, is the price of believing q when the truth is p.
         </p>
         <p className="mt-1">
           {!Number.isFinite(ms.klPQ)
-            ? "KL(p‖q) is infinite: some outcome has p > 0 but q = 0, so its surprise −log q is unbounded."
-            : `Note the asymmetry: KL(q‖p) = ${u(ms.klQP)}. JS = ${u(ms.js)} is symmetric and never exceeds ${unit === "bits" ? "1 bit" : "log 2 ≈ 0.693 nats"}.`}{" "}
-          Drag bars to edit, then press Play to train q.
+            ? "KL(p‖q) is infinite. Some outcome has p > 0 but q = 0, so its surprise −log q has no limit."
+            : `Notice KL is not symmetric: KL(q‖p) = ${u(ms.klQP)}. JS = ${u(ms.js)} is symmetric and never goes above ${unit === "bits" ? "1 bit" : "log 2 ≈ 0.693 nats"}.`}{" "}
+          Drag the bars to edit, then press Play to train q.
         </p>
       </>
     );
   } else {
-    const what = objective === "forward" ? "KL(p‖q) (the same as minimising H(p,q), since H(p) is fixed)" : "KL(q‖p)";
+    const what = objective === "forward" ? "KL(p‖q) (same as minimising H(p,q), since H(p) is fixed)" : "KL(q‖p)";
     const gaussNote =
       family === "gauss"
         ? objective === "forward"
-          ? ` q is a single bump (μ = ${fmt(m.mu + 1, 2)} on the 1…K axis, σ = ${fmt(sigma, 2)}). Forward KL punishes q for missing any mass of p, so the bump moves between the modes and widens to cover them: mode-covering.`
-          : ` q is a single bump (μ = ${fmt(m.mu + 1, 2)}, σ = ${fmt(sigma, 2)}). Reverse KL punishes q for putting mass where p is small, so the bump tends to settle on one mode and stay narrow: mode-seeking. Which mode depends on where μ starts.`
+          ? ` q is a single bump (μ = ${fmt(m.mu + 1, 2)} on the 1…K axis, σ = ${fmt(sigma, 2)}). Forward KL punishes q for missing any part of p. So the bump sits between the peaks (modes) and widens to cover them all: mode-covering.`
+          : ` q is a single bump (μ = ${fmt(m.mu + 1, 2)}, σ = ${fmt(sigma, 2)}). Reverse KL punishes q for putting probability where p is small. So the bump tends to settle on one peak and stay narrow: mode-seeking. Which peak depends on where μ starts.`
         : obj < 1e-3
-          ? " q has (almost) become p: with K free logits the model family contains p, so both directions of KL reach 0."
-          : " With K free logits the family contains p (if p has full support), so the minimum is q = p.";
+          ? " q has (almost) become p. With K free logits, q can match p exactly, so KL in both directions reaches 0."
+          : " With K free logits, q can match p exactly (if p gives every outcome some chance), so the best answer is q = p.";
     story = (
       <>
         <p>
-          Iteration {m.iter}: gradient descent (η = {lr.toFixed(2)}) on q&apos;s logits, minimising {what}. Current value {u(obj)} {uName}.
+          Iteration {m.iter}: gradient descent (η = {lr.toFixed(2)}) on q&apos;s logits, minimising {what}. Current value: {u(obj)} {uName}.
         </p>
         <p className="mt-1">
           {gaussNote}
-          {objective === "reverse" && pHasZero ? ` p has zero-probability outcomes; log p is floored at log(${P_FLOOR}) for the gradient, which pushes q's mass there towards 0.` : ""}
+          {objective === "reverse" && pHasZero ? ` p has outcomes with zero probability. For the gradient, log p is kept at least log(${P_FLOOR}), which pushes q's probability there toward 0.` : ""}
         </p>
       </>
     );
@@ -329,7 +329,7 @@ export default function EntropySim() {
   return (
     <SimShell
       title="Entropy, Cross-Entropy & KL Divergence"
-      subtitle="p is the true distribution, q the model. Drag bars, compare the measures, then train q by gradient descent."
+      subtitle="p is the true distribution and q is the model. Drag the bars, compare the measures, then train q with gradient descent."
       controls={
         <div className="space-y-2.5">
           <Controls s={st} canPrev={false} extra={<span className="ml-auto font-mono text-xs text-faint">iter {m.iter}</span>} />
@@ -387,14 +387,14 @@ export default function EntropySim() {
       }
       aside={
         <div className="space-y-3">
-          <Narration title={m.iter === 0 ? "Comparing p and q" : family === "gauss" ? "Training a restricted q" : "Training q"}>{story}</Narration>
+          <Narration title={m.iter === 0 ? "Comparing p and q" : family === "gauss" ? "Training a limited q" : "Training q"}>{story}</Narration>
           <table className="w-full text-xs">
             <tbody className="font-mono">
               {[
-                ["H(p)", ms.Hp, "entropy of the truth"],
-                ["H(q)", ms.Hq, "entropy of the model"],
-                ["H(p,q)", ms.Hpq, "cross-entropy"],
-                ["KL(p‖q)", ms.klPQ, "forward KL"],
+                ["H(p)", ms.Hp, "uncertainty of the truth"],
+                ["H(q)", ms.Hq, "uncertainty of the model"],
+                ["H(p,q)", ms.Hpq, "cost of coding p with q"],
+                ["KL(p‖q)", ms.klPQ, "forward KL (extra cost)"],
                 ["KL(q‖p)", ms.klQP, "reverse KL"],
                 ["JS(p,q)", ms.js, "Jensen–Shannon"],
               ].map(([label, v, d]) => (
@@ -417,10 +417,10 @@ export default function EntropySim() {
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <Bars dist={p} other={m.q} color="var(--accent)" otherColor="var(--clay)" name="p (true) — dashes show q" onSet={editP} />
+          <Bars dist={p} other={m.q} color="var(--accent)" otherColor="var(--clay)" name="p (true), dashes show q" onSet={editP} />
         </div>
         <div>
-          <Bars dist={m.q} other={p} color="var(--clay)" otherColor="var(--accent)" name={family === "gauss" ? "q (unimodal model) — dashes show p" : "q (model) — dashes show p"} onSet={family === "free" ? editQ : null} />
+          <Bars dist={m.q} other={p} color="var(--clay)" otherColor="var(--accent)" name={family === "gauss" ? "q (one-bump model), dashes show p" : "q (model), dashes show p"} onSet={family === "free" ? editQ : null} />
         </div>
       </div>
 
@@ -432,7 +432,7 @@ export default function EntropySim() {
         <button className={`sim-btn ${editing === "q" ? "primary" : ""}`} onClick={() => setEditing("q")} aria-pressed={editing === "q"} disabled={family === "gauss"}>
           q
         </button>
-        <span className="text-faint">Changing one outcome rescales the others so the total stays 1.</span>
+        <span className="text-faint">Changing one outcome rescales the others, so they still add up to 1.</span>
       </div>
       <div className="mt-1.5 grid gap-1 sm:grid-cols-2">
         {(editing === "p" || family === "gauss" ? p : m.q).map((v, i) => (
@@ -477,7 +477,7 @@ export default function EntropySim() {
           </tbody>
         </table>
         <p className="mt-1 text-xs text-faint">
-          Individual terms can be negative (where q_i &gt; p_i) but their sum never is. Entries with p_i = 0 contribute exactly 0.
+          A single term can be negative (where q_i &gt; p_i), but their sum never is. Rows with p_i = 0 add exactly 0.
         </p>
       </div>
     </SimShell>

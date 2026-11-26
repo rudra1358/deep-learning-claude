@@ -302,7 +302,7 @@ export default function AutoencoderSim() {
   if (error) {
     return (
       <SimShell title={TITLE} subtitle="A real autoencoder trained on 8×8 handwritten digits.">
-        <p className="text-sm text-clay">Could not load the model ({error}). Check your connection and reload the page.</p>
+        <p className="text-sm text-clay">Could not load the model ({error}). Check your internet connection and reload the page.</p>
       </SimShell>
     );
   }
@@ -310,7 +310,7 @@ export default function AutoencoderSim() {
     return (
       <SimShell title={TITLE} subtitle="A real autoencoder trained on 8×8 handwritten digits.">
         <div className="flex h-40 items-center justify-center text-sm text-muted" role="status">
-          Loading the trained model (≈240 KB: two autoencoders and 1,797 latent codes)…
+          Loading the trained model (about 240 KB: two autoencoders and 1,797 codes)…
         </div>
       </SimShell>
     );
@@ -359,7 +359,7 @@ export default function AutoencoderSim() {
   if (step === 0) {
     stageBody = (
       <p className="text-xs text-muted">
-        The input is the 8×8 image flattened into 64 numbers in [0, 1] (grey level / 16){noise > 0 ? `, plus Gaussian noise of σ = ${noise.toFixed(2)} clipped back to [0, 1]` : ""}. First pixels: [{input.slice(0, 8).map((v) => v.toFixed(2)).join(", ")}, …]
+        The input is the 8×8 image laid out as one row of 64 numbers in [0, 1] (grey level / 16){noise > 0 ? `, plus Gaussian noise of σ = ${noise.toFixed(2)}, clipped back to [0, 1]` : ""}. First pixels: [{input.slice(0, 8).map((v) => v.toFixed(2)).join(", ")}, …]
       </p>
     );
   } else if (step === 1) stageBody = <VecCells v={trace.encH1} label="h₁ = ReLU(W₁x + b₁)" cols={16} />;
@@ -367,7 +367,7 @@ export default function AutoencoderSim() {
   else if (step === 3)
     stageBody = (
       <div className="font-mono text-sm">
-        z = W₃h₂ + b₃ = (<span className="text-accent">{fmt(trace.z[0], 3)}</span>, <span className="text-accent">{fmt(trace.z[1], 3)}</span>) <span className="text-xs text-muted">— the whole image squeezed into 2 numbers (gold ring in the latent plot)</span>
+        z = W₃h₂ + b₃ = (<span className="text-accent">{fmt(trace.z[0], 3)}</span>, <span className="text-accent">{fmt(trace.z[1], 3)}</span>) <span className="text-xs text-muted">: the whole image squeezed into 2 numbers (gold ring in the plot below)</span>
       </div>
     );
   else if (step === 4) stageBody = <VecCells v={trace.decH1} label="d₁ = ReLU(V₁z + c₁)" cols={16} />;
@@ -377,7 +377,7 @@ export default function AutoencoderSim() {
       <div className="grid gap-1 font-mono text-[11px] text-muted">
         <div>x̂ = sigmoid(V₃d₂ + c₃): 64 pixel intensities in (0, 1)</div>
         <div>
-          reconstruction loss (vs the clean image): BCE = {fmt(bce, 3)} nats summed over 64 pixels · MSE = {fmt(mseClean, 4)} · largest pixel error {fmt(Math.max(...err.map(Math.abs)), 3)}
+          reconstruction loss (vs the clean image): BCE = {fmt(bce, 3)} nats, summed over 64 pixels · MSE = {fmt(mseClean, 4)} · largest pixel error {fmt(Math.max(...err.map(Math.abs)), 3)}
         </div>
         <div>
           test-set average for this model: BCE {info.final.test_bce} · MSE {info.final.test_mse}
@@ -389,18 +389,18 @@ export default function AutoencoderSim() {
     <div className="flex flex-col gap-3">
       <Narration title={`${step + 1}. ${STAGES[step]}`}>{narrate(step, trace, label, which, noise, mseClean)}</Narration>
       <div className="rounded-lg border border-border p-2.5 text-[11px] leading-snug text-muted">
-        <span className="font-medium text-accent">A real trained model.</span> Two MLP autoencoders (64→64→32→<b>2</b>→32→64→64, ReLU, sigmoid output; {info.n_params.toLocaleString()} parameters each) trained with PyTorch for {json.training.epochs} epochs on {json.data.n_train.toLocaleString()} of scikit-learn&apos;s 8×8 handwritten digits, loss = binary cross-entropy summed over pixels. Labels were never used — the scatter shows the {nTest} held-out test digits. The denoising twin saw inputs corrupted with Gaussian noise (σ up to 0.5).
+        <span className="font-medium text-accent">This is a real trained model.</span> Two MLP autoencoders (64→64→32→<b>2</b>→32→64→64, ReLU, sigmoid output; {info.n_params.toLocaleString()} parameters each), trained in PyTorch for {json.training.epochs} epochs on {json.data.n_train.toLocaleString()} of scikit-learn&apos;s 8×8 handwritten digits. Loss = binary cross-entropy summed over pixels. Labels were never used. The scatter shows the {nTest} test digits it never trained on. The denoising twin was trained on inputs with Gaussian noise added (σ up to 0.5).
       </div>
       {check && (
         <div className="rounded-lg border border-border p-2.5 font-mono text-[11px] leading-snug text-muted">
-          browser vs PyTorch: max |Δ| = {check.maxAbsDiff.toExponential(1)} over {check.checked} activations {check.maxAbsDiff < 1e-3 ? "✓" : "✗"}
+          your browser vs PyTorch: max |Δ| = {check.maxAbsDiff.toExponential(1)} over {check.checked} activations {check.maxAbsDiff < 1e-3 ? "✓" : "✗"}
         </div>
       )}
     </div>
   );
 
   return (
-    <SimShell title={TITLE} subtitle="Encode a digit into 2 numbers, decode it back — then click anywhere in latent space to see what the decoder makes of it." controls={controls} aside={aside}>
+    <SimShell title={TITLE} subtitle="Squeeze a digit into 2 numbers and rebuild it. Then click anywhere in the 2-D code space to see what the decoder draws." controls={controls} aside={aside}>
       <Pipeline step={step} onPick={(k) => s.setStep(k)} />
       <div className="mb-3 flex flex-wrap items-start justify-center gap-4">
         <Digit px={clean} label={`test #${idx} (label ${label})`} highlight={step === 0 && noise === 0} />
@@ -441,7 +441,7 @@ export default function AutoencoderSim() {
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,11rem)]">
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-medium">Latent space of the {which === "ae" ? "autoencoder" : "denoising AE"}</span>
+            <span className="font-medium">Latent (code) space of the {which === "ae" ? "autoencoder" : "denoising AE"}</span>
             <button className={`sim-btn ${view === "scatter" ? "primary" : ""}`} onClick={() => setView("scatter")} aria-pressed={view === "scatter"}>
               test codes
             </button>
@@ -469,7 +469,7 @@ export default function AutoencoderSim() {
             ariaLabel="Latent space: test digits plotted at their 2-D codes, labelled by class. Click to decode a point."
           />
           <p className="mt-1 text-[11px] text-muted">
-            {view === "scatter" ? "Each test digit is drawn as its label at its code z. Gold ring = the selected digit. Click anywhere to decode that point." : "Every cell shows the decoder's output for the z at its centre. The codes fill only an irregular part of the plane; between and beyond the clusters the decoder was never trained and simply extrapolates — zoom out ×3 to see hard, blocky, over-saturated strokes."}
+            {view === "scatter" ? "Each test digit is drawn as its label, placed at its code z. Gold ring = the chosen digit. Click anywhere to decode that point." : "Each cell shows what the decoder draws for the z at its centre. Real codes fill only an uneven patch of the plane. Between and beyond the clusters, the decoder never trained, so it just guesses. Zoom out ×3 to see hard, blocky, overly bold strokes."}
           </p>
         </div>
         <div className="flex min-w-0 flex-col items-center gap-2 text-xs">
@@ -477,15 +477,15 @@ export default function AutoencoderSim() {
             <>
               <Digit px={clickedDecode} size={120} label={`decoder(${fmt(clicked[0], 2)}, ${fmt(clicked[1], 2)})`} highlight />
               <p className="text-center text-[11px] text-muted">
-                Nearest training code is {fmt(clickedDist.d, 2)} away (a {clickedDist.label}) = <b className={clickedDist.d > 5 * nnInfo.median ? "text-clay" : "text-accent"}>{(clickedDist.d / nnInfo.median).toFixed(1)}×</b> the median gap between neighbouring training codes ({fmt(nnInfo.median, 3)}).
-                {clickedDist.d > 5 * nnInfo.median ? " This is a hole: the decoder was never asked to produce anything here." : " Close to real data: expect a plausible digit."}
+                The nearest training code is {fmt(clickedDist.d, 2)} away (a {clickedDist.label}). That is <b className={clickedDist.d > 5 * nnInfo.median ? "text-clay" : "text-accent"}>{(clickedDist.d / nnInfo.median).toFixed(1)}×</b> the usual (median) gap between neighbouring training codes ({fmt(nnInfo.median, 3)}).
+                {clickedDist.d > 5 * nnInfo.median ? " This is a hole: the decoder was never asked to draw anything here." : " Close to real data, so expect a believable digit."}
               </p>
               <button className="sim-btn" onClick={() => setClicked(null)} aria-label="Clear clicked point">
                 clear
               </button>
             </>
           ) : (
-            <p className="text-center text-[11px] text-muted">Click in the latent plot to decode any point z = (z₁, z₂) with the real decoder.</p>
+            <p className="text-center text-[11px] text-muted">Click the plot to decode any point z = (z₁, z₂) with the real decoder.</p>
           )}
         </div>
       </div>
@@ -497,18 +497,18 @@ function narrate(step: number, t: AeTrace, label: number, which: Which, noise: n
   const active = (v: number[]) => v.filter((x) => x > 0).length;
   switch (step) {
     case 0:
-      return `A ${label} from the held-out test set: 64 grey levels in [0, 1]${noise > 0 ? `, corrupted with noise σ = ${noise.toFixed(2)}` : ""}. The network's job is to reproduce the clean image after squeezing it through a 2-number bottleneck.`;
+      return `A ${label} from the test set (never seen in training): 64 grey levels in [0, 1]${noise > 0 ? `, with noise σ = ${noise.toFixed(2)} added` : ""}. The network must squeeze it down to just 2 numbers (the bottleneck), then rebuild the clean image.`;
     case 1:
-      return `The first encoder layer maps 64 pixels to 64 features: h₁ = ReLU(W₁x + b₁). ${active(t.encH1)} of 64 units are active (positive); the rest are clipped to exactly 0 by the ReLU.`;
+      return `The first encoder layer turns 64 pixels into 64 features: h₁ = ReLU(W₁x + b₁). ${active(t.encH1)} of 64 units are active (positive). ReLU sets the rest to exactly 0.`;
     case 2:
-      return `The second encoder layer compresses to 32 features; ${active(t.encH2)} of 32 are active. Each layer discards information that is not needed to rebuild the digit.`;
+      return `The second encoder layer shrinks it to 32 features; ${active(t.encH2)} of 32 are active. Each layer throws away details not needed to rebuild the digit.`;
     case 3:
-      return `The bottleneck: a linear layer outputs the code z = (${fmt(t.z[0], 2)}, ${fmt(t.z[1], 2)}). Everything the decoder will know about this image is in these two numbers — 32 times fewer than the 64 pixels. Training (with no labels) placed similar-looking digits near each other.`;
+      return `The bottleneck: a linear layer outputs the code z = (${fmt(t.z[0], 2)}, ${fmt(t.z[1], 2)}). All the decoder will know about this image is these two numbers, 32 times fewer than the 64 pixels. Training (with no labels) put similar-looking digits near each other.`;
     case 4:
-      return `The decoder mirrors the encoder: d₁ = ReLU(V₁z + c₁) expands 2 → 32 (${active(t.decH1)} active). The decoder is a function of z alone — it cannot peek at the input.`;
+      return `The decoder mirrors the encoder: d₁ = ReLU(V₁z + c₁) grows 2 → 32 (${active(t.decH1)} active). The decoder only gets z. It cannot peek at the input.`;
     case 5:
-      return `d₂ = ReLU(V₂d₁ + c₂) expands to 64 features (${active(t.decH2)} active), one step before the pixels.`;
+      return `d₂ = ReLU(V₂d₁ + c₂) grows to 64 features (${active(t.decH2)} active). One more step and we have pixels.`;
     default:
-      return `The output layer and a sigmoid give 64 pixel intensities. Mean squared error against the clean image: ${fmt(mseClean, 4)}. A 2-D code cannot store stroke details, so reconstructions are smoothed "prototype" digits.${which === "dae" ? " The denoising AE was trained to map noisy inputs to clean targets." : ""} Try the decoded map and click between clusters: a deterministic AE's decoder is only trained at the codes of real images.`;
+      return `The output layer and a sigmoid give 64 pixel values. Mean squared error against the clean image: ${fmt(mseClean, 4)}. Two numbers cannot store fine stroke details, so rebuilt digits look like smooth "typical" digits.${which === "dae" ? " The denoising AE was trained to turn noisy inputs into clean ones." : ""} Try the decoded map and click between clusters. A plain (non-variational) AE's decoder only trained at the codes of real images.`;
   }
 }

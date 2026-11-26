@@ -243,7 +243,7 @@ export default function VaeSim() {
   if (error) {
     return (
       <SimShell title={TITLE} subtitle="A real VAE trained on 8×8 handwritten digits.">
-        <p className="text-sm text-clay">Could not load the model ({error}). Check your connection and reload the page.</p>
+        <p className="text-sm text-clay">Couldn&apos;t load the model ({error}). Check your connection and reload the page.</p>
       </SimShell>
     );
   }
@@ -283,7 +283,7 @@ export default function VaeSim() {
 
   let stageBody: ReactNode;
   if (step === 0) {
-    stageBody = <p className="text-xs text-muted">x = 64 grey levels in [0, 1]: [{x.slice(0, 8).map((v) => v.toFixed(2)).join(", ")}, …]. The likelihood treats each pixel as a Bernoulli probability.</p>;
+    stageBody = <p className="text-xs text-muted">x = 64 grey levels from 0 to 1: [{x.slice(0, 8).map((v) => v.toFixed(2)).join(", ")}, …]. The model treats each pixel as a chance of being on (a Bernoulli probability).</p>;
   } else if (step === 1) {
     stageBody = (
       <div className="grid gap-3 sm:grid-cols-2">
@@ -304,7 +304,7 @@ export default function VaeSim() {
   } else if (step === 3) {
     stageBody = (
       <div className="font-mono text-[12px]">
-        ε = ({fmt(trace.eps[0], 3)}, {fmt(trace.eps[1], 3)}) <span className="text-xs text-muted">— drawn from N(0, I) by a seeded generator, independent of every parameter. The yellow dots are 40 other draws pushed through μ + σ⊙ε.</span>
+        ε = ({fmt(trace.eps[0], 3)}, {fmt(trace.eps[1], 3)}) <span className="text-xs text-muted">— drawn from N(0, I) by a fixed-seed random generator. It does not depend on any parameter. The yellow dots are 40 other draws pushed through μ + σ⊙ε.</span>
       </div>
     );
   } else if (step === 4) {
@@ -315,7 +315,7 @@ export default function VaeSim() {
             z<sub>{j + 1}</sub> = μ<sub>{j + 1}</sub> + σ<sub>{j + 1}</sub>·ε<sub>{j + 1}</sub> = {fmt(trace.mu[j], 3)} + {fmt(trace.sigma[j], 3)} × {fmt(trace.eps[j], 3)} = <span className="text-accent">{fmt(trace.z[j], 3)}</span>
           </div>
         ))}
-        <div className="text-xs text-muted">∂z/∂μ = 1 and ∂z/∂σ = ε: gradients flow through the sample to the encoder.</div>
+        <div className="text-xs text-muted">∂z/∂μ = 1 and ∂z/∂σ = ε, so gradients can flow through the sample back to the encoder.</div>
       </div>
     );
   } else if (step === 5) {
@@ -335,7 +335,7 @@ export default function VaeSim() {
         <div>
           −ELBO (one sample) = {fmt(trace.reconLoss, 3)} + {fmt(trace.kl, 3)} = <b>{fmt(negElbo, 3)}</b> nats
         </div>
-        <div className="text-xs text-muted">Test-set average (PyTorch): reconstruction {fin.test_recon}, KL {fin.test_kl}, −ELBO {fin.test_neg_elbo} nats per image.</div>
+        <div className="text-xs text-muted">Average over the test set (PyTorch): reconstruction {fin.test_recon}, KL {fin.test_kl}, −ELBO {fin.test_neg_elbo} nats per image.</div>
       </div>
     );
   }
@@ -347,7 +347,7 @@ export default function VaeSim() {
     <div className="flex flex-col gap-3">
       <Narration title={`${step + 1}. ${STAGES[step]}`}>{narrate(step, trace, label)}</Narration>
       <div className="rounded-lg border border-border p-2.5 text-[11px] leading-snug text-muted">
-        <span className="font-medium text-accent">A real trained model.</span> A VAE with a 2-D Gaussian latent: encoder 64→64→32→(μ, log σ²), decoder 2→32→64→64 with sigmoid (Bernoulli) outputs, {model.nParams.toLocaleString()} parameters. Trained with PyTorch for {json.training.epochs} epochs on {json.data.n_train.toLocaleString()} of scikit-learn&apos;s 8×8 digits (labels unused), loss = BCE summed over pixels + KL, β = {json.config.beta}, one sample of ε per image.
+        <span className="font-medium text-accent">A real trained model.</span> A VAE with a 2-D Gaussian code (latent): encoder 64→64→32→(μ, log σ²), decoder 2→32→64→64 with sigmoid (Bernoulli) outputs, {model.nParams.toLocaleString()} parameters. Trained with PyTorch for {json.training.epochs} epochs on {json.data.n_train.toLocaleString()} of scikit-learn&apos;s 8×8 digits (labels not used). Loss = BCE summed over pixels + KL, β = {json.config.beta}, one sample of ε per image.
       </div>
       {check && (
         <div className="rounded-lg border border-border p-2.5 font-mono text-[11px] leading-snug text-muted">
@@ -358,7 +358,7 @@ export default function VaeSim() {
   );
 
   return (
-    <SimShell title={TITLE} subtitle="Follow one digit through the encoder, the reparameterised sample and the decoder — then sample new digits from the prior." controls={controls} aside={aside}>
+    <SimShell title={TITLE} subtitle="Follow one digit through the encoder, the random sample and the decoder. Then create brand-new digits from random codes." controls={controls} aside={aside}>
       <nav className="mb-3 flex flex-wrap gap-1" aria-label="Stages">
         {STAGES.map((name, k) => (
           <button
@@ -384,7 +384,7 @@ export default function VaeSim() {
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,11rem)]">
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-medium">Latent space: posterior means μ of the test set</span>
+            <span className="font-medium">Latent space: the mean code μ of each test digit</span>
             <button className={`sim-btn ${view === "scatter" ? "primary" : ""}`} onClick={() => setView("scatter")} aria-pressed={view === "scatter"}>
               test μ
             </button>
@@ -394,7 +394,7 @@ export default function VaeSim() {
           </div>
           <LatentPlot mus={json.test.mu} labels={json.test.labels} trace={trace} showPosterior={showPosterior} showZ={showZ} cloud={showPosterior && step >= 3 ? cloud : []} path={path} clicked={clicked} grid={grid} onClick={setClicked} />
           <p className="mt-1 text-[11px] text-muted">
-            Gold ellipse = q(z|x) at 1σ (solid) and 2σ (dashed); green dot = the sampled z; clay line = the interpolation / traversal path below; dashed circles = the prior. The KL term packs the codes into the prior&apos;s disc, so — unlike the plain autoencoder — almost every point inside it decodes to a digit-like image. Click to decode any point.
+            Gold oval = q(z|x) at 1σ (solid) and 2σ (dashed). Green dot = the sampled z. Clay line = the path used below. Dashed circles = the prior N(0, I). The KL term packs the codes into the prior&apos;s disc. So, unlike a plain autoencoder, almost every point inside it decodes to a digit-like image. Click to decode any point.
           </p>
         </div>
         <div className="flex min-w-0 flex-col items-center gap-2">
@@ -402,14 +402,14 @@ export default function VaeSim() {
             <>
               <Digit px={clickedDecode} size={120} label={`decoder(${fmt(clicked[0], 2)}, ${fmt(clicked[1], 2)})`} highlight />
               <p className="text-center text-[11px] text-muted">
-                ‖z‖ = {fmt(Math.hypot(clicked[0], clicked[1]), 2)}; prior density relative to the origin: {fmt(Math.exp(-0.5 * (clicked[0] ** 2 + clicked[1] ** 2)), 3)}
+                ‖z‖ = {fmt(Math.hypot(clicked[0], clicked[1]), 2)}; prior density compared with the centre: {fmt(Math.exp(-0.5 * (clicked[0] ** 2 + clicked[1] ** 2)), 3)}
               </p>
               <button className="sim-btn" onClick={() => setClicked(null)} aria-label="Clear clicked point">
                 clear
               </button>
             </>
           ) : (
-            <p className="text-center text-[11px] text-muted">Click in the latent plot to decode any point with the real decoder.</p>
+            <p className="text-center text-[11px] text-muted">Click the latent plot to decode any point with the real decoder.</p>
           )}
         </div>
       </div>
@@ -429,7 +429,7 @@ export default function VaeSim() {
               </button>
             ))}
           </div>
-          <p className="mt-1 text-[11px] text-muted">16 brand-new images — none is a training example. They are smooth and slightly blurry: each pixel is the decoder&apos;s Bernoulli mean, not a sample. Click one to locate its z.</p>
+          <p className="mt-1 text-[11px] text-muted">16 brand-new images. None of them is a training example. They look smooth and a bit blurry, because each pixel is the decoder&apos;s average (Bernoulli mean), not a sample. Click one to find its z.</p>
         </section>
         <section className="min-w-0" aria-label="Interpolation and traversal">
           <div className="mb-1 flex flex-wrap items-center gap-2 text-xs">
@@ -452,13 +452,13 @@ export default function VaeSim() {
             ))}
           </div>
           <p className="mt-1 text-[11px] text-muted">
-            {pathMode === "interp" ? `Decoding 9 evenly spaced points on the straight line from μ(A = #${idx}, a ${label}) to μ(B = #${idxB}, a ${json.test.labels[idxB]}). The images change gradually — every point on the way is a plausible digit.` : `Holding the other coordinate at this digit's μ and sweeping z${pathMode === "z1" ? "₁" : "₂"} from −2.5 to 2.5. Latent axes are not guaranteed to mean anything human-interpretable.`}
+            {pathMode === "interp" ? `Decoding 9 evenly spaced points on the straight line from μ(A = #${idx}, a ${label}) to μ(B = #${idxB}, a ${json.test.labels[idxB]}). The images change slowly, and every point on the way looks like a real digit.` : `Keeping the other coordinate at this digit's μ and sliding z${pathMode === "z1" ? "₁" : "₂"} from −2.5 to 2.5. There is no promise that a latent axis means something a human would name.`}
           </p>
         </section>
       </div>
 
       <section className="mt-5 min-w-0" aria-label="Effect of beta">
-        <div className="mb-1 text-xs font-medium">β-VAE: three separately trained models (same data, seed and architecture; loss = reconstruction + β·KL)</div>
+        <div className="mb-1 text-xs font-medium">β-VAE: three models trained separately (same data, seed and design; loss = reconstruction + β·KL)</div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[20rem] text-left font-mono text-[11px] tabular-nums">
             <thead className="text-muted">
@@ -484,7 +484,7 @@ export default function VaeSim() {
           </table>
         </div>
         <p className="mt-1 text-[11px] text-muted">
-          Small β behaves like a plain autoencoder (tiny σ, sharp reconstructions, high KL). At β = 4 the KL penalty wins completely on this tiny model: every q(z|x) equals the prior (σ = 1, KL = 0), the latent is ignored and every input decodes to the same average digit — posterior collapse. A dimension is counted as active when the variance of μ across test images exceeds 0.01.
+          Small β acts like a plain autoencoder (tiny σ, sharp rebuilds, high KL). At β = 4 the KL penalty wins completely on this tiny model. Every q(z|x) equals the prior (σ = 1, KL = 0), so the code is ignored and every input decodes to the same average digit. This is called posterior collapse. A dimension counts as active when the variance of μ across test images is above 0.01.
         </p>
       </section>
     </SimShell>
@@ -494,18 +494,18 @@ export default function VaeSim() {
 function narrate(step: number, t: VaeTrace, label: number): ReactNode {
   switch (step) {
     case 0:
-      return `A ${label} from the held-out test set. A VAE treats it as generated by an unseen 2-D latent z ~ N(0, I) followed by the decoder; encoding means inferring which z could have produced it.`;
+      return `A ${label} from the test set (never seen in training). A VAE imagines each image was made from a hidden 2-D code z ~ N(0, I), passed through the decoder. Encoding means guessing which z could have made it.`;
     case 1:
-      return `The encoder (inference network) is an ordinary MLP: 64 → 64 → 32 ReLU units. Unlike a plain autoencoder it does not output a single code — its last layer has two heads.`;
+      return `The encoder is an ordinary MLP: 64 → 64 → 32 ReLU units. Unlike a plain autoencoder, it does not output one single code. Its last layer has two heads.`;
     case 2:
-      return `The heads output a mean μ = (${fmt(t.mu[0], 2)}, ${fmt(t.mu[1], 2)}) and a log-variance; σ = (${fmt(t.sigma[0], 3)}, ${fmt(t.sigma[1], 3)}). Together they define q(z|x) = N(μ, diag σ²): "this image came from somewhere in this ellipse". Predicting log σ² keeps σ positive without constraints.`;
+      return `The heads output a mean μ = (${fmt(t.mu[0], 2)}, ${fmt(t.mu[1], 2)}) and a log-variance; σ = (${fmt(t.sigma[0], 3)}, ${fmt(t.sigma[1], 3)}). Together they define q(z|x) = N(μ, diag σ²), the posterior: "this image came from somewhere in this oval". Predicting log σ² keeps σ positive with no extra rules.`;
     case 3:
-      return `Sampling is moved out of the network: ε = (${fmt(t.eps[0], 2)}, ${fmt(t.eps[1], 2)}) is drawn from a fixed N(0, I) that does not depend on any parameter. Press "Resample ε" to draw another.`;
+      return `The randomness is moved outside the network. ε = (${fmt(t.eps[0], 2)}, ${fmt(t.eps[1], 2)}) is drawn from a fixed N(0, I) that depends on no parameter. Press "Resample ε" to draw another.`;
     case 4:
-      return `The reparameterisation trick: z = μ + σ ⊙ ε = (${fmt(t.z[0], 2)}, ${fmt(t.z[1], 2)}) has exactly the distribution N(μ, σ²), but is now a differentiable function of μ and σ. Backpropagation can therefore train the encoder through the sample.`;
+      return `The reparameterisation trick: z = μ + σ ⊙ ε = (${fmt(t.z[0], 2)}, ${fmt(t.z[1], 2)}) has exactly the distribution N(μ, σ²). But now it is a smooth function of μ and σ, so backpropagation can train the encoder through the sample.`;
     case 5:
-      return `The decoder p(x|z) maps the 2-D sample back to 64 Bernoulli probabilities. Because z is noisy during training, the decoder must produce similar images for nearby z — the source of the smooth latent space.`;
+      return `The decoder p(x|z) turns the 2-D sample back into 64 pixel probabilities. Because z is noisy during training, the decoder must make similar images for nearby z. That is why the latent space is smooth.`;
     default:
-      return `Loss for this sample: reconstruction ${fmt(t.reconLoss, 2)} + KL ${fmt(t.kl, 2)} = ${fmt(t.reconLoss + t.kl, 2)} nats = −ELBO. The KL term costs ${fmt(t.kl, 2)} nats for describing this image with a posterior narrower than and offset from the prior; minimising the sum over the data trains encoder and decoder together.`;
+      return `Loss for this sample: reconstruction ${fmt(t.reconLoss, 2)} + KL ${fmt(t.kl, 2)} = ${fmt(t.reconLoss + t.kl, 2)} nats = −ELBO. The KL term charges ${fmt(t.kl, 2)} nats because this image's q(z|x) is narrower than the prior and shifted away from it. Lowering the total over all data trains the encoder and decoder together.`;
   }
 }

@@ -132,7 +132,7 @@ export default function NetworkSim() {
         title: "Ready",
         body: (
           <>
-            Press <strong>Step</strong> or <strong>Play</strong>. Each step computes one neuron. Click any connection to edit its weight, any neuron to edit its bias or input.
+            Press <strong>Step</strong> or <strong>Play</strong>. Each step works out one neuron. Click a connection to change its weight, or a neuron to change its bias or input.
           </>
         ),
       };
@@ -143,9 +143,9 @@ export default function NetworkSim() {
         title: `Forward · layer ${l}, neuron ${j + 1}`,
         body: (
           <>
-            <div>Weighted sum of the previous layer&apos;s activations plus bias:</div>
+            <div>Multiply each output of the previous layer by its weight, add them up, then add the bias:</div>
             <Tex display tex={String.raw`z^{${l}}_{${j + 1}} = ${terms} + (${fmt(net.b[l - 1][j], 2)}) = ${fmt(tr.z[l][j])}`} />
-            <div>Then the activation ({ACTS[net.acts[l - 1]].label}):</div>
+            <div>Then pass it through the activation ({ACTS[net.acts[l - 1]].label}):</div>
             <Tex display tex={String.raw`a^{${l}}_{${j + 1}} = ${ACTS[net.acts[l - 1]].sym}\big(${fmt(tr.z[l][j])}\big) = ${fmt(tr.a[l][j])}`} />
           </>
         ),
@@ -161,9 +161,9 @@ export default function NetworkSim() {
         title: "Loss",
         body: (
           <>
-            <div>Compare the prediction with the target:</div>
+            <div>Compare the prediction with the target to see how wrong it is:</div>
             <Tex display tex={tex} />
-            <div>Backpropagation starts from the derivative of the loss w.r.t. each output:</div>
+            <div>Backpropagation starts here: how much the loss changes when each output changes:</div>
             <Tex display tex={String.raw`\frac{\partial L}{\partial a^{${L}}} = [${tr.dLda.map((v) => fmt(v)).join(",\\;")}]`} />
           </>
         ),
@@ -182,11 +182,11 @@ export default function NetworkSim() {
         title: `Backward · layer ${l}, neuron ${j + 1}`,
         body: (
           <>
-            <div>{l === L ? "Gradient arriving from the loss:" : "Gradient flowing back from the next layer (chain rule, summed over every path):"}</div>
+            <div>{l === L ? "Gradient coming in from the loss:" : "Gradient flowing back from the next layer (chain rule, added up over every path):"}</div>
             <Tex display tex={upstream} />
-            <div>Multiply by the local derivative of the activation, f′(z) = {fmt(dfz)}:</div>
+            <div>Multiply by the activation&apos;s slope here, f′(z) = {fmt(dfz)}:</div>
             <Tex display tex={String.raw`\delta^{${l}}_{${j + 1}} = \frac{\partial L}{\partial z^{${l}}_{${j + 1}}} = ${fmt(tr.delta[l][j])}`} />
-            <div>Gradients of this neuron&apos;s incoming weights and bias:</div>
+            <div>So the gradients for this neuron&apos;s incoming weights and bias are:</div>
             <Tex
               display
               tex={String.raw`\frac{\partial L}{\partial W^{${l}}_{${j + 1},k}} = \delta^{${l}}_{${j + 1}}\, a^{${l - 1}}_k = [${tr.dW[l - 1][j].map((g) => fmt(g)).join(",\\;")}],\quad \frac{\partial L}{\partial b^{${l}}_{${j + 1}}} = ${fmt(tr.db[l - 1][j])}`}
@@ -222,7 +222,7 @@ export default function NetworkSim() {
             Loss before: <strong>{fmt(tr.loss, 5)}</strong> → after this update: <strong className={lossAfter < tr.loss ? "text-accent" : "text-clay"}>{fmt(lossAfter, 5)}</strong>
           </div>
           <button className="sim-btn primary mt-2" onClick={commit}>
-            Apply update → next iteration
+            Apply update → next round
           </button>
         </>
       ),
@@ -231,7 +231,7 @@ export default function NetworkSim() {
 
   // ---- inspector for selected element ----
   const inspector = (() => {
-    if (!sel) return <div className="text-faint">Click a connection or neuron to inspect and edit it.</div>;
+    if (!sel) return <div className="text-faint">Click a connection or neuron to see and change it.</div>;
     if (sel.kind === "edge") {
       const w = net.W[sel.l][sel.j][sel.k];
       const g = tr.dW[sel.l][sel.j][sel.k];
@@ -249,9 +249,9 @@ export default function NetworkSim() {
           <div className="text-xs text-muted">
             Backprop gradient: <span className="font-mono text-clay">{fmt(g, 6)}</span>
             <br />
-            Numerical (central diff.): <span className="font-mono">{fmt(num, 6)}</span>
+            Numerical check (nudge w both ways): <span className="font-mono">{fmt(num, 6)}</span>
             <br />
-            Relative error: <span className="font-mono">{relErr.toExponential(2)}</span> {relErr < 1e-5 ? "✓ gradient check passes" : ""}
+            Relative error: <span className="font-mono">{relErr.toExponential(2)}</span> {relErr < 1e-5 ? "✓ gradients match" : ""}
           </div>
         </div>
       );
@@ -290,7 +290,7 @@ export default function NetworkSim() {
   return (
     <SimShell
       title="Neural Network Visualizer"
-      subtitle="Real forward propagation, backpropagation and gradient descent on a network you design."
+      subtitle="Build a network, then watch it really run: forward pass, backpropagation and gradient descent."
       controls={
         <Controls
           s={s}
@@ -313,7 +313,7 @@ export default function NetworkSim() {
               <span>Loss history</span>
               {history.length > 0 && <span className="font-mono normal-case">{history.length} iters · last {fmt(history.at(-1)!, 4)}</span>}
             </div>
-            {spark ?? <div className="text-xs text-faint">Apply updates or press “Train ×25” to see the loss fall.</div>}
+            {spark ?? <div className="text-xs text-faint">Apply updates or press “Train ×25” to watch the loss drop.</div>}
           </div>
         </div>
       }
@@ -378,7 +378,7 @@ export default function NetworkSim() {
           <Zap size={13} /> Train ×25
         </button>
       </div>
-      {lossKind === "bce" && net.acts[L - 1] !== "sigmoid" && <div className="mb-2 rounded bg-clay-soft px-3 py-1.5 text-xs">Binary cross-entropy expects outputs in (0, 1) — set the output activation to Sigmoid.</div>}
+      {lossKind === "bce" && net.acts[L - 1] !== "sigmoid" && <div className="mb-2 rounded bg-clay-soft px-3 py-1.5 text-xs">Binary cross-entropy needs outputs between 0 and 1. Set the output activation to Sigmoid.</div>}
 
       <svg viewBox={`0 0 ${W_SVG} ${H_SVG}`} className="h-auto w-full select-none" role="img" aria-label="Neural network diagram with live values">
         {/* edges */}
@@ -465,7 +465,7 @@ export default function NetworkSim() {
           </text>
         )}
         <g fontSize={10} fill="var(--text-faint)">
-          <text x={14} y={H_SVG - 28}>solid = positive weight, dashed = negative; thickness ∝ |w|</text>
+          <text x={14} y={H_SVG - 28}>solid = positive weight, dashed = negative; thicker = bigger |w|</text>
           <text x={14} y={H_SVG - 13}>
             <tspan fill="var(--gold)">●</tspan> forward signal&nbsp;&nbsp;<tspan fill="var(--clay)">●</tspan> backward gradient
           </text>

@@ -49,7 +49,7 @@ export const GRAPHS: Graph[] = [
     ],
     x0: [0.9, 1.2, -0.3, 0.8, -1.0, -0.7, -1.3, 0.4],
     group: [0, 0, 0, 0, 1, 1, 1, 1],
-    blurb: "Nodes 0–3 and 4–7 form two communities joined by one bridge edge (3–4). Features are mostly positive on the left and negative on the right, but nodes 2 and 7 are noisy.",
+    blurb: "Two groups (communities), nodes 0–3 and 4–7, joined by one bridge edge (3–4). Features are mostly positive on the left, negative on the right; nodes 2 and 7 are noisy.",
   },
   {
     key: "path",
@@ -58,7 +58,7 @@ export const GRAPHS: Graph[] = [
     edges: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6]],
     pos: [[25, 110], [70, 110], [115, 110], [160, 110], [205, 110], [250, 110], [295, 110]],
     x0: [1, 0, 0, 0, 0, 0, 0],
-    blurb: "A chain with a signal only on node 0. Each layer moves information exactly one hop, so after k layers node k is the farthest node that has 'heard' about node 0.",
+    blurb: "A chain with a signal only on node 0. Each layer passes information one hop (one edge). After k layers, node k is the farthest node that has 'heard' about node 0.",
   },
   {
     key: "star",
@@ -67,7 +67,7 @@ export const GRAPHS: Graph[] = [
     edges: [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6]],
     pos: [[160, 110], [160, 30], [240, 70], [240, 150], [160, 190], [80, 150], [80, 70]],
     x0: [0, 1.5, -0.5, 0.8, -1.2, 0.3, 1.0],
-    blurb: "A hub connected to six leaves. The hub has degree 6, every leaf degree 1, so the symmetric normalisation weights hub–leaf messages by 1/sqrt(7·2).",
+    blurb: "A hub joined to six leaves. The hub has degree 6 (6 neighbours), each leaf 1. With self-loops, symmetric normalisation scales hub–leaf messages by 1/sqrt(7·2).",
   },
 ];
 

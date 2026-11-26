@@ -146,7 +146,7 @@ export default function OptimizersSim() {
   return (
     <SimShell
       title="Optimizer Race"
-      subtitle="Six first-order optimizers on the same 2-D loss surface. Click the map to choose a start point."
+      subtitle="Six optimizers race downhill on the same 2-D loss surface. Click the map to pick where they start."
       controls={
         <div className="space-y-2.5">
           <Controls s={s} />
@@ -179,18 +179,18 @@ export default function OptimizersSim() {
           <Narration title={`${surface.label}: ${surface.formula}`}>
             <p className="mb-1.5">{surface.note}</p>
             {k === 0 ? (
-              <p>All optimizers start at ({fmt(start[0], 2)}, {fmt(start[1], 2)}). Press Play or Step.</p>
+              <p>Every optimizer starts at ({fmt(start[0], 2)}, {fmt(start[1], 2)}). Press Play or Step.</p>
             ) : (
               <p>
                 After {k} step{k > 1 ? "s" : ""}
                 {leader ? (
                   <>
-                    , the lowest loss belongs to <strong className="text-text">{leader.o.label}</strong> (f = {fmt(leader.p.loss, 4)}).
+                    , the lowest loss so far is <strong className="text-text">{leader.o.label}</strong> (f = {fmt(leader.p.loss, 4)}).
                   </>
                 ) : (
                   "."
                 )}
-                {diverged.length > 0 && <> Diverged: {diverged.join(", ")} — lower its η.</>}
+                {diverged.length > 0 && <> Blew up (diverged): {diverged.join(", ")}. Lower its η.</>}
               </p>
             )}
           </Narration>
@@ -220,7 +220,7 @@ export default function OptimizersSim() {
             </table>
           </div>
           <p className="text-xs text-faint">
-            β = {HYPER.beta} (Momentum, Nesterov), ρ = {HYPER.rho} (RMSProp), β₁ = {HYPER.beta1}, β₂ = {HYPER.beta2} (Adam), ε = 1e-8. Adaptive methods move each coordinate by roughly η per step, so their η is on a different scale from SGD&apos;s.
+            β = {HYPER.beta} (Momentum, Nesterov), ρ = {HYPER.rho} (RMSProp), β₁ = {HYPER.beta1}, β₂ = {HYPER.beta2} (Adam), ε = 1e-8. Adaptive methods move each coordinate by about η per step, so their η uses a different scale from SGD&apos;s.
           </p>
         </div>
       }
@@ -260,7 +260,7 @@ export default function OptimizersSim() {
         <span>
           x ∈ [{x0}, {x1}], y ∈ [{y0}, {y1}]
         </span>
-        <span>stronger tint = lower loss{surface.logScale ? " (log scale)" : ""} · × = minimum · ○ = start</span>
+        <span>darker tint = lower loss{surface.logScale ? " (log scale)" : ""} · × = lowest point · ○ = start</span>
       </div>
     </SimShell>
   );

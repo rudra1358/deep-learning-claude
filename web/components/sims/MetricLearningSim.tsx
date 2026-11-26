@@ -116,16 +116,16 @@ export default function MetricLearningSim() {
   const ca = data.ytr[t.a], cn = data.ytr[t.n];
   const miningText =
     mining === "random"
-      ? "The negative was drawn uniformly at random from the other classes."
+      ? "The negative was picked at random from the other classes."
       : mining === "hard"
-        ? "Hard mining: the negative is the training point of another class closest to the anchor in the current embedding."
+        ? "Hard mining: the negative is the point from another class that sits closest to the anchor right now."
         : mode === "triplet"
-          ? `Semi-hard mining: the negative is the closest point of another class that is farther than the positive but still inside the margin (d(a,p) < d(a,n) < d(a,p) + m)${t.dan > t.dap && t.dan < t.dap + margin ? "" : " — none existed for this anchor, so a random negative was used"}.`
-          : "Semi-hard mining (contrastive): the negative is drawn at random among the negatives still inside the margin (the only ones that give a gradient).";
+          ? `Semi-hard mining: the negative is the closest other-class point that is farther than the positive but still inside the margin (d(a,p) < d(a,n) < d(a,p) + m)${t.dan > t.dap && t.dan < t.dap + margin ? "" : ". This anchor had none, so we used a random negative"}.`
+          : "Semi-hard mining (contrastive): the negative is picked at random from those still inside the margin. Only those give a gradient.";
   let title: string;
   let story: ReactNode;
   if (mode === "triplet") {
-    title = t.satisfied ? `Step ${s.step}: margin satisfied, zero gradient` : `Step ${s.step}: margin violated, the triplet trains`;
+    title = t.satisfied ? `Step ${s.step}: margin met, nothing to learn` : `Step ${s.step}: margin broken, so this triplet learns`;
     story = (
       <>
         <p>
@@ -135,21 +135,21 @@ export default function MetricLearningSim() {
         <p className="mt-1">
           ℓ = max(0, {fmt(t.dap, 3)} − {fmt(t.dan, 3)} + {fmt(margin, 2)}) = <strong className="text-text">{fmt(t.loss, 3)}</strong>.{" "}
           {t.satisfied
-            ? "The negative is already outside the dashed circle of radius d(a,p) + m, so this triplet contributes nothing: an easy triplet is wasted computation."
-            : "The negative lies inside the dashed circle of radius d(a,p) + m. The gradient pulls the anchor and positive together and pushes the negative away (arrows show −∂ℓ/∂e, the direction each embedding would move)."}
+            ? "The negative is already outside the dashed circle (radius d(a,p) + m). So this triplet adds nothing. Easy triplets like this waste compute."
+            : "The negative is inside the dashed circle (radius d(a,p) + m). The gradient pulls the anchor and positive together and pushes the negative away. Arrows show −∂ℓ/∂e: the way each point would move."}
         </p>
         <p className="mt-1">{miningText}</p>
         <p className="mt-1">
-          In this batch {cur.active}/{BATCH} triplets were active.
-          {mining === "random" && cur.active < BATCH / 4 ? " With random negatives most triplets soon become easy, and learning slows down — try semi-hard mining." : ""}
-          {mining === "hard" && s.step > 0 ? " The hardest negatives are often outliers or near-duplicates; FaceNet reported that always using them early in training can lead to a collapsed model." : ""}
+          In this batch, {cur.active}/{BATCH} triplets were active (still had loss to learn from).
+          {mining === "random" && cur.active < BATCH / 4 ? " With random negatives, most triplets soon get easy and learning slows down. Try semi-hard mining." : ""}
+          {mining === "hard" && s.step > 0 ? " The hardest negatives are often odd outliers or near-copies. The FaceNet paper found that always using them early in training can make the model collapse." : ""}
         </p>
       </>
     );
   } else {
     const pos = t.pair === "positive";
     const Dd = pos ? t.dap : t.dan;
-    title = pos ? `Step ${s.step}: similar pair, pulled together` : t.satisfied ? `Step ${s.step}: dissimilar pair beyond the margin` : `Step ${s.step}: dissimilar pair inside the margin`;
+    title = pos ? `Step ${s.step}: similar pair, pulled together` : t.satisfied ? `Step ${s.step}: different pair, outside the margin` : `Step ${s.step}: different pair, inside the margin`;
     story = (
       <>
         <p>
@@ -158,16 +158,16 @@ export default function MetricLearningSim() {
         <p className="mt-1">
           {pos ? (
             <>
-              ℓ = ½D² = <strong className="text-text">{fmt(t.loss, 3)}</strong>. A similar pair is always pulled together, with a force proportional to D (gradient e_a − e_p).
+              ℓ = ½D² = <strong className="text-text">{fmt(t.loss, 3)}</strong>. A similar pair is always pulled together. The farther apart, the harder the pull (gradient e_a − e_p).
             </>
           ) : (
             <>
               ℓ = ½·max(0, m − D)² = <strong className="text-text">{fmt(t.loss, 3)}</strong>.{" "}
-              {t.satisfied ? "The pair is already farther apart than m (outside the dashed circle): no loss, no gradient." : "The pair is closer than m, so it is pushed apart with a force m − D that fades to zero at the margin."}
+              {t.satisfied ? "The pair is already farther apart than m (outside the dashed circle). No loss, no gradient." : "The pair is closer than m, so it gets pushed apart. The push is m − D, which fades to zero at the margin."}
             </>
           )}
         </p>
-        <p className="mt-1">{pos ? "Pairs are positive or negative with probability ½ each; this one is positive, so the mining rule did not matter." : miningText}</p>
+        <p className="mt-1">{pos ? "Each pair is positive or negative with a 50/50 chance. This one is positive, so the mining rule did not matter." : miningText}</p>
         <p className="mt-1">
           {cur.active}/{BATCH} pairs in this batch produced a gradient.
         </p>
@@ -178,7 +178,7 @@ export default function MetricLearningSim() {
     story = (
       <>
         <p>
-          Step 0: W is a random 2×8 matrix. Five classes live in 8-D, but only the first 4 coordinates carry class information; coordinates 5–8 are large noise. A random projection mixes the two kinds of direction, so the classes overlap: 1-NN accuracy is {fmt(cur.knnTest * 100, 0)}%.
+          Step 0: W is a random 2×8 matrix. Five classes live in 8-D, but only the first 4 coordinates tell the classes apart. Coordinates 5–8 are big noise. A random squash to 2-D mixes both kinds, so the classes overlap. 1-NN accuracy (label each point like its nearest neighbour) is {fmt(cur.knnTest * 100, 0)}%.
         </p>
         {story}
       </>
@@ -187,7 +187,7 @@ export default function MetricLearningSim() {
   return (
     <SimShell
       title="Contrastive & Triplet Embeddings"
-      subtitle="A linear map e = Wx from 8-D to 2-D, trained in your browser with mini-batch SGD (16 anchors per step) on a contrastive or triplet loss."
+      subtitle="Learn a map e = Wx from 8-D down to 2-D so same-class points end up close. Trained live in your browser with mini-batch SGD (16 anchors per step)."
       controls={
         <div className="space-y-2.5">
           <Controls
@@ -231,7 +231,7 @@ export default function MetricLearningSim() {
               1-NN accuracy: test {fmt(cur.knnTest * 100, 1)}% · train (LOO) {fmt(cur.knnTrain * 100, 1)}%
             </div>
             <div className="text-muted">
-              shown: d(a,p) {fmt(t.dap, 3)} · d(a,n) {fmt(t.dan, 3)} · ℓ {fmt(t.loss, 3)} · {t.satisfied ? "margin satisfied" : mode === "contrastive" && t.pair === "positive" ? "positive pair" : "margin violated"}
+              shown: d(a,p) {fmt(t.dap, 3)} · d(a,n) {fmt(t.dan, 3)} · ℓ {fmt(t.loss, 3)} · {t.satisfied ? "margin met" : mode === "contrastive" && t.pair === "positive" ? "positive pair" : "margin broken"}
             </div>
           </div>
           <Narration title={title}>{story}</Narration>
@@ -311,7 +311,7 @@ export default function MetricLearningSim() {
               <line x1={cx(s.step)} x2={cx(s.step)} y1={CP.t} y2={CH - CP.b} stroke="var(--gold)" strokeWidth={1} />
             </svg>
             <figcaption className="text-xs text-muted">
-              <span className="text-clay">batch loss</span> (thin) and its 15-step moving average; x: SGD step
+              <span className="text-clay">batch loss</span> (thin) and its 15-step average; x: SGD step
             </figcaption>
           </figure>
           <figure>
@@ -329,18 +329,18 @@ export default function MetricLearningSim() {
               <line x1={cx(s.step)} x2={cx(s.step)} y1={CP.t} y2={CH - CP.b} stroke="var(--gold)" strokeWidth={1} />
             </svg>
             <figcaption className="text-xs text-muted">
-              <span className="text-accent">1-NN test accuracy</span> of 100 held-out points (dotted: chance, 20%)
+              <span className="text-accent">1-NN test accuracy</span> on 100 unseen points (dotted: random guessing, 20%)
             </figcaption>
           </figure>
           <div className="rounded-md border border-border p-2 text-xs text-muted">
-            <div className="mb-1 font-medium text-[var(--text)]">{mode === "triplet" ? "Triplet loss being minimised" : "Contrastive loss being minimised"}</div>
+            <div className="mb-1 font-medium text-[var(--text)]">{mode === "triplet" ? "Triplet loss we are lowering" : "Contrastive loss we are lowering"}</div>
             {mode === "triplet" ? (
               <div className="font-mono text-[11px]">ℓ = max(0, ‖e_a − e_p‖ − ‖e_a − e_n‖ + m)</div>
             ) : (
               <div className="font-mono text-[11px]">ℓ = (1 − Y)·½D² + Y·½·max(0, m − D)²</div>
             )}
             <div className="font-mono text-[11px]">∇W = Σ g (x_i − x_j)ᵀ, W ← W − η ∇W / 16</div>
-            <div className="mt-1">The plot is re-centred and re-scaled every step, so watch the arrangement of the classes, not the absolute size.</div>
+            <div className="mt-1">The plot is re-centred and re-scaled every step. So watch how the classes are arranged, not their size.</div>
           </div>
         </div>
       </div>

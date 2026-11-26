@@ -207,19 +207,19 @@ export default function LinearTransformSim() {
   } else if (eig.kind === "defective") {
     eigText = (
       <>
-        λ = <b>{show(eig.value)}</b> (repeated) with only <b>one</b> eigen-direction ({show(eig.vector[0])}, {show(eig.vector[1])}) — the matrix is not diagonalizable.
+        λ = <b>{show(eig.value)}</b> (repeated), but only <b>one</b> eigen-direction ({show(eig.vector[0])}, {show(eig.vector[1])}). So the matrix is not diagonalizable.
       </>
     );
   } else if (eig.kind === "scalar") {
     eigText = (
       <>
-        A = {show(eig.value)}·I: <b>every</b> direction is an eigenvector with λ = {show(eig.value)}.
+        A = {show(eig.value)}·I: <b>every</b> direction is an eigenvector (a direction that only gets stretched), with λ = {show(eig.value)}.
       </>
     );
   } else {
     eigText = (
       <>
-        <b>Complex eigenvalues</b> λ = {show(eig.re)} ± {show(eig.im)}i: no real direction is left on its own span — the map rotates every line.
+        <b>Complex eigenvalues</b> λ = {show(eig.re)} ± {show(eig.im)}i: no real direction stays on its own line. The map turns every line.
       </>
     );
   }
@@ -236,22 +236,22 @@ export default function LinearTransformSim() {
       title = `Interpolating M(t) = (1 − t)·I + t·A, t = ${t.toFixed(2)}`;
       body = (
         <>
-          Every point moves in a straight line from x to Ax. The determinant passes through {show(detM)}. Points on an eigen-line stay on it the whole way, because M(t)v = (1 − t + tλ)v when Av = λv.
+          Every point slides in a straight line from x to Ax. The determinant is now {show(detM)}. Points on an eigen-line stay on it the whole way, because M(t)v = (1 − t + tλ)v when Av = λv.
         </>
       );
     } else if (stage === 0) {
-      title = "Identity: nothing has moved yet";
+      title = "Start: nothing has moved yet";
       body = (
         <>
-          The dashed outline shows where the unit circle will land under A. Press <b>Play</b> or <b>Step</b> to morph the plane from I into A, or drag anywhere on the plane to move the input vector <b>x</b>.
+          The dashed outline shows where the unit circle will land after A. Press <b>Play</b> or <b>Step</b> to slowly turn the plane from I into A. Or drag on the plane to move the input vector <b>x</b>.
         </>
       );
     } else {
       title = "The plane after A";
       body = (
         <>
-          The columns of A are where the basis vectors land: <b className="text-accent">î → ({show(A.a)}, {show(A.c)})</b>, <b className="text-clay">ĵ → ({show(A.b)}, {show(A.d)})</b>. The unit square became a parallelogram of signed area det A = <b>{show(detA)}</b>
-          {Math.abs(detA) < 1e-9 ? " — the plane collapsed onto a line (or point): A is singular and cannot be undone." : detA < 0 ? " — negative, so orientation flipped (the square is mirrored)." : "."} {eigText}
+          Each column of A tells you where a basis arrow lands: <b className="text-accent">î → ({show(A.a)}, {show(A.c)})</b>, <b className="text-clay">ĵ → ({show(A.b)}, {show(A.d)})</b>. The unit square became a slanted box (parallelogram). Its signed area is det A = <b>{show(detA)}</b>
+          {Math.abs(detA) < 1e-9 ? ". The plane got squashed onto a line (or a point), so A is singular and cannot be undone." : detA < 0 ? ". It is negative, so the plane got flipped, like a mirror image." : "."} {eigText}
         </>
       );
     }
@@ -259,33 +259,33 @@ export default function LinearTransformSim() {
     const thV = deg(dec.thetaV);
     const thU = deg(dec.thetaU);
     if (stage === 0 && !moving) {
-      title = "SVD: A = U Σ Vᵀ, applied right to left";
+      title = "SVD: A = U Σ Vᵀ, done right to left";
       body = (
         <>
-          The arrows are the right singular vectors v₁, v₂ — perpendicular unit vectors. Step 1 applies Vᵀ, step 2 applies Σ, step 3 applies U. Their product is exactly A.
+          SVD splits A into three simple moves: turn, stretch, turn. The arrows are v₁ and v₂, the right singular vectors (two perpendicular arrows of length 1). Step 1 applies Vᵀ, step 2 Σ, step 3 U. Together they give exactly A.
         </>
       );
     } else if (pos <= 1) {
       title = `Step 1 · Vᵀ rotates by ${show(-thV, 1)}°`;
       body = (
         <>
-          Vᵀ is a rotation, so lengths and the circle are unchanged. It turns v₁ onto the x-axis and v₂ onto the y-axis. det = {show(detM)}.
+          Vᵀ is a rotation, so lengths stay the same and the circle stays a circle. It turns v₁ onto the x-axis and v₂ onto the y-axis. det = {show(detM)}.
         </>
       );
     } else if (pos <= 2) {
       title = `Step 2 · Σ stretches the axes by σ₁ = ${show(sv[0], 3)}, σ₂ = ${show(sv[1], 3)}`;
       body = (
         <>
-          A diagonal matrix scales each axis independently: the circle becomes an axis-aligned ellipse with semi-axes σ₁ and σ₂. Area scales by σ₁σ₂ = {show(sv[0] * sv[1], 3)} = |det A|.
-          {sv[1] < 1e-6 ? " σ₂ = 0: one axis is squashed flat — A has rank 1." : ""}
+          Σ is a diagonal matrix, so it stretches each axis on its own. The circle becomes an oval (ellipse) whose half-widths are σ₁ and σ₂. Area grows by σ₁σ₂ = {show(sv[0] * sv[1], 3)} = |det A|.
+          {sv[1] < 1e-6 ? " σ₂ = 0: one axis is squashed flat, so A has rank 1." : ""}
         </>
       );
     } else {
       title = `Step 3 · U ${dec.uSign === -1 ? "reflects and " : ""}rotates by ${show(thU, 1)}°`;
       body = (
         <>
-          U carries the ellipse axes onto the left singular vectors u₁, u₂. Now the arrows are Av₁ = σ₁u₁ and Av₂ = σ₂u₂: the longest and shortest stretch of A. Condition number σ₁/σ₂ ={" "}
-          {sv[1] < 1e-9 ? "∞" : show(sv[0] / sv[1], 3)}.{dec.uSign === -1 ? " Because det A < 0, U contains a reflection, animated as the second axis passing through zero." : ""}
+          U turns the oval&apos;s axes onto u₁ and u₂, the left singular vectors. Now the arrows are Av₁ = σ₁u₁ and Av₂ = σ₂u₂: the biggest and smallest stretch of A. Condition number σ₁/σ₂ ={" "}
+          {sv[1] < 1e-9 ? "∞" : show(sv[0] / sv[1], 3)}.{dec.uSign === -1 ? " Because det A < 0, U includes a flip. You see it as the second axis shrinking through zero." : ""}
         </>
       );
     }
@@ -301,7 +301,7 @@ export default function LinearTransformSim() {
   return (
     <SimShell
       title="Linear Transformations, Eigenvectors & SVD"
-      subtitle="Apply a 2×2 matrix to the plane; watch areas, invariant directions and the rotate–scale–rotate decomposition."
+      subtitle="Apply a 2×2 matrix to the plane. Watch how areas change, which directions stay put, and how A splits into turn, stretch, turn."
       controls={
         <Controls
           s={s}
@@ -453,7 +453,7 @@ export default function LinearTransformSim() {
       </div>
       {presetNote && <p className="mt-2 text-xs text-muted">{presetNote}</p>}
       <p className="mt-1 text-xs text-faint">
-        Click or drag on the plane to move x (dashed gold); the solid gold arrow is its image. Shaded parallelogram = image of the unit square (clay when det &lt; 0).
+        Click or drag on the plane to move x (dashed gold). The solid gold arrow is where A sends it. The shaded box is where the unit square lands (clay when det &lt; 0).
       </p>
     </SimShell>
   );

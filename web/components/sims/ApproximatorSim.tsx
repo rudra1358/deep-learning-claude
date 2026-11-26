@@ -64,24 +64,24 @@ export default function ApproximatorSim() {
   let title: string;
   let text: string;
   if (s.step === 0) {
-    title = "Iteration 0 — random initialisation";
-    text = `The network is ŷ(x) = Σⱼ vⱼ·max(0, aⱼx + cⱼ) + d with N = ${N} hidden ReLUs (${3 * N + 1} parameters). Each unit contributes one hinge that bends at x = −cⱼ/aⱼ; the kinks were initialised uniformly over [−1, 1] and the output weights vⱼ are small, so ŷ starts as a gentle piecewise-linear curve. Press Play: every Step runs ${ITERS_PER_FRAME} iterations of ${opt === "adam" ? "Adam" : "gradient descent"} on the MSE over the ${data.x.length} training points.`;
+    title = "Iteration 0: random starting weights";
+    text = `The network is ŷ(x) = Σⱼ vⱼ·max(0, aⱼx + cⱼ) + d, with N = ${N} hidden ReLUs (${3 * N + 1} parameters). Each unit adds one hinge, a line that bends at x = −cⱼ/aⱼ. The bends start spread evenly over [−1, 1], and the output weights vⱼ start small. So ŷ begins as a gentle curve made of straight pieces. Press Play: each Step runs ${ITERS_PER_FRAME} iterations of ${opt === "adam" ? "Adam" : "gradient descent"} to shrink the MSE on the ${data.x.length} training points.`;
   } else {
-    const fitWord = fr.trainMse < 1e-3 ? "fits the training points closely" : fr.trainMse < 1e-2 ? "roughly follows the training points" : "cannot yet follow the training points";
+    const fitWord = fr.trainMse < 1e-3 ? "fits the training points closely" : fr.trainMse < 1e-2 ? "roughly follows the training points" : "cannot follow the training points yet";
     title = `Iteration ${iter} — ${sparse ? "fitting 10 samples" : `N = ${N} hidden units`}`;
-    const parts: string[] = [`Training MSE ${fmt(fr.trainMse, 5)}; the network ${fitWord}. Its output is piecewise linear with ${pieces} piece${pieces > 1 ? "s" : ""} on [−1, 1] (never more than N + 1 = ${N + 1}).`];
+    const parts: string[] = [`Training MSE is ${fmt(fr.trainMse, 5)}, so the network ${fitWord}. Its output is made of ${pieces} straight piece${pieces > 1 ? "s" : ""} on [−1, 1] (never more than N + 1 = ${N + 1}).`];
     if (sparse) {
       parts.push(
-        `Error against the true ${tgt.formula} on a dense grid: ${fmt(fr.trueMse, 5)} — ${fr.trueMse > 1000 * fr.trainMse ? "more than 1000× the training error" : fr.trueMse > 5 * fr.trainMse ? `${fmt(fr.trueMse / fr.trainMse, 0)}× the training error` : "close to the training error"}. Between the samples nothing constrains the curve. The universal approximation theorem says a network this size can represent a good fit; it says nothing about whether gradient descent on ${data.x.length} points will find it.`,
+        `Error against the true ${tgt.formula} on a fine grid: ${fmt(fr.trueMse, 5)}. That is ${fr.trueMse > 1000 * fr.trainMse ? "more than 1000× the training error" : fr.trueMse > 5 * fr.trainMse ? `${fmt(fr.trueMse / fr.trainMse, 0)}× the training error` : "close to the training error"}. Between the samples, nothing holds the curve in place. The universal approximation theorem says a network this size can draw a good fit. It does not promise gradient descent on ${data.x.length} points will find it.`,
       );
-      if (sample === "noisy") parts.push("With noisy labels, driving the training MSE below the noise variance (0.0225) means memorising the noise.");
+      if (sample === "noisy") parts.push("The labels are noisy. Pushing the training MSE below the noise variance (0.0225) means the network is memorising the noise.");
     } else {
-      parts.push(`On dense samples the training error and the error against the target (${fmt(fr.trueMse, 5)}) agree, because the points cover the whole interval.`);
-      if (target === "abs") parts.push(N >= 2 ? "|x| − 0.5 = max(0, x) + max(0, −x) − 0.5 is exactly a 2-unit ReLU network, so the error can reach (numerically) zero — if training finds that arrangement." : "One hinge can bend only once; |x| needs two.");
-      if (target === "step") parts.push("A ReLU network is continuous, so it can only replace the jump by a steep ramp; the error concentrates at x = 0.1. More units let other pieces stay flat while one gets steep.");
-      if (target !== "abs" && N <= 4) parts.push(`With only ${N} unit${N > 1 ? "s" : ""} there are too few pieces for this curve: increase N and watch the error floor drop.`);
+      parts.push(`With dense samples, the training error and the error against the target (${fmt(fr.trueMse, 5)}) agree. The points cover the whole range.`);
+      if (target === "abs") parts.push(N >= 2 ? "|x| − 0.5 = max(0, x) + max(0, −x) − 0.5 is exactly a 2-unit ReLU network. So the error can reach (about) zero, if training finds that setup." : "One hinge can bend only once. |x| needs two.");
+      if (target === "step") parts.push("A ReLU network has no breaks, so it can only swap the jump for a steep ramp. Most error sits at x = 0.1. More units let one piece get steep while others stay flat.");
+      if (target !== "abs" && N <= 4) parts.push(`With only ${N} unit${N > 1 ? "s" : ""}, there are too few pieces for this curve. Raise N and watch the lowest error drop.`);
     }
-    if (dead > 0) parts.push(`${dead} unit${dead > 1 ? "s are" : " is"} zero on every training point, so ${dead > 1 ? "they receive" : "it receives"} no gradient ("dead" on this data).`);
+    if (dead > 0) parts.push(`${dead} unit${dead > 1 ? "s are" : " is"} zero on every training point, so ${dead > 1 ? "they receive" : "it receives"} no gradient and cannot learn ("dead" on this data).`);
     text = parts.join(" ");
   }
 
@@ -90,13 +90,13 @@ export default function ApproximatorSim() {
   return (
     <SimShell
       title="Universal Approximation"
-      subtitle="A one-hidden-layer ReLU network trained in your browser to fit a 1-D target. Every curve shown is computed from the current weights."
+      subtitle="A ReLU network with one hidden layer learns to fit a 1-D curve, right in your browser. Every line comes from the current weights."
       controls={
         <Controls
           s={s}
           extra={
             <button className="sim-btn" onClick={() => setSeed((v) => v + 1)} aria-label="Re-initialise the weights with a new seed">
-              <Shuffle size={14} /> New init
+              <Shuffle size={14} /> New start
             </button>
           }
         />
@@ -202,7 +202,7 @@ export default function ApproximatorSim() {
           <figcaption className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
             <span>– – target {tgt.formula}</span>
             <span className="text-accent">● training points</span>
-            <span className="text-gold">— network ŷ(x) · ticks = kinks</span>
+            <span className="text-gold">— network ŷ(x) · ticks = bends</span>
             {showUnits && <span>thin: vⱼ·hⱼ(x) (accent v &gt; 0, clay v &lt; 0)</span>}
           </figcaption>
         </figure>
@@ -228,7 +228,7 @@ export default function ApproximatorSim() {
           </svg>
           <figcaption className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
             <span className="text-accent">— train MSE</span>
-            <span className="text-clay">— MSE vs target (dense grid)</span>
+            <span className="text-clay">— MSE vs target (fine grid)</span>
             <span>x: iteration · y: log scale</span>
           </figcaption>
         </figure>

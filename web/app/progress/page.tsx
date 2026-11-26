@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Progress Dashboard" };
 export default function ProgressPage() {
   return (
     <Container>
-      <PageHeader eyebrow="Progress dashboard" title="Your learning so far" />
+      <PageHeader eyebrow="Your progress" title="Your learning so far" />
       <ProgressDashboard published={LESSONS.map((l) => l.id)} projects={PROJECTS.map((p) => ({ id: p.id, title: p.title, total: p.milestones.length }))} />
     </Container>
   );

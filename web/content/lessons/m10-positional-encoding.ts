@@ -4,7 +4,7 @@ const lesson: Lesson = {
   id: "m10/positional-encoding",
   title: "Positional Encoding",
   summary:
-    "Why self-attention cannot see word order (with a proof), the sinusoidal encoding and its geometric frequencies, the rotation property that makes relative offsets linear, learned absolute embeddings, relative-position methods, rotary position embedding (RoPE) derived from 2-D rotations, and ALiBi — all verified numerically.",
+    "Why self-attention cannot see word order (with a proof), the sinusoidal encoding and its ladder of frequencies, the rotation trick that makes relative offsets a simple linear map, learned position tables, relative-position methods, rotary position embedding (RoPE) built from 2-D rotations, and ALiBi — all checked with code.",
   minutes: 55,
   level: "intermediate",
   prerequisites: ["m10/scaled-dot-product-attention", "m02/vectors-matrices"],
@@ -15,21 +15,21 @@ const lesson: Lesson = {
     intro: [
       {
         t: "p",
-        text: "A **positional encoding** is extra information added to each token's vector that tells the model **where** in the sequence the token is. It is needed because self-attention, on its own, treats its input as an unordered set: “dog bites man” and “man bites dog” contain the same three vectors, and attention would produce the same three outputs, merely listed in a different order.",
+        text: "A **positional encoding** is extra information added to each token's vector to tell the model **where** the token sits. We need it because self-attention alone treats its input as an unordered bag: “dog bites man” and “man bites dog” hold the same three vectors, so attention gives the same three outputs, just listed in a different order.",
       },
       {
         t: "p",
-        text: "Recurrent networks never had this problem — they read tokens one at a time, so order is built into the computation. Convolutions see order locally through the fixed layout of their kernels. The Transformer gave up both in exchange for parallelism, so Vaswani et al. (2017, “Attention Is All You Need”) added a fixed **sinusoidal** vector to each input embedding. Since then the field has explored learned absolute embeddings (BERT, GPT-2), relative-position schemes (Shaw et al., 2018; the T5 bias), **rotary position embedding** (RoPE; Su et al., 2021), used by LLaMA-family models, and **ALiBi** (Press et al., 2021), used by BLOOM.",
+        text: "RNNs read one token at a time, so order is built in; convolutions see local order through their kernels' layout. The Transformer gave up both to run in parallel, so Vaswani et al. (2017, “Attention Is All You Need”) added a fixed **sinusoidal** vector to each input embedding. Later came learned position tables (BERT, GPT-2), relative-position schemes (Shaw et al., 2018; the T5 bias), **rotary position embedding** (RoPE; Su et al., 2021) in LLaMA-family models, and **ALiBi** (Press et al., 2021) in BLOOM.",
       },
       {
         t: "callout",
         kind: "key",
         title: "The core formula",
-        text: String.raw`$PE_{(pos,\,2i)}=\sin\!\big(pos/10000^{2i/d_{\text{model}}}\big),\quad PE_{(pos,\,2i+1)}=\cos\!\big(pos/10000^{2i/d_{\text{model}}}\big)$, and the input to the first layer is $x_{pos}=e_{pos}+PE_{pos}$.`,
+        text: String.raw`$PE_{(pos,\,2i)}=\sin\!\big(pos/10000^{2i/d_{\text{model}}}\big),\quad PE_{(pos,\,2i+1)}=\cos\!\big(pos/10000^{2i/d_{\text{model}}}\big)$, and the first layer gets $x_{pos}=e_{pos}+PE_{pos}$ — the token's embedding plus its position code.`,
       },
       {
         t: "p",
-        text: "The choice of encoding matters in practice: it determines whether a model can handle sequences longer than those it was trained on, how well it captures relative distance (“the word two positions to the left”), and how efficiently it can be implemented with a KV cache during generation.",
+        text: "The choice matters: it decides whether a model handles sequences longer than in training, how well it captures relative distance (“two words to the left”), and how cheaply it works with a KV cache.",
       },
     ],
 
@@ -38,10 +38,10 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          "[Scaled Dot-Product Attention](/learn/m10/scaled-dot-product-attention): you need $Q=XW_Q$, $K=XW_K$, $V=XW_V$, the row-wise softmax and the score $q_i\\cdot k_j$. Positional methods act either on $X$ (absolute encodings), on $q$ and $k$ (RoPE), or on the score matrix (relative biases, ALiBi).",
-          "[Vectors and matrices](/learn/m02/vectors-matrices): dot products, matrix–vector products, **permutation matrices** (an identity matrix with its rows reordered) and **rotation matrices** $\\begin{bmatrix}\\cos\\theta&-\\sin\\theta\\\\\\sin\\theta&\\cos\\theta\\end{bmatrix}$, which preserve lengths and satisfy $R(a)^\\top R(b)=R(b-a)$.",
-          "Basic trigonometry: $\\sin(a+b)=\\sin a\\cos b+\\cos a\\sin b$, $\\cos(a+b)=\\cos a\\cos b-\\sin a\\sin b$, and $\\cos(a-b)=\\cos a\\cos b+\\sin a\\sin b$. Every property in this lesson follows from these three identities.",
-          "Helpful but optional: complex numbers in polar form, $e^{i\\theta}=\\cos\\theta+i\\sin\\theta$, which give the shortest derivation of RoPE.",
+          "[Scaled Dot-Product Attention](/learn/m10/scaled-dot-product-attention): you need $Q=XW_Q$, $K=XW_K$, $V=XW_V$, the row-wise softmax and the score $q_i\\cdot k_j$. Position methods act on $X$ (absolute encodings), on $q$ and $k$ (RoPE), or on the score matrix (relative biases, ALiBi).",
+          "[Vectors and matrices](/learn/m02/vectors-matrices): dot products, matrix–vector products, **permutation matrices** (an identity matrix with its rows shuffled) and **rotation matrices** $\\begin{bmatrix}\\cos\\theta&-\\sin\\theta\\\\\\sin\\theta&\\cos\\theta\\end{bmatrix}$, which keep lengths the same and satisfy $R(a)^\\top R(b)=R(b-a)$.",
+          "Basic trigonometry: $\\sin(a+b)=\\sin a\\cos b+\\cos a\\sin b$, $\\cos(a+b)=\\cos a\\cos b-\\sin a\\sin b$, and $\\cos(a-b)=\\cos a\\cos b+\\sin a\\sin b$. Every property in this lesson comes from these three.",
+          "Optional: complex numbers in polar form, $e^{i\\theta}=\\cos\\theta+i\\sin\\theta$, which give the shortest route to RoPE.",
         ],
       },
     ],
@@ -52,19 +52,19 @@ const lesson: Lesson = {
         t: "callout",
         kind: "analogy",
         title: "A wall of clocks",
-        text: "Imagine a row of clocks, each hand turning at a different speed: the first completes a turn about every 6 positions, and each following hand is slower than the last by the same factor, until the final hand needs tens of thousands of positions per turn. To say **where** you are, read off the angle of every hand. Fast hands distinguish neighbouring positions; slow hands tell you roughly how far into a long document you are. Together they give every position a unique reading. Moving forward by k steps turns every hand by its own fixed angle — whatever time it was before. That last fact is what makes relative positions easy for the model.",
+        text: "Picture a row of clocks whose hands turn at different speeds. The first goes round about every 6 positions; each next hand is slower by the same factor, until the last needs tens of thousands of positions per turn. Reading every hand's angle tells you **where** you are: fast hands tell neighbours apart, slow hands tell you roughly how far into a long document you are. Moving forward k steps turns each hand by its own fixed angle, whatever time it was before — which makes relative positions easy for the model.",
       },
       {
         t: "p",
-        text: "A binary counter works the same way: the lowest bit flips every step, the next every two steps, the next every four. Sinusoidal encoding is a smooth, continuous version of this: each pair of dimensions is a (sin, cos) “bit” oscillating at its own frequency, and the frequencies form a geometric sequence just like the powers of two in binary.",
+        text: "A binary counter is similar: the lowest bit flips every step, the next every two, the next every four. Sinusoidal encoding is a smooth version: each dimension pair is a (sin, cos) “bit” at its own frequency, and the frequencies form a geometric sequence, like powers of two.",
       },
       {
         t: "p",
-        text: "Why add rather than concatenate? Adding keeps the width $d_{\\text{model}}$ unchanged. In high dimensions, the network can learn to use some directions mostly for content and others mostly for position, so the two kinds of information interfere less than one might fear.",
+        text: "Why add instead of concatenate (glue on)? Adding keeps the width $d_{\\text{model}}$ the same. With many dimensions, the network can use some directions mostly for content and others mostly for position, so they interfere less than you might fear.",
       },
       {
         t: "p",
-        text: "RoPE takes the clock picture literally: instead of **adding** a position vector, it **rotates** each query and key by an angle proportional to its position. When a query at position m meets a key at position n, the rotations partly cancel and only the angle for the difference $m-n$ survives — so attention scores depend on relative distance by construction.",
+        text: "RoPE takes the clocks literally: instead of **adding** a position vector, it **rotates** each query and key by an angle proportional to its position. When a query at m meets a key at n, the rotations partly cancel and only the angle for the gap $m-n$ is left — so scores depend on relative distance by design.",
       },
     ],
 
@@ -73,42 +73,42 @@ const lesson: Lesson = {
       { t: "h", text: "Step 0: the problem — attention is permutation-equivariant" },
       {
         t: "p",
-        text: "Shuffle the input rows of self-attention and the output rows come out shuffled in exactly the same way, with identical values. So without position information, a token's output depends on **which** other tokens are present, never on **where** they are. (The proof is in the next section; the code section demonstrates it.)",
+        text: "**Permutation-equivariant** means: shuffle the input rows and the outputs come out shuffled the same way, with the same values. So without position information, a token's output depends on **which** tokens are present, never **where** they are. (Proof in the next section; demo in the code section.)",
       },
       { t: "h", text: "Absolute sinusoidal encoding (Vaswani et al., 2017)" },
       {
         t: "steps",
         items: [
-          { title: "Choose d_model frequencies", text: "Pair up the dimensions: pair i uses dimensions 2i and 2i+1 and an angular frequency that shrinks geometrically.", tex: String.raw`\omega_i = 10000^{-2i/d_{\text{model}}},\qquad i=0,1,\dots,\tfrac{d_{\text{model}}}{2}-1` },
-          { title: "Fill the PE matrix", text: "Row pos holds sin and cos of pos·ωᵢ for every pair. The matrix is fixed: no parameters.", tex: String.raw`PE_{pos,2i}=\sin(pos\,\omega_i),\qquad PE_{pos,2i+1}=\cos(pos\,\omega_i)` },
-          { title: "Add to the token embeddings", text: "The original Transformer scales embeddings by √d_model and then adds PE; dropout is applied to the sum.", tex: String.raw`x_{pos}=\sqrt{d_{\text{model}}}\;e_{pos}+PE_{pos}` },
-          { title: "Run attention as usual", text: "From here on, nothing changes. Because PE is part of x, it flows into every query, key and value." },
+          { title: "Choose d_model frequencies", text: "Group the dimensions in pairs: pair i uses dimensions 2i and 2i+1 and an angular frequency that shrinks by a constant factor each pair.", tex: String.raw`\omega_i = 10000^{-2i/d_{\text{model}}},\qquad i=0,1,\dots,\tfrac{d_{\text{model}}}{2}-1` },
+          { title: "Fill the PE matrix", text: "Row pos holds the sin and cos of pos·ωᵢ for every pair. The matrix is fixed: no parameters to learn.", tex: String.raw`PE_{pos,2i}=\sin(pos\,\omega_i),\qquad PE_{pos,2i+1}=\cos(pos\,\omega_i)` },
+          { title: "Add to the token embeddings", text: "The original Transformer multiplies embeddings by √d_model, then adds PE; dropout is applied to the sum.", tex: String.raw`x_{pos}=\sqrt{d_{\text{model}}}\;e_{pos}+PE_{pos}` },
+          { title: "Run attention as usual", text: "Nothing else changes. Because PE is part of x, it flows into every query, key and value." },
         ],
       },
       { t: "h", text: "Learned absolute embeddings (BERT, GPT-2)" },
       {
         t: "p",
-        text: "Replace the fixed matrix by a trainable table $P\\in\\mathbb{R}^{L_{\\max}\\times d_{\\text{model}}}$ — an embedding lookup indexed by position — and add row $p_{pos}$ to the token embedding. BERT uses $L_{\\max}=512$; GPT-2 uses 1024 positions of width 768 in its smallest version (786,432 parameters). Learned tables are simple and work well within the trained length, but there is simply no row for position $L_{\\max}$, so they cannot extrapolate.",
+        text: "Swap the fixed matrix for a trainable table $P\\in\\mathbb{R}^{L_{\\max}\\times d_{\\text{model}}}$ — an embedding lookup indexed by position — and add row $p_{pos}$ to the token embedding. BERT uses $L_{\\max}=512$; the smallest GPT-2 uses 1024 positions of width 768 (786,432 parameters). Learned tables work well within the trained length, but there is no row for position $L_{\\max}$ or beyond, so they cannot extrapolate.",
       },
       { t: "h", text: "Relative position methods" },
       {
         t: "p",
-        text: "Instead of telling each token its absolute index, tell each **pair** of tokens their offset $j-i$. Shaw, Uszkoreit & Vaswani (2018) add a learned vector $a_{j-i}$ (clipped to a maximum distance) to the key inside the score. The T5 model simplifies this to a learned **scalar bias** per head for each bucket of offsets, added to the score matrix. Relative schemes generalise better across positions because “two tokens to the left” means the same thing everywhere in the sequence.",
+        text: "Instead of each token's absolute index, give each **pair** of tokens their offset $j-i$. Shaw, Uszkoreit & Vaswani (2018) add a learned vector $a_{j-i}$ (clipped at a maximum distance) to the key inside the score. T5 simplifies this to a learned **single-number bias** per head for each bucket of offsets, added to the scores. Relative schemes generalise better, because “two tokens to the left” means the same thing anywhere.",
       },
       { t: "h", text: "Rotary position embedding (RoPE; Su et al., 2021)" },
       {
         t: "steps",
         items: [
-          { title: "Compute q and k as usual", text: "No position vector is added to the input embeddings." },
-          { title: "Rotate each 2-D pair by a position-dependent angle", text: "Pair i of the query at position m is rotated by m·θᵢ; the key at position n by n·θᵢ. The frequencies θᵢ are the same geometric ladder as the sinusoidal encoding.", tex: String.raw`\tilde q_m = R(m)\,q_m,\quad \tilde k_n = R(n)\,k_n,\qquad \theta_i = 10000^{-2i/d}` },
-          { title: "Score the rotated vectors", text: "The product of the two rotations depends only on n − m, so the score is a function of the content and the relative offset only.", tex: String.raw`\tilde q_m^\top\tilde k_n = q_m^\top R(n-m)\,k_n` },
-          { title: "Values are not rotated", text: "Only queries and keys carry position; values are mixed as usual. RoPE is applied in every layer, not only at the input." },
+          { title: "Compute q and k as usual", text: "Nothing is added to the input embeddings." },
+          { title: "Rotate each 2-D pair by a position-dependent angle", text: "Pair i of the query at position m is turned by m·θᵢ; the key at position n by n·θᵢ. The θᵢ use the same geometric ladder as the sinusoidal encoding.", tex: String.raw`\tilde q_m = R(m)\,q_m,\quad \tilde k_n = R(n)\,k_n,\qquad \theta_i = 10000^{-2i/d}` },
+          { title: "Score the rotated vectors", text: "The two rotations combine into one that depends only on n − m, so the score depends only on content and relative offset.", tex: String.raw`\tilde q_m^\top\tilde k_n = q_m^\top R(n-m)\,k_n` },
+          { title: "Values are not rotated", text: "Only queries and keys carry position; values are mixed as usual. RoPE is applied in every layer, not just at the input." },
         ],
       },
       { t: "h", text: "ALiBi (Press, Smith & Lewis, 2021)" },
       {
         t: "p",
-        text: "ALiBi (Attention with Linear Biases) uses no position vectors at all. It subtracts a penalty proportional to distance directly from the scores: $s_{ij}=q_i\\cdot k_j/\\sqrt{d_k}-m_h\\,(i-j)$ for a causal model, where each head $h$ has its own fixed slope $m_h$ (for 8 heads: $1/2, 1/4, \\dots, 1/256$). Heads with large slopes focus locally; heads with small slopes look far. The paper's title summarises the motivation: “Train Short, Test Long” — models trained on short sequences extrapolate to longer ones.",
+        text: "ALiBi (Attention with Linear Biases) uses no position vectors. It subtracts a distance penalty straight from the scores: $s_{ij}=q_i\\cdot k_j/\\sqrt{d_k}-m_h\\,(i-j)$ for a causal model, where each head $h$ has its own fixed slope $m_h$ (for 8 heads: $1/2, 1/4, \\dots, 1/256$). Steep heads focus nearby; gentle heads look far. The paper's title gives the goal: “Train Short, Test Long”.",
       },
     ],
 
@@ -117,7 +117,7 @@ const lesson: Lesson = {
       { t: "h", text: "1. Proof that self-attention is permutation-equivariant" },
       {
         t: "p",
-        text: String.raw`Let $X\in\mathbb{R}^{n\times d}$ be the input rows and $P$ an $n\times n$ permutation matrix ($PX$ reorders the rows; $P^\top P=I$). Write $f(X)=\mathrm{softmax}\big(XW_Q(XW_K)^\top/\sqrt{d_k}\big)\,XW_V$. Then`,
+        text: String.raw`Let $X\in\mathbb{R}^{n\times d}$ be the input rows and $P$ an $n\times n$ permutation matrix ($PX$ shuffles the rows; $P^\top P=I$). Write $f(X)=\mathrm{softmax}\big(XW_Q(XW_K)^\top/\sqrt{d_k}\big)\,XW_V$. Then`,
       },
       {
         t: "math",
@@ -125,18 +125,18 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Permuting rows and columns of a matrix by the same $P$ permutes each row's entries and reorders the rows, and row-wise softmax commutes with both: $\mathrm{softmax}(PSP^\top)=P\,\mathrm{softmax}(S)\,P^\top$. Hence`,
+        text: String.raw`Shuffling rows and columns with the same $P$ only moves entries within rows and reorders rows, which row-wise softmax ignores: $\mathrm{softmax}(PSP^\top)=P\,\mathrm{softmax}(S)\,P^\top$. Hence`,
       },
       {
         t: "math",
         tex: String.raw`f(PX)=P\,A\,P^\top\,P\,V = P\,A\,V = P\,f(X).`,
-        caption: "Permuting the inputs only permutes the outputs: no information about order reaches the output.",
+        caption: "Shuffling the inputs only shuffles the outputs: no information about order gets through.",
       },
       {
         t: "p",
-        text: String.raw`With an absolute encoding the input is $X+PE$, and permuting the **words** gives $PX+PE\neq P(X+PE)$, so the symmetry is broken — exactly what we want.`,
+        text: String.raw`With an absolute encoding the input is $X+PE$. Shuffling the **words** gives $PX+PE\neq P(X+PE)$, because the positions stay put. The symmetry is broken — exactly what we want.`,
       },
-      { t: "h", text: "2. The sinusoidal encoding, every variable defined" },
+      { t: "h", text: "2. The sinusoidal encoding, symbol by symbol" },
       {
         t: "math",
         tex: String.raw`PE_{(pos,\,2i)}=\sin\!\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right),\qquad PE_{(pos,\,2i+1)}=\cos\!\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right)`,
@@ -144,22 +144,22 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`$pos\in\{0,1,\dots,n-1\}$ — the token's index in the sequence.`,
-          String.raw`$i\in\{0,\dots,d_{\text{model}}/2-1\}$ — the index of a dimension **pair**; dimensions $2i$ (sine) and $2i+1$ (cosine) share one frequency.`,
+          String.raw`$pos\in\{0,1,\dots,n-1\}$ — the token's place in the sequence.`,
+          String.raw`$i\in\{0,\dots,d_{\text{model}}/2-1\}$ — which dimension **pair**; dimensions $2i$ (sine) and $2i+1$ (cosine) share one frequency.`,
           String.raw`$d_{\text{model}}$ — the embedding width (must be even).`,
-          String.raw`$10000$ — the **base**, a hyper-parameter that sets the longest wavelength.`,
-          String.raw`$\omega_i=10000^{-2i/d_{\text{model}}}$ — angular frequency in radians per position; wavelength $\lambda_i=2\pi/\omega_i=2\pi\cdot10000^{2i/d_{\text{model}}}$.`,
+          String.raw`$10000$ — the **base**, a setting you choose that fixes the longest wavelength.`,
+          String.raw`$\omega_i=10000^{-2i/d_{\text{model}}}$ — angular frequency, in radians per position; wavelength (positions per full turn) $\lambda_i=2\pi/\omega_i=2\pi\cdot10000^{2i/d_{\text{model}}}$.`,
         ],
       },
       { t: "h", text: "3. Why the frequencies are geometric" },
       {
         t: "p",
-        text: String.raw`Consecutive frequencies differ by a constant **ratio**, $\omega_{i+1}/\omega_i=10000^{-2/d_{\text{model}}}$, so the wavelengths run geometrically from $\lambda_0=2\pi\approx6.28$ positions up to $\lambda_{d/2-1}=2\pi\cdot10000^{(d-2)/d}$ (for $d_{\text{model}}=512$: about 60,611 positions). A geometric ladder spends the same number of dimensions on each **scale** (each factor of 10 in distance gets the same share), like the bits of a binary number. Fast pairs resolve neighbouring tokens but wrap around quickly; slow pairs never wrap within a document but barely change between neighbours. Using all of them together gives a unique, smoothly varying code over a very long range. A linear spacing would waste most dimensions on similar high frequencies.`,
+        text: String.raw`Each frequency is the previous one times a fixed **ratio**, $\omega_{i+1}/\omega_i=10000^{-2/d_{\text{model}}}$. So wavelengths grow geometrically from $\lambda_0=2\pi\approx6.28$ positions to $\lambda_{d/2-1}=2\pi\cdot10000^{(d-2)/d}$ (about 60,611 positions for $d_{\text{model}}=512$). Every **scale** gets the same number of dimensions (each factor of 10 in distance gets the same share), like binary bits. Fast pairs tell neighbours apart but wrap around quickly; slow pairs never wrap within a document but barely change between neighbours. Together they give a unique, smooth code over a very long range. Evenly spaced frequencies would waste most dimensions on similar high frequencies.`,
       },
       { t: "h", text: "4. PE(pos + k) is a rotation of PE(pos)" },
       {
         t: "p",
-        text: "Apply the angle-addition identities to one pair with frequency $\\omega$:",
+        text: "Use the angle-addition rules on one pair with frequency $\\omega$:",
       },
       {
         t: "math",
@@ -169,13 +169,13 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Stacking all pairs, $PE_{pos+k}=R(k)\,PE_{pos}$ with $R(k)=\mathrm{diag}\big(R_{\omega_0}(k),\dots,R_{\omega_{d/2-1}}(k)\big)$, a block-diagonal **orthogonal** matrix that depends on the offset $k$ but **not** on $pos$. So "the token $k$ places later" is a fixed linear map of the current encoding, which a linear layer such as $W_Q$ or $W_K$ can learn to exploit. Vaswani et al. gave this as their reason for choosing sinusoids.`,
+        text: String.raw`Stacking all pairs, $PE_{pos+k}=R(k)\,PE_{pos}$ with $R(k)=\mathrm{diag}\big(R_{\omega_0}(k),\dots,R_{\omega_{d/2-1}}(k)\big)$, a block-diagonal **orthogonal** matrix (a pure rotation) that depends on $k$ but **not** on $pos$. In plain words: "the token $k$ places later" is one fixed linear map of the current code, which a linear layer like $W_Q$ or $W_K$ can learn to use. Vaswani et al. gave this as their reason for sinusoids.`,
       },
       { t: "h", text: "5. Dot products depend only on the offset" },
       {
         t: "math",
         tex: String.raw`PE_p\cdot PE_q=\sum_{i}\big[\sin(\omega_ip)\sin(\omega_iq)+\cos(\omega_ip)\cos(\omega_iq)\big]=\sum_{i=0}^{d/2-1}\cos\big(\omega_i(p-q)\big).`,
-        caption: "Self-similarity is always d_model/2; the value is symmetric in p − q, so the dot product alone cannot tell 'before' from 'after'.",
+        caption: "A position's dot product with itself is always d_model/2. The value is the same for p − q and q − p, so the dot product alone cannot tell 'before' from 'after'.",
       },
       { t: "h", text: "6. Worked example: d_model = 4, positions 0 to 3" },
       {
@@ -188,16 +188,16 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**Rotation check** ($k=1$): $R(1)$ has blocks $\begin{bmatrix}0.5403&0.8415\\-0.8415&0.5403\end{bmatrix}$ and $\begin{bmatrix}1.0000&0.0100\\-0.0100&1.0000\end{bmatrix}$. Multiplying $R(1)\,PE_1$: first entry $0.5403\cdot0.8415+0.8415\cdot0.5403=0.9093$, second $-0.8415\cdot0.8415+0.5403\cdot0.5403=-0.4161$; the slow pair gives $[0.0200, 0.9998]$. That is exactly $PE_2$.`,
+        text: String.raw`**Rotation check** ($k=1$): $R(1)$ has blocks $\begin{bmatrix}0.5403&0.8415\\-0.8415&0.5403\end{bmatrix}$ and $\begin{bmatrix}1.0000&0.0100\\-0.0100&1.0000\end{bmatrix}$. Multiply $R(1)\,PE_1$: first entry $0.5403\cdot0.8415+0.8415\cdot0.5403=0.9093$, second $-0.8415\cdot0.8415+0.5403\cdot0.5403=-0.4161$; the slow pair gives $[0.0200, 0.9998]$. That is exactly $PE_2$.`,
       },
       {
         t: "p",
-        text: String.raw`**Dot products**: the Gram matrix $PE\,PE^\top$ is constant along each diagonal (a Toeplitz matrix), as predicted:`,
+        text: String.raw`**Dot products**: the Gram matrix $PE\,PE^\top$ (all pairwise dot products) is constant along each diagonal — a Toeplitz matrix — as predicted:`,
       },
       {
         t: "math",
         tex: String.raw`PE\,PE^\top=\begin{bmatrix}2&1.5403&0.5837&0.0096\\1.5403&2&1.5403&0.5837\\0.5837&1.5403&2&1.5403\\0.0096&0.5837&1.5403&2\end{bmatrix}`,
-        caption: "E.g. offset 2: cos(2) + cos(0.02) = −0.4161 + 0.9998 = 0.5837, wherever the pair is.",
+        caption: "E.g. offset 2: cos(2) + cos(0.02) = −0.4161 + 0.9998 = 0.5837, wherever the pair sits.",
       },
       { t: "h", text: "7. Learned and relative encodings" },
       {
@@ -208,12 +208,12 @@ const lesson: Lesson = {
       {
         t: "math",
         tex: String.raw`\text{Shaw et al. (2018): } s_{ij}=\frac{q_i\cdot\big(k_j+a^K_{\mathrm{clip}(j-i,\,-r,\,r)}\big)}{\sqrt{d_k}}`,
-        caption: "a^K are learned vectors, one per clipped offset; r is the maximum distance represented exactly.",
+        caption: "a^K are learned vectors, one per clipped offset; r is the largest distance stored exactly.",
       },
-      { t: "h", text: "8. RoPE derived from 2-D rotations" },
+      { t: "h", text: "8. RoPE built from 2-D rotations" },
       {
         t: "p",
-        text: String.raw`Take $d=2$. We want functions $f_q(q,m)$ and $f_k(k,n)$ that inject the positions $m,n$ such that $\langle f_q(q,m), f_k(k,n)\rangle$ depends on $q$, $k$ and $m-n$ only. Rotations do exactly this. With $R(\phi)=\begin{bmatrix}\cos\phi&-\sin\phi\\\sin\phi&\cos\phi\end{bmatrix}$, set $f_q(q,m)=R(m\theta)q$ and $f_k(k,n)=R(n\theta)k$. Because $R(a)^\top=R(-a)$ and $R(a)R(b)=R(a+b)$:`,
+        text: String.raw`Take $d=2$. We want functions $f_q(q,m)$ and $f_k(k,n)$ that add the positions $m,n$ so that $\langle f_q(q,m), f_k(k,n)\rangle$ depends only on $q$, $k$ and $m-n$. Rotations do exactly this. With $R(\phi)=\begin{bmatrix}\cos\phi&-\sin\phi\\\sin\phi&\cos\phi\end{bmatrix}$, set $f_q(q,m)=R(m\theta)q$ and $f_k(k,n)=R(n\theta)k$. Because $R(a)^\top=R(-a)$ and $R(a)R(b)=R(a+b)$:`,
       },
       {
         t: "math",
@@ -221,7 +221,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`In complex notation, identify $q=(q_1,q_2)$ with $q_1+iq_2$; rotation by $m\theta$ is multiplication by $e^{im\theta}$, and the real dot product is $\mathrm{Re}[\tilde q\,\overline{\tilde k}]=\mathrm{Re}[q\bar k\,e^{i(m-n)\theta}]$. For $d>2$, split the vector into $d/2$ pairs and rotate pair $i$ by $m\theta_i$ with $\theta_i=10000^{-2i/d}$:`,
+        text: String.raw`In complex numbers: treat $q=(q_1,q_2)$ as $q_1+iq_2$. Rotating by $m\theta$ is multiplying by $e^{im\theta}$, and the real dot product is $\mathrm{Re}[\tilde q\,\overline{\tilde k}]=\mathrm{Re}[q\bar k\,e^{i(m-n)\theta}]$. For $d>2$, split the vector into $d/2$ pairs and rotate pair $i$ by $m\theta_i$ with $\theta_i=10000^{-2i/d}$:`,
       },
       {
         t: "math",
@@ -229,13 +229,13 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: "Rotations preserve length, so RoPE does not change the norms of q and k. Unlike the sinusoidal case, the content vectors are **multiplied** by position rather than added to it, so the score cannot separate into a content part plus a position part; position modulates how content is compared.",
+        text: "Rotations keep lengths, so RoPE does not change the norms of q and k. Unlike sinusoidal PE, position **multiplies** the content instead of being added, so the score cannot split into a content part plus a position part: position changes how content is compared.",
       },
       { t: "h", text: "9. ALiBi" },
       {
         t: "math",
         tex: String.raw`s_{ij}=\frac{q_i\cdot k_j}{\sqrt{d_k}}-m_h\,(i-j)\quad (j\le i),\qquad m_h=2^{-8h/H},\ h=1,\dots,H`,
-        caption: "For H = 8 heads the slopes are 1/2, 1/4, …, 1/256. The penalty grows linearly with distance and has no parameters.",
+        caption: "For H = 8 heads the slopes are 1/2, 1/4, …, 1/256. The penalty grows in a straight line with distance and has no parameters.",
       },
     ],
 
@@ -243,7 +243,7 @@ const lesson: Lesson = {
     visual: [
       {
         t: "p",
-        text: "The simulator draws the full sinusoidal PE matrix (positions left to right, dimensions top to bottom), one dimension as a wave across positions, and the dot product of one position with all others.",
+        text: "The simulator draws the full sinusoidal PE matrix (positions left to right, dimensions top to bottom), one dimension as a wave across positions, and the dot product of one position with all the others.",
       },
       { t: "sim", id: "positional-encoding", caption: "Teal = positive, clay = negative. Click the heatmap to pick a position and dimension." },
       { t: "h", text: "What to try" },
@@ -251,11 +251,11 @@ const lesson: Lesson = {
         t: "list",
         ordered: true,
         items: [
-          "Look at the heatmap top to bottom: the top rows (low dimensions) flicker rapidly across positions, the bottom rows are almost constant. That vertical change of frequency is the geometric ladder.",
-          "Drag **dimension j** from 0 upward and watch the wave in the middle plot stretch; the side panel shows its wavelength growing from 6.3 positions by a constant factor per pair.",
-          "Press **Play** to sweep the position p. In the bottom plot the similarity curve slides along with p but keeps the **same shape**: PE(p)·PE(q) depends only on q − p. The dashed closed-form curve Σcos(ωᵢ(q−p)) lies exactly on top.",
-          "Compare the side panel's PE(p)·PE(p+3) and PE(p)·PE(p−3): they are equal, so the dot product is symmetric and cannot by itself distinguish left from right.",
-          "Reduce **d_model** to 4 or 8. The similarity curve becomes a sum of only 2–4 cosines and develops large secondary peaks: with few dimensions, distant positions can look alike. Increase it to 128 and the peak at q = p becomes sharp and dominant.",
+          "Scan the heatmap top to bottom: top rows (low dimensions) flicker fast across positions, bottom rows are almost flat. That is the geometric ladder.",
+          "Drag **dimension j** up from 0 and watch the wave in the middle plot stretch; the side panel shows its wavelength growing from 6.3 positions by a fixed factor per pair.",
+          "Press **Play** to sweep the position p. In the bottom plot the similarity curve slides with p but keeps the **same shape**: PE(p)·PE(q) depends only on q − p. The dashed formula curve Σcos(ωᵢ(q−p)) sits exactly on top.",
+          "Compare PE(p)·PE(p+3) and PE(p)·PE(p−3) in the side panel: they are equal. The dot product is symmetric and cannot tell left from right on its own.",
+          "Lower **d_model** to 4 or 8: the curve becomes a sum of 2–4 cosines with big side peaks, so distant positions can look alike. At 128 the peak at q = p is sharp and dominant.",
         ],
       },
     ],
@@ -264,7 +264,7 @@ const lesson: Lesson = {
     scratch: [
       {
         t: "p",
-        text: "This NumPy program demonstrates every claim of the lesson: attention without positions is permutation-equivariant; adding sinusoidal PE breaks the symmetry; PE(pos + k) equals a fixed orthogonal rotation of PE(pos); dot products depend only on the offset; and RoPE scores depend only on m − n while preserving norms.",
+        text: "This NumPy program checks every claim: attention without positions is permutation-equivariant; sinusoidal PE breaks the symmetry; PE(pos + k) is a fixed rotation of PE(pos); dot products depend only on the offset; RoPE scores depend only on m − n and keep norms.",
       },
       {
         t: "code",
@@ -371,7 +371,7 @@ norm preserved: True`,
             blocks: [
               {
                 t: "p",
-                text: "PyTorch has no built-in positional-encoding layer, so models define their own. The sinusoidal table is stored with `register_buffer` (saved with the model and moved to the GPU, but not trained); learned positions are an `nn.Embedding`; RoPE is applied to queries and keys right before attention; ALiBi is an additive bias passed as a float `attn_mask`.",
+                text: "PyTorch has no built-in positional-encoding layer, so models write their own: the sinusoidal table via `register_buffer` (saved and moved to the GPU with the model, not trained), learned positions as an `nn.Embedding`, RoPE on queries and keys just before attention, and ALiBi as an added bias passed as a float `attn_mask`.",
               },
               {
                 t: "code",
@@ -480,7 +480,7 @@ ALiBi bias, head 0:
             blocks: [
               {
                 t: "p",
-                text: "In Keras, a learned position embedding is an `Embedding` layer indexed by `tf.range(n)`; the sinusoidal table is a constant computed once in the layer constructor.",
+                text: "In Keras, a learned position embedding is an `Embedding` layer indexed by `tf.range(n)`; the sinusoidal table is a constant built once in the layer's constructor.",
               },
               {
                 t: "code",
@@ -538,13 +538,13 @@ for learned in (False, True):
         t: "table",
         head: ["Method", "Where position enters", "Advantages", "Disadvantages", "Used in"],
         rows: [
-          ["Sinusoidal absolute (Vaswani et al., 2017)", "Added to input embeddings", "No parameters; defined for any position; offsets are linear maps", "Extrapolation beyond trained lengths is poor in practice; position mixed into content", "Original Transformer"],
-          ["Learned absolute", "Trainable table added to inputs", "Simple, flexible, strong in-range", "Hard limit L_max; rarely-seen late positions are under-trained", "BERT, GPT-2, ViT (per patch)"],
-          ["Relative vectors (Shaw et al., 2018)", "Learned vector per clipped offset inside the score", "Translation-invariant; generalises across positions", "Extra memory per (i, j) pair; more complex kernels", "Music Transformer, early relative models"],
-          ["Relative scalar bias (T5)", "Learned bias per head and offset bucket added to scores", "Cheap; log-spaced buckets cover long range", "Bias must be computed for each (i, j); not compatible with all fused kernels", "T5"],
-          ["RoPE (Su et al., 2021)", "Rotates q and k in every layer", "Exact relative property; no parameters; works with KV cache; norm-preserving", "Long-context extension needs tricks (position interpolation, base scaling)", "LLaMA-family and many open LLMs"],
-          ["ALiBi (Press et al., 2021)", "Linear distance penalty added to scores", "No parameters; strong length extrapolation", "Built-in recency bias; slopes are fixed", "BLOOM, MPT"],
-          ["No positional encoding (causal)", "None; the causal mask leaks order implicitly", "Simplest", "Only works for causal models, usually weaker", "Research ablations"],
+          ["Sinusoidal absolute (Vaswani et al., 2017)", "Added to input embeddings", "No parameters; defined for any position; offsets are linear maps", "Works poorly past the trained length in practice; position mixed into content", "Original Transformer"],
+          ["Learned absolute", "Trainable table added to inputs", "Simple, flexible, strong within range", "Hard limit L_max; rarely seen late positions get little training", "BERT, GPT-2, ViT (per patch)"],
+          ["Relative vectors (Shaw et al., 2018)", "Learned vector per clipped offset inside the score", "Same meaning at every position; generalises well", "Extra memory per (i, j) pair; more complex kernels", "Music Transformer, early relative models"],
+          ["Relative scalar bias (T5)", "Learned bias per head and offset bucket, added to scores", "Cheap; log-spaced buckets cover long distances", "Bias must be computed for each (i, j); does not fit every fused kernel", "T5"],
+          ["RoPE (Su et al., 2021)", "Rotates q and k in every layer", "Exactly relative; no parameters; works with KV cache; keeps norms", "Longer contexts need tricks (position interpolation, base scaling)", "LLaMA-family and many open LLMs"],
+          ["ALiBi (Press et al., 2021)", "Distance penalty added to scores", "No parameters; handles longer inputs well", "Built-in preference for recent tokens; slopes are fixed", "BLOOM, MPT"],
+          ["No positional encoding (causal)", "None; the causal mask leaks order indirectly", "Simplest", "Only for causal models; usually weaker", "Research ablations"],
         ],
       },
     ],
@@ -555,35 +555,35 @@ for learned in (False, True):
         t: "list",
         items: [
           "**Language models**: every Transformer language model needs a position method. GPT-2 used learned absolute embeddings; LLaMA-family models use RoPE; BLOOM uses ALiBi.",
-          "**Bidirectional encoders**: BERT adds learned absolute embeddings for 512 positions, which is why its standard input limit is 512 tokens.",
-          "**Vision Transformers**: each image patch gets a learned position embedding indexed by its location in the patch grid; when fine-tuning at higher resolution, the embedding grid is resized by 2-D interpolation.",
-          "**Long-context extension**: models trained with RoPE are commonly extended to longer contexts by rescaling positions (position interpolation) or the base frequency, then briefly fine-tuning.",
-          "**Beyond text**: sinusoidal encodings of continuous quantities (time steps in diffusion models, coordinates in neural radiance fields) use the same multi-frequency idea to let networks represent fine detail.",
+          "**Bidirectional encoders**: BERT adds learned embeddings for 512 positions — that is why its standard input limit is 512 tokens.",
+          "**Vision Transformers**: each image patch gets a learned embedding for its spot in the patch grid; for fine-tuning at higher resolution, that grid is resized by 2-D interpolation.",
+          "**Long-context extension**: models trained with RoPE are often stretched to longer contexts by rescaling positions (position interpolation) or the base frequency, then briefly fine-tuned.",
+          "**Beyond text**: sinusoidal codes for continuous values (diffusion time steps, coordinates in neural radiance fields) use the same many-frequency idea to capture fine detail.",
         ],
       },
     ],
 
     // ------------------------------------------------------------------ tradeoffs
     tradeoffs: [
-      { t: "h", text: "Strengths of the different approaches" },
+      { t: "h", text: "Strengths of each approach" },
       {
         t: "list",
         items: [
-          "**Sinusoidal**: zero parameters, deterministic, defined for every integer position, and offsets act as fixed rotations.",
-          "**Learned absolute**: the model chooses whatever representation of position helps the task; trivial to implement.",
-          "**RoPE**: relative position enters the score exactly, it is applied per layer so position information is not washed out by depth, and cached keys never need to be recomputed when new tokens arrive.",
-          "**ALiBi**: almost free to compute and extrapolates gracefully to longer inputs.",
+          "**Sinusoidal**: no parameters, always the same, defined for every whole-number position, and offsets act as fixed rotations.",
+          "**Learned absolute**: the model picks whatever position code helps the task; very little code to write.",
+          "**RoPE**: relative position enters the score exactly; applied in every layer, so depth does not wash it out; cached keys never need recomputing.",
+          "**ALiBi**: almost free to compute and copes well with longer inputs.",
         ],
       },
       { t: "h", text: "Limitations and trade-offs" },
       {
         t: "list",
         items: [
-          "**Extrapolation**: learned tables cannot go past $L_{\\max}$; sinusoidal and RoPE are defined beyond the training length but models still degrade there because they never saw those angle combinations.",
-          "**Additive encodings mix with content**: after adding PE, the score $(e_i+p_i)^\\top W_QW_K^\\top(e_j+p_j)$ contains content–content, content–position and position–position terms; some are noise for a given task.",
-          "**Symmetry**: the sinusoidal dot product $\\sum\\cos(\\omega_i(p-q))$ is symmetric in $p-q$; direction (before vs after) must be recovered through the learned projections.",
-          "**Recency bias**: ALiBi always penalises distant tokens, which can hurt tasks that need precise long-range retrieval.",
-          "**Engineering**: relative biases must be materialised per (i, j) pair, which conflicts with some fused attention kernels; RoPE and absolute encodings do not have this problem.",
+          String.raw`**Extrapolation**: learned tables stop at $L_{\max}$. Sinusoidal and RoPE are defined beyond the training length, but models still get worse there because they never saw those angle combinations.`,
+          "**Additive encodings mix with content**: after adding PE, the score $(e_i+p_i)^\\top W_QW_K^\\top(e_j+p_j)$ has content–content, content–position and position–position terms; some are just noise for a given task.",
+          "**Symmetry**: the sinusoidal dot product $\\sum\\cos(\\omega_i(p-q))$ is the same for $p-q$ and $q-p$; direction (before vs after) must be recovered by the learned projections.",
+          "**Recency bias**: ALiBi always penalises far tokens, which can hurt tasks that need exact long-range lookup.",
+          "**Engineering**: relative biases must be built for every (i, j) pair, which clashes with some fused attention kernels; RoPE and absolute encodings avoid this.",
         ],
       },
     ],
@@ -593,13 +593,13 @@ for learned in (False, True):
       {
         t: "list",
         items: [
-          "**Interleaving sin and cos incorrectly.** Some implementations put all sines in the first half and all cosines in the second half; others interleave (sin, cos, sin, cos). Both are valid, but mixing conventions — e.g. loading weights trained with one into code using the other — silently breaks the model. The same applies to RoPE's “interleaved” vs “rotate-half” pairing.",
-          "**Using i as the dimension index instead of the pair index.** The exponent is $2i/d_{\\text{model}}$ where $i$ is the pair index. Writing $j/d_{\\text{model}}$ with the raw dimension $j$ gives sin and cos of a pair different frequencies, which destroys the rotation property.",
-          "**Registering the sinusoidal table as a parameter.** Using `nn.Parameter` makes it trainable and adds it to the optimizer; use `register_buffer` for a fixed table.",
-          "**Adding positions after the attention layer** or only to the values. Positions must influence the queries and keys (the scores) for attention to depend on order; the standard place is the input embedding (absolute) or q and k themselves (RoPE).",
+          "**Mixing up the sin/cos layout.** Some code puts all sines first and all cosines second; other code interleaves (sin, cos, sin, cos). Both are valid, but loading weights trained with one into code using the other silently breaks the model. Same for RoPE's “interleaved” vs “rotate-half” pairing.",
+          "**Using the dimension index instead of the pair index.** The exponent is $2i/d_{\\text{model}}$ where $i$ is the pair index. Writing $j/d_{\\text{model}}$ with the raw dimension $j$ gives the sin and cos of a pair different frequencies, which ruins the rotation property.",
+          "**Registering the sinusoidal table as a parameter.** `nn.Parameter` makes it trainable and hands it to the optimizer; use `register_buffer` for a fixed table.",
+          "**Adding positions after the attention layer**, or only to the values. Positions must affect the queries and keys (the scores) for attention to see order: put them in the input embedding (absolute) or in q and k (RoPE).",
           "**Applying RoPE to the values.** Only queries and keys are rotated; rotating values changes the output without giving the relative-position property.",
-          "**Wrong offsets during cached generation.** When generating one token at a time with a KV cache, the new token's position is the cache length, not 0. Forgetting the offset applies position 0 to every new token.",
-          "**Exceeding the learned table.** Feeding 600 tokens to a model with 512 learned positions raises an index error or, if clipped, gives garbage; truncate or use a sliding window.",
+          "**Wrong offsets during cached generation.** When generating one token at a time with a KV cache, the new token's position is the cache length, not 0. Forget this and every new token gets position 0.",
+          "**Going past the learned table.** Feeding 600 tokens to a model with 512 learned positions raises an index error or, if clipped, gives garbage; truncate or use a sliding window.",
         ],
       },
     ],
@@ -610,55 +610,55 @@ for learned in (False, True):
         t: "qa",
         level: "beginner",
         q: "Why does a Transformer need positional encoding when an RNN does not?",
-        a: "An RNN processes tokens sequentially, so order is part of the computation. Self-attention computes the same function of a set of vectors regardless of their order — permuting the inputs only permutes the outputs. Without positional information, “dog bites man” and “man bites dog” would be indistinguishable apart from output order.",
+        a: "An RNN reads tokens one by one, so order is part of the computation. Self-attention gives the same result for a set of vectors whatever their order — shuffling inputs only shuffles outputs. Without position information, “dog bites man” and “man bites dog” would look the same apart from output order.",
       },
       {
         t: "qa",
         level: "beginner",
         q: "Write down the sinusoidal positional encoding and explain its variables.",
-        a: "$PE_{(pos,2i)}=\\sin(pos/10000^{2i/d})$ and $PE_{(pos,2i+1)}=\\cos(pos/10000^{2i/d})$, where pos is the token index, i indexes dimension pairs (0 to d/2 − 1), d is the model width and 10000 is the base. Each pair is a sine/cosine at frequency $10000^{-2i/d}$; the result is added to the token embedding.",
+        a: "$PE_{(pos,2i)}=\\sin(pos/10000^{2i/d})$ and $PE_{(pos,2i+1)}=\\cos(pos/10000^{2i/d})$. Here pos is the token index, i numbers the dimension pairs (0 to d/2 − 1), d is the model width and 10000 is the base. Each pair is a sine/cosine at frequency $10000^{-2i/d}$; the result is added to the token embedding.",
       },
       {
         t: "qa",
         level: "beginner",
         q: "What is the difference between sinusoidal and learned absolute position embeddings?",
-        a: "Sinusoidal encodings are a fixed formula with no parameters and exist for every position. Learned embeddings are a trainable table with one vector per position up to a maximum length (512 in BERT, 1024 in GPT-2); they adapt to the data but there is no vector for positions beyond the table. In the original Transformer paper both performed nearly identically on translation.",
+        a: "Sinusoidal encodings are a fixed formula with no parameters, defined for every position. Learned embeddings are a trainable table, one vector per position up to a maximum (512 in BERT, 1024 in GPT-2): they adapt to the data, but positions past the table have no vector. In the original Transformer paper both did almost equally well on translation.",
       },
       {
         t: "qa",
         level: "intermediate",
         q: "Show that PE(pos + k) is a linear function of PE(pos).",
-        a: "For one pair with frequency ω: $\\sin(\\omega(pos+k))=\\sin(\\omega pos)\\cos(\\omega k)+\\cos(\\omega pos)\\sin(\\omega k)$ and $\\cos(\\omega(pos+k))=\\cos(\\omega pos)\\cos(\\omega k)-\\sin(\\omega pos)\\sin(\\omega k)$. In matrix form this is a 2 × 2 rotation by $\\omega k$ applied to $(\\sin\\omega pos,\\cos\\omega pos)$. Stacking pairs gives a block-diagonal orthogonal matrix R(k) that depends only on k, so $PE_{pos+k}=R(k)PE_{pos}$.",
+        a: "For one pair with frequency ω: $\\sin(\\omega(pos+k))=\\sin(\\omega pos)\\cos(\\omega k)+\\cos(\\omega pos)\\sin(\\omega k)$ and $\\cos(\\omega(pos+k))=\\cos(\\omega pos)\\cos(\\omega k)-\\sin(\\omega pos)\\sin(\\omega k)$. As a matrix, this is a 2 × 2 rotation by $\\omega k$ applied to $(\\sin\\omega pos,\\cos\\omega pos)$. Stacking pairs gives a block-diagonal orthogonal matrix R(k) that depends only on k, so $PE_{pos+k}=R(k)PE_{pos}$.",
       },
       {
         t: "qa",
         level: "intermediate",
         q: "Why are the frequencies geometric rather than linear?",
-        a: "A geometric sequence covers many scales evenly: wavelengths run from 2π to about 2π·10000, and each factor of distance gets the same number of dimensions — like the bits of a binary counter. Fast pairs resolve adjacent positions but repeat quickly; slow pairs never repeat within a document but change little between neighbours. With linearly spaced frequencies, most pairs would have similar short wavelengths and long-range position would be poorly represented.",
+        a: "A geometric sequence covers many scales evenly: wavelengths run from 2π to about 2π·10000, and each factor of distance gets the same number of dimensions, like a binary counter's bits. Fast pairs tell neighbours apart but repeat quickly; slow pairs never repeat within a document but change little between neighbours. Evenly spaced frequencies would give mostly similar short wavelengths, capturing long-range position poorly.",
       },
       {
         t: "qa",
         level: "intermediate",
         q: "How does RoPE make attention scores depend only on relative position?",
-        a: "It rotates each 2-D pair of the query at position m by angle $m\\theta_i$ and of the key at position n by $n\\theta_i$. Because rotations satisfy $R(a)^\\top R(b)=R(b-a)$, the score becomes $q^\\top R((n-m)\\theta)k$: the absolute angles cancel and only the offset remains. It has no parameters, preserves vector norms, and since each key is rotated by its own absolute position once, cached keys remain valid as generation proceeds.",
+        a: "It rotates each 2-D pair of the query at position m by $m\\theta_i$, and of the key at n by $n\\theta_i$. Because $R(a)^\\top R(b)=R(b-a)$, the score becomes $q^\\top R((n-m)\\theta)k$: absolute angles cancel, only the offset remains. No parameters, norms unchanged, and since each key is rotated once by its own position, cached keys stay valid during generation.",
       },
       {
         t: "qa",
         level: "advanced",
         q: "Prove that self-attention without positional information is permutation-equivariant.",
-        a: "For a permutation matrix P: $Q'=PXW_Q=PQ$, $K'=PK$, $V'=PV$. Then $Q'K'^\\top=PQK^\\top P^\\top$, and since row-wise softmax commutes with simultaneous row/column permutation, $A'=PAP^\\top$. The output is $A'V'=PAP^\\top PV=PAV$ because $P^\\top P=I$. Hence $f(PX)=Pf(X)$.",
+        a: "For a permutation matrix P: $Q'=PXW_Q=PQ$, $K'=PK$, $V'=PV$. Then $Q'K'^\\top=PQK^\\top P^\\top$, and since row-wise softmax is unaffected by shuffling rows and columns together, $A'=PAP^\\top$. The output is $A'V'=PAP^\\top PV=PAV$ because $P^\\top P=I$. Hence $f(PX)=Pf(X)$.",
       },
       {
         t: "qa",
         level: "advanced",
         q: "A model trained with RoPE on 4k-token contexts fails at 16k tokens. Why, and what are common fixes?",
-        a: "At 16k tokens, the low-frequency pairs reach rotation angles never seen in training, so the learned query/key projections meet out-of-distribution relative phases and attention degrades. Common fixes: position interpolation (divide positions by 4 so the angles stay in the trained range, then fine-tune briefly), increasing the RoPE base so frequencies are lower (often called NTK-aware or base scaling), or schemes that scale different frequency bands differently. ALiBi-style biases are an alternative designed to extrapolate without such changes.",
+        a: "At 16k tokens the slow pairs reach rotation angles never seen in training, so the learned projections meet unfamiliar relative phases and attention degrades. Common fixes: position interpolation (divide positions by 4 so angles stay in the trained range, then fine-tune briefly); a bigger RoPE base so frequencies are lower (NTK-aware or base scaling); or scaling different frequency bands differently. ALiBi-style biases are an alternative built to extrapolate without such changes.",
       },
       {
         t: "qa",
         level: "advanced",
         q: "Expand the attention score with absolute additive encodings and interpret the terms.",
-        a: "With $x_i=e_i+p_i$: $q_i^\\top k_j=(e_i+p_i)^\\top W_QW_K^\\top(e_j+p_j)=e_i^\\top Ue_j+e_i^\\top Up_j+p_i^\\top Ue_j+p_i^\\top Up_j$ with $U=W_QW_K^\\top$. The first term is content–content, the middle two are content–position cross terms, and the last is position–position. Relative-position methods (such as Transformer-XL's decomposition, T5 biases, or RoPE) restructure or replace these terms so that position enters only through $j-i$.",
+        a: "With $x_i=e_i+p_i$: $q_i^\\top k_j=(e_i+p_i)^\\top W_QW_K^\\top(e_j+p_j)=e_i^\\top Ue_j+e_i^\\top Up_j+p_i^\\top Ue_j+p_i^\\top Up_j$ with $U=W_QW_K^\\top$. The first term is content–content, the middle two are content–position cross terms, and the last is position–position. Relative-position methods (Transformer-XL's split, T5 biases, RoPE) reshape or replace these terms so that position enters only through $j-i$.",
       },
     ],
 
@@ -668,24 +668,24 @@ for learned in (False, True):
         t: "quiz",
         questions: [
           {
-            q: "If you shuffle the input tokens of a self-attention layer that has no positional information, what happens to the output?",
+            q: "If you shuffle the input tokens of a self-attention layer that has no position information, what happens to the output?",
             options: ["It is unchanged", "It is shuffled in the same way", "It becomes random", "It becomes all zeros"],
             answer: 1,
             explain: "Self-attention is permutation-equivariant: f(PX) = P f(X).",
           },
           {
             kind: "numeric",
-            q: "With d_model = 512, what is PE(p)·PE(p) (the dot product of a sinusoidal encoding with itself)?",
+            q: "With d_model = 512, what is PE(p)·PE(p) (a sinusoidal encoding's dot product with itself)?",
             answer: 256,
             tolerance: 0.001,
-            explain: "Each pair contributes sin² + cos² = 1, and there are d_model/2 = 256 pairs.",
+            explain: "Each pair gives sin² + cos² = 1, and there are d_model/2 = 256 pairs.",
           },
           {
             kind: "numeric",
             q: "What is the wavelength, in positions, of the fastest pair (i = 0) of the sinusoidal encoding? (2 decimals)",
             answer: 6.28,
             tolerance: 0.01,
-            explain: "ω₀ = 10000⁰ = 1 radian per position, so the wavelength is 2π ≈ 6.28 positions.",
+            explain: "ω₀ = 10000⁰ = 1 radian per position, so one full turn takes 2π ≈ 6.28 positions.",
           },
           {
             q: "Which statement about RoPE is correct?",
@@ -696,7 +696,7 @@ for learned in (False, True):
               "It subtracts a linear distance penalty from the scores",
             ],
             answer: 1,
-            explain: "RoPE rotates q and k by position-dependent angles; R(m)ᵀR(n) = R(n − m). The linear penalty is ALiBi.",
+            explain: "RoPE rotates q and k by angles set by their positions; R(m)ᵀR(n) = R(n − m). The linear penalty is ALiBi.",
           },
           {
             kind: "numeric",
@@ -714,32 +714,32 @@ for learned in (False, True):
               "The vocabulary is too small",
             ],
             answer: 1,
-            explain: "The learned table has exactly 512 rows; positions beyond it have no representation.",
+            explain: "The learned table has exactly 512 rows; later positions have no vector.",
           },
           {
             kind: "numeric",
             q: "With ALiBi and 8 heads, slopes are 2^(−h) for h = 1…8. What bias does head 2 add to the score of a query at position 10 and a key at position 6?",
             answer: -1,
             tolerance: 0.001,
-            explain: "Head 2 slope is 1/4; distance i − j = 4; bias = −(1/4)·4 = −1.",
+            explain: "Head 2's slope is 1/4; distance i − j = 4; bias = −(1/4)·4 = −1.",
           },
         ],
       },
       {
         t: "exercise",
         title: "Rotation and similarity by hand",
-        prompt: "Let $d_{\\text{model}}=4$. (a) Write $PE_1$ and $PE_3$. (b) Compute $PE_1\\cdot PE_3$ directly and via the formula $\\sum_i\\cos(\\omega_i(p-q))$. (c) Which rotation $R(k)$ maps $PE_1$ to $PE_3$, and what are its angles?",
+        prompt: "Let $d_{\\text{model}}=4$. (a) Write $PE_1$ and $PE_3$. (b) Compute $PE_1\\cdot PE_3$ directly and with the formula $\\sum_i\\cos(\\omega_i(p-q))$. (c) Which rotation $R(k)$ turns $PE_1$ into $PE_3$, and what are its angles?",
         hint: "ω₀ = 1, ω₁ = 0.01.",
         solution: [
           { t: "p", text: "(a) $PE_1=[\\sin1,\\cos1,\\sin0.01,\\cos0.01]=[0.8415, 0.5403, 0.0100, 1.0000]$ and $PE_3=[\\sin3,\\cos3,\\sin0.03,\\cos0.03]=[0.1411,-0.9900,0.0300,0.9996]$." },
           { t: "p", text: "(b) Directly: $0.8415\\cdot0.1411+0.5403\\cdot(-0.9900)+0.0100\\cdot0.0300+1.0000\\cdot0.9996=0.1187-0.5349+0.0003+0.9996=0.5837$. Formula: $\\cos(2)+\\cos(0.02)=-0.4161+0.9998=0.5837$." },
-          { t: "p", text: "(c) The offset is $k=2$, so $R(2)$ has blocks rotating by $\\omega_0\\cdot2=2$ radians and $\\omega_1\\cdot2=0.02$ radians: $\\begin{bmatrix}\\cos2&\\sin2\\\\-\\sin2&\\cos2\\end{bmatrix}$ and $\\begin{bmatrix}\\cos0.02&\\sin0.02\\\\-\\sin0.02&\\cos0.02\\end{bmatrix}$. The same R(2) maps every $PE_p$ to $PE_{p+2}$." },
+          { t: "p", text: "(c) The offset is $k=2$, so $R(2)$ has blocks turning by $\\omega_0\\cdot2=2$ radians and $\\omega_1\\cdot2=0.02$ radians: $\\begin{bmatrix}\\cos2&\\sin2\\\\-\\sin2&\\cos2\\end{bmatrix}$ and $\\begin{bmatrix}\\cos0.02&\\sin0.02\\\\-\\sin0.02&\\cos0.02\\end{bmatrix}$. The same R(2) maps every $PE_p$ to $PE_{p+2}$." },
         ],
       },
       {
         t: "exercise",
         title: "Verify that the similarity matrix is Toeplitz",
-        prompt: "Build the sinusoidal PE for 64 positions with $d_{\\text{model}}=64$, compute the Gram matrix $G=PE\\,PE^\\top$, and verify numerically that every diagonal (fixed offset $k=q-p$) is constant and that $G$ is symmetric in $k$. Print $PE_p\\cdot PE_{p+k}$ for k = 0, 1, 2, 4, 8, 16, 32 and describe how it changes.",
+        prompt: "Build the sinusoidal PE for 64 positions with $d_{\\text{model}}=64$, compute the Gram matrix $G=PE\\,PE^\\top$, and check numerically that every diagonal (fixed offset $k=q-p$) is constant and that $G$ is symmetric in $k$. Print $PE_p\\cdot PE_{p+k}$ for k = 0, 1, 2, 4, 8, 16, 32 and describe how it changes.",
         hint: "np.diagonal(G, offset=k) returns the k-th diagonal; np.ptp gives max − min.",
         solution: [
           {
@@ -779,7 +779,7 @@ offset 32: PE(p).PE(p+k) =  19.554`,
           },
           {
             t: "p",
-            text: "Each diagonal is constant to within $3\\times10^{-14}$ (floating-point rounding), and the offsets $+7$ and $-7$ give identical values. The similarity starts at $d/2=32$ and generally decreases with distance, but not monotonically (offset 32 is slightly above offset 16): the sum of cosines oscillates. The dot product is a useful but imperfect distance signal, and it is symmetric, so it does not encode direction.",
+            text: "Each diagonal is constant to within $3\\times10^{-14}$ (rounding), and offsets $+7$ and $-7$ match. Similarity starts at $d/2=32$ and mostly falls with distance, but not steadily (offset 32 is a bit above offset 16), because the cosines wiggle. So the dot product is a rough distance signal, and being symmetric, it says nothing about direction.",
           },
         ],
       },
@@ -790,15 +790,15 @@ offset 32: PE(p).PE(p+k) =  19.554`,
       {
         t: "list",
         items: [
-          String.raw`Self-attention is permutation-equivariant, $f(PX)=Pf(X)$, so order must be injected explicitly.`,
+          String.raw`Self-attention is permutation-equivariant, $f(PX)=Pf(X)$, so order must be added on purpose.`,
           String.raw`Sinusoidal PE: $PE_{pos,2i}=\sin(pos\,\omega_i)$, $PE_{pos,2i+1}=\cos(pos\,\omega_i)$, $\omega_i=10000^{-2i/d_{\text{model}}}$; added to embeddings; no parameters.`,
-          String.raw`Frequencies are geometric: wavelengths from $2\pi$ to about $2\pi\cdot10000$, covering every distance scale evenly, like bits of a counter.`,
-          String.raw`Relative property: $PE_{pos+k}=R(k)\,PE_{pos}$ with a block-diagonal rotation depending only on $k$.`,
+          String.raw`Frequencies are geometric: wavelengths from $2\pi$ to about $2\pi\cdot10000$, covering every distance scale evenly, like the bits of a counter.`,
+          String.raw`Relative property: $PE_{pos+k}=R(k)\,PE_{pos}$, with a block-diagonal rotation that depends only on $k$.`,
           String.raw`$PE_p\cdot PE_q=\sum_i\cos(\omega_i(p-q))$ — depends only on the offset, is symmetric, and equals $d_{\text{model}}/2$ at offset 0.`,
-          "Learned absolute embeddings (BERT, GPT-2): flexible but limited to the table length.",
-          "Relative methods (Shaw et al., T5 bias) put the offset j − i directly into the scores.",
-          String.raw`RoPE rotates $q$ and $k$: $(R(m\theta)q)^\top R(n\theta)k=q^\top R((n-m)\theta)k$; no parameters, norm-preserving, cache-friendly.`,
-          String.raw`ALiBi subtracts $m_h(i-j)$ from scores with fixed geometric slopes, trading a recency bias for good length extrapolation.`,
+          "Learned absolute embeddings (BERT, GPT-2): flexible but capped at the table length.",
+          "Relative methods (Shaw et al., T5 bias) put the offset j − i straight into the scores.",
+          String.raw`RoPE rotates $q$ and $k$: $(R(m\theta)q)^\top R(n\theta)k=q^\top R((n-m)\theta)k$; no parameters, keeps norms, cache-friendly.`,
+          String.raw`ALiBi subtracts $m_h(i-j)$ from scores with fixed geometric slopes, trading a recency bias for handling longer inputs well.`,
         ],
       },
     ],
@@ -809,9 +809,9 @@ offset 32: PE(p).PE(p+k) =  19.554`,
         t: "list",
         items: [
           "[The Transformer Architecture](/learn/m11/transformer-architecture) — see where the positional encoding enters the full encoder–decoder stack, next to residual connections, LayerNorm and feed-forward layers.",
-          "[Multi-Head Attention](/learn/m10/multi-head-attention) — RoPE and ALiBi are applied per head; learn how heads are split and what they specialise in.",
-          "[Tokenization, Embeddings and Context Windows](/learn/m11/tokens-embeddings) — how token embeddings are produced, and how the choice of positional method limits the context window.",
-          "[Scaled Dot-Product Attention](/learn/m10/scaled-dot-product-attention) — revisit the score matrix with positions in mind, and use the attention explorer with positional encoding switched on and off.",
+          "[Multi-Head Attention](/learn/m10/multi-head-attention) — RoPE and ALiBi work per head; learn how heads are split and what they specialise in.",
+          "[Tokenization, Embeddings and Context Windows](/learn/m11/tokens-embeddings) — how token embeddings are made, and how the position method limits the context window.",
+          "[Scaled Dot-Product Attention](/learn/m10/scaled-dot-product-attention) — revisit the score matrix with positions in mind, and try the attention explorer with positional encoding on and off.",
         ],
       },
     ],

@@ -103,8 +103,8 @@ export default function ChainRuleSim() {
       title = "The expression as a graph";
       body = (
         <>
-          L = (σ(w·x + b) − y)² is broken into five primitive operations, each a node. Inputs: x = {n4(p.x)}, w = {n4(p.w)}, b = {n4(p.b)}, y ={" "}
-          {n4(p.y)}. First the <b>forward pass</b> computes every node value from left to right.
+          We break L = (σ(w·x + b) − y)² into five simple operations. Each one is a node. Inputs: x = {n4(p.x)}, w = {n4(p.w)}, b = {n4(p.b)}, y ={" "}
+          {n4(p.y)}. First, the <b>forward pass</b> computes every node&apos;s value, left to right.
         </>
       );
       break;
@@ -128,20 +128,20 @@ export default function ChainRuleSim() {
       title = "Forward 5/5: square";
       body = (
         <>
-          L = d² = ({n4(f.d)})² = <b>{n4(f.L)}</b>. The forward pass is complete and every intermediate value is stored — the backward pass needs
+          L = d² = ({n4(f.d)})² = <b>{n4(f.L)}</b>. The forward pass is done, and every in-between value is saved. The backward pass will need
           them.
         </>
       );
       break;
     case 6:
-      title = "Backward: seed the gradient";
-      body = <>Start at the output with ∂L/∂L = <b>1</b>. Every other gradient is this 1 multiplied by local derivatives along the path back.</>;
+      title = "Backward: start the gradient";
+      body = <>Start at the output with ∂L/∂L = <b>1</b>. Every other gradient is this 1 times the local derivatives along the path back.</>;
       break;
     case 7:
       title = "Backward: through the square";
       body = (
         <>
-          Local derivative of d² is 2d = {n4(g.local["d-L"])}. Upstream × local: ∂L/∂d = 1 × {n4(g.local["d-L"])} = <b>{n4(gr.d)}</b>.
+          The local derivative (slope of this one step) of d² is 2d = {n4(g.local["d-L"])}. Gradient from above × local: ∂L/∂d = 1 × {n4(g.local["d-L"])} = <b>{n4(gr.d)}</b>.
         </>
       );
       break;
@@ -149,7 +149,7 @@ export default function ChainRuleSim() {
       title = "Backward: through the subtraction";
       body = (
         <>
-          ∂d/∂a = 1 and ∂d/∂y = −1, so subtraction passes the gradient through (with a sign flip for y): ∂L/∂a = <b>{n4(gr.a)}</b>, ∂L/∂y ={" "}
+          ∂d/∂a = 1 and ∂d/∂y = −1, so subtraction passes the gradient straight through (with a sign flip for y): ∂L/∂a = <b>{n4(gr.a)}</b>, ∂L/∂y ={" "}
           <b>{n4(gr.y)}</b>.
         </>
       );
@@ -158,7 +158,7 @@ export default function ChainRuleSim() {
       title = "Backward: through the sigmoid";
       body = (
         <>
-          σ′(z) = a(1 − a) = {n4(f.a)} × {n4(1 - f.a)} = {n4(g.local["z-a"])}, using the stored forward value a. ∂L/∂z = {n4(gr.a)} ×{" "}
+          σ′(z) = a(1 − a) = {n4(f.a)} × {n4(1 - f.a)} = {n4(g.local["z-a"])}, using the saved forward value a. ∂L/∂z = {n4(gr.a)} ×{" "}
           {n4(g.local["z-a"])} = <b>{n4(gr.z)}</b>.
         </>
       );
@@ -175,17 +175,17 @@ export default function ChainRuleSim() {
       title = "Backward: through the multiplication";
       body = (
         <>
-          For u = w·x the local derivatives swap the inputs: ∂u/∂w = x, ∂u/∂x = w. ∂L/∂w = {n4(gr.u)} × {n4(p.x)} = <b>{n4(gr.w)}</b>; ∂L/∂x ={" "}
+          For u = w·x, each input&apos;s local derivative is the other input: ∂u/∂w = x, ∂u/∂x = w. ∂L/∂w = {n4(gr.u)} × {n4(p.x)} = <b>{n4(gr.w)}</b>; ∂L/∂x ={" "}
           {n4(gr.u)} × {n4(p.w)} = <b>{n4(gr.x)}</b>.
         </>
       );
       break;
     default:
-      title = "Check against finite differences";
+      title = "Double-check with finite differences";
       body = (
         <>
-          Nudge w by ±h (h = 10⁻⁴) and recompute L: (L(w+h) − L(w−h)) / 2h = <b>{n4(fdW)}</b>, matching the chain-rule value {n4(gr.w)}. One backward
-          pass gave every gradient at once; finite differences need two forward passes <i>per parameter</i>.
+          Nudge w by ±h (h = 10⁻⁴) and recompute L: (L(w+h) − L(w−h)) / 2h = <b>{n4(fdW)}</b>. It matches the chain-rule value {n4(gr.w)}. One backward
+          pass gave every gradient at once. Finite differences need two forward passes <i>per parameter</i>.
         </>
       );
   }
@@ -193,7 +193,7 @@ export default function ChainRuleSim() {
   return (
     <SimShell
       title="Chain Rule on a Computational Graph"
-      subtitle="L = (σ(w·x + b) − y)² — values flow forward, gradients flow backward."
+      subtitle="L = (σ(w·x + b) − y)². Values flow forward, gradients flow backward."
       controls={<Controls s={s} />}
       aside={
         <>
@@ -229,7 +229,7 @@ export default function ChainRuleSim() {
                 </tbody>
               </table>
             ) : (
-              <span className="text-muted">Shown after the backward pass reaches w and b.</span>
+              <span className="text-muted">Appears once the backward pass reaches w and b.</span>
             )}
           </div>
         </>
@@ -371,8 +371,8 @@ export default function ChainRuleSim() {
         </table>
       </div>
       <p className="mt-3 text-xs text-muted">
-        <span className="text-accent">Accent</span> numbers are forward values; <span className="text-clay">clay</span> numbers are gradients ∂L/∂(node).
-        Gold outlines mark the node(s) computed in the current step. Edge labels show the local derivative used when the gradient crosses that edge.
+        <span className="text-accent">Accent</span> numbers are forward values. <span className="text-clay">Clay</span> numbers are gradients ∂L/∂(node).
+        Gold outlines mark the node(s) worked out in this step. Edge labels show the local derivative used when the gradient crosses that edge.
       </p>
     </SimShell>
   );

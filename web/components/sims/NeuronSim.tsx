@@ -82,22 +82,22 @@ export default function NeuronSim() {
   let narr: string;
   if (!last) {
     narrTitle = "Ready";
-    narr = `Starting weights w = (${n2(w1)}, ${n2(w2)}), b = ${n2(b0)}. The neuron predicts 1 wherever z = w1·x1 + w2·x2 + b ≥ 0 (the shaded side of the line). Press Step to present the first sample (0, 0) and apply the perceptron rule.`;
+    narr = `Starting weights w = (${n2(w1)}, ${n2(w2)}), b = ${n2(b0)}. The neuron says 1 wherever z = w1·x1 + w2·x2 + b ≥ 0 (the shaded side of the line). Press Step to show it the first sample (0, 0) and apply the perceptron rule.`;
   } else if (last.err === 0) {
     narrTitle = `Epoch ${last.epoch}, sample ${last.index + 1}/4: correct`;
-    narr = `Input (${last.x.join(", ")}) gives z = ${n2(last.z)}, so ŷ = ${last.yhat}, which equals the target y = ${last.y}. The error is 0, so Δw = (0, 0) and Δb = 0: the perceptron only learns from mistakes.`;
+    narr = `Input (${last.x.join(", ")}) gives z = ${n2(last.z)}, so ŷ = ${last.yhat}, which matches the target y = ${last.y}. The error is 0, so Δw = (0, 0) and Δb = 0. The perceptron only learns from mistakes.`;
   } else {
     narrTitle = `Epoch ${last.epoch}, sample ${last.index + 1}/4: mistake`;
-    const dir = last.err > 0 ? "raised (the target was 1 but z was negative)" : "lowered (the target was 0 but z was non-negative)";
-    narr = `Input (${last.x.join(", ")}) gives z = ${n2(last.z)}, so ŷ = ${last.yhat} but y = ${last.y}; error e = ${last.err}. The update adds η·e·x = (${n2(last.dw[0])}, ${n2(last.dw[1])}) to w and η·e = ${n2(last.db)} to b, so z for this input is ${dir}. The boundary moves.`;
+    const dir = last.err > 0 ? "pushed up (the target was 1 but z was negative)" : "pushed down (the target was 0 but z was 0 or more)";
+    narr = `Input (${last.x.join(", ")}) gives z = ${n2(last.z)}, so ŷ = ${last.yhat}, but y = ${last.y}. Error e = ${last.err}. The fix adds η·e·x = (${n2(last.dw[0])}, ${n2(last.dw[1])}) to w and η·e = ${n2(last.db)} to b. So z for this input gets ${dir}. The line moves.`;
   }
   if (finished) {
     if (trace.convergedEpoch !== null) {
-      narrTitle = `Converged in epoch ${trace.convergedEpoch}`;
-      narr = `Epoch ${trace.convergedEpoch} made no mistakes, so the weights stop changing: w = (${n2(w[0])}, ${n2(w[1])}), b = ${n2(b)}. ${gate} is linearly separable, and the perceptron convergence theorem guarantees this always happens for separable data. Mistakes per epoch: ${trace.errorsPerEpoch.join(", ")}.`;
+      narrTitle = `Done: learned it in epoch ${trace.convergedEpoch}`;
+      narr = `Epoch ${trace.convergedEpoch} (one pass over all 4 samples) had no mistakes, so the weights stop changing: w = (${n2(w[0])}, ${n2(w[1])}), b = ${n2(b)}. A straight line can split ${gate}, and the perceptron convergence theorem promises this always happens then. Mistakes per epoch: ${trace.errorsPerEpoch.join(", ")}.`;
     } else {
-      narrTitle = `No convergence after ${MAX_EPOCHS} epochs`;
-      narr = `Every epoch still contains mistakes (per epoch: ${trace.errorsPerEpoch.slice(0, 8).join(", ")}${trace.errorsPerEpoch.length > 8 ? ", …" : ""}). ${gate === "XOR" ? "No straight line puts (0,1) and (1,0) on one side and (0,0) and (1,1) on the other, so the weights cycle forever. A hidden layer is needed." : "Try a larger number of epochs or different starting weights."}`;
+      narrTitle = `Still not learned after ${MAX_EPOCHS} epochs`;
+      narr = `Every epoch still has mistakes (per epoch: ${trace.errorsPerEpoch.slice(0, 8).join(", ")}${trace.errorsPerEpoch.length > 8 ? ", …" : ""}). ${gate === "XOR" ? "No straight line puts (0,1) and (1,0) on one side and (0,0) and (1,1) on the other. So the weights go round in circles forever. You need a hidden layer." : "Try more epochs or different starting weights."}`;
     }
   }
 
@@ -107,7 +107,7 @@ export default function NeuronSim() {
   return (
     <SimShell
       title="Artificial Neuron & Perceptron"
-      subtitle="z = w1·x1 + w2·x2 + b, predict 1 when z ≥ 0; the perceptron rule nudges w and b after every mistake."
+      subtitle="z = w1·x1 + w2·x2 + b. Predict 1 when z ≥ 0. After every mistake, the perceptron rule nudges w and b."
       controls={
         <Controls
           s={s}
@@ -143,7 +143,7 @@ export default function NeuronSim() {
             </select>
           </label>
           <div className="rounded-lg border border-border p-2.5 font-mono text-xs leading-relaxed">
-            <div className="mb-1 font-sans text-faint">{shown ? "Sample just presented" : "First sample"}: x = ({curX.join(", ")})</div>
+            <div className="mb-1 font-sans text-faint">{shown ? "Sample just shown" : "First sample"}: x = ({curX.join(", ")})</div>
             <div>
               z = {paren(shown ? shown.wBefore[0] : w1)}·{curX[0]} + {paren(shown ? shown.wBefore[1] : w2)}·{curX[1]} + {paren(shown ? shown.bBefore : b0)} = <span className="text-gold">{n2(curZ)}</span>
             </div>
@@ -228,7 +228,7 @@ export default function NeuronSim() {
           })}
           {!seg && (
             <text x={SIZE / 2} y={PAD + 14} fontSize="11" textAnchor="middle" fill="var(--text-muted)">
-              w = (0, 0): no line — every point gets the same prediction
+              w = (0, 0): no line, so every point gets the same answer
             </text>
           )}
         </svg>
@@ -273,7 +273,7 @@ export default function NeuronSim() {
               <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: clay }} /> class 0
             </span>
             <span>shaded: predicted 1</span>
-            <span className="text-gold">arrow: w (normal to the line)</span>
+            <span className="text-gold">arrow: w (at right angles to the line)</span>
           </div>
           <Narration title={narrTitle}>{narr}</Narration>
         </div>

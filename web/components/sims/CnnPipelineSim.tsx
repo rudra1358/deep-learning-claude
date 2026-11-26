@@ -265,7 +265,7 @@ export default function CnnPipelineSim() {
       }
     };
     img.onerror = () => {
-      setError("Could not decode that file as an image.");
+      setError("That file does not look like an image we can open.");
       URL.revokeObjectURL(url);
     };
     img.src = url;
@@ -297,32 +297,32 @@ export default function CnnPipelineSim() {
 
   const narration: { title: string; text: string }[] = [
     {
-      title: "Stage 0 — the input tensor",
-      text: `The image is centre-cropped, resized to ${SIZE}×${SIZE}, converted to grayscale (0.299R + 0.587G + 0.114B) and stretched to the range [0, 1]. It is a single-channel tensor of shape 1 × ${SIZE} × ${SIZE} = ${inputCount} numbers. Press Step to apply the first layer.`,
+      title: "Stage 0: the input tensor",
+      text: `We crop the image to a square, shrink it to ${SIZE}×${SIZE}, turn it grey (0.299R + 0.587G + 0.114B), and stretch it to [0, 1]. Now it is a tensor (a grid of numbers) with one channel: 1 × ${SIZE} × ${SIZE} = ${inputCount} numbers. Press Step to apply the first layer.`,
     },
     {
-      title: "Stage 1 — convolution with 6 hand-designed kernels",
-      text: `Each 3×3 kernel slides over the image with stride ${stride} and padding ${padding}: ⌊(${SIZE} + 2·${padding} − 3)/${stride}⌋ + 1 = ${conv1Size}, so the output is ${shape(6, net.conv1[0])}. Teal = positive response, clay = negative. Edge kernels sum to 0, so flat regions give 0 and only intensity changes light up; the sign tells you the direction of the change.${padding > 0 ? " With padding 1, the ring of zeros around a bright image acts like a dark frame, so the edge maps also light up along the border — a zero-padding artefact." : ""} This layer would have ${convParams(1, 6, 3)} parameters (6·1·3·3 weights + 6 biases).`,
+      title: "Stage 1: convolution with 6 hand-made kernels",
+      text: `Each 3×3 kernel (a small grid of weights) slides over the image with stride ${stride} and padding ${padding}: ⌊(${SIZE} + 2·${padding} − 3)/${stride}⌋ + 1 = ${conv1Size}. So the output is ${shape(6, net.conv1[0])}. Teal = positive response, clay = negative. Edge kernels add up to 0, so flat areas give 0 and only changes in brightness light up. The sign tells you which way the change goes.${padding > 0 ? " With padding 1, the ring of zeros acts like a dark frame around the image. So the edge maps also light up along the border, a side effect of zero padding." : ""} This layer would have ${convParams(1, 6, 3)} parameters (6·1·3·3 weights + 6 biases).`,
     },
     {
-      title: "Stage 2 — ReLU",
-      text: `ReLU sets every negative value to 0: ${(zeroFrac(net.relu1) * 100).toFixed(1)}% of the ${6 * net.relu1[0].h * net.relu1[0].w} activations are now exactly zero. Notice that each edge map keeps only ONE polarity (e.g. dark→bright going right for Sobel-x); the opposite edge is discarded. Learned CNNs usually learn both polarities as separate filters for this reason.`,
+      title: "Stage 2: ReLU",
+      text: `ReLU turns every negative value into 0. Now ${(zeroFrac(net.relu1) * 100).toFixed(1)}% of the ${6 * net.relu1[0].h * net.relu1[0].w} activations are exactly zero. Notice each edge map keeps only ONE direction of change (e.g. dark→bright going right for Sobel-x). The opposite edge is thrown away. That is why trained CNNs usually learn both directions as separate filters.`,
     },
     {
-      title: "Stage 3 — 2×2 max-pooling",
-      text: `Each map keeps the maximum of every non-overlapping 2×2 block: ${net.relu1[0].h} → ⌊(${net.relu1[0].h} − 2)/2⌋ + 1 = ${p1.h}, giving ${shape(6, p1)}. Responses survive if they are strong anywhere in the block, so the representation becomes slightly tolerant to small shifts while the number of values drops by 4×.`,
+      title: "Stage 3: 2×2 max-pooling",
+      text: `Each map keeps only the biggest value in every 2×2 block (blocks do not overlap): ${net.relu1[0].h} → ⌊(${net.relu1[0].h} − 2)/2⌋ + 1 = ${p1.h}, giving ${shape(6, p1)}. A strong response anywhere in the block survives. So small shifts matter a bit less, and there are 4× fewer values.`,
     },
     {
-      title: "Stage 4 — convolution over all 6 channels",
-      text: `Every layer-2 filter has shape 6×3×3: it reads a 3×3 neighbourhood from ALL six pooled maps at once and sums the results. With padding 1 and stride 1 the size is preserved: ${shape(4, net.conv2[0])}. These filters combine layer-1 features (e.g. "vertical edge here AND not a horizontal edge"). Parameters: ${convParams(6, 4, 3)} (4·6·3·3 + 4).`,
+      title: "Stage 4: convolution over all 6 channels",
+      text: `Every layer-2 filter has shape 6×3×3. It reads a 3×3 patch from ALL six pooled maps at once and adds up the results. With padding 1 and stride 1 the size stays the same: ${shape(4, net.conv2[0])}. These filters combine layer-1 features (e.g. "vertical edge here AND not a horizontal edge"). Parameters: ${convParams(6, 4, 3)} (4·6·3·3 + 4).`,
     },
     {
-      title: "Stage 5 — ReLU",
-      text: `Negative combinations are discarded again: ${(zeroFrac(net.relu2) * 100).toFixed(1)}% of layer-2 activations are zero. Layer 2 now responds to patterns built from patterns — this is the start of the feature hierarchy.`,
+      title: "Stage 5: ReLU",
+      text: `Negative combinations are thrown away again: ${(zeroFrac(net.relu2) * 100).toFixed(1)}% of layer-2 activations are zero. Layer 2 now responds to patterns made of patterns. This is how a feature hierarchy starts: simple features build into complex ones.`,
     },
     {
-      title: "Stage 6 — max-pool: the final feature tensor",
-      text: `Output: ${shape(4, p2)} = ${finalCount} numbers, versus ${inputCount} input pixels. Each final value depends on a ${rf}×${rf}-pixel patch of the input (its receptive field), so it describes a region, not a pixel. In a real CNN this tensor would be flattened and passed to a classifier, and every kernel above would be learned by backpropagation instead of written by hand.`,
+      title: "Stage 6: max-pool gives the final features",
+      text: `Output: ${shape(4, p2)} = ${finalCount} numbers, versus ${inputCount} input pixels. Each final value depends on a ${rf}×${rf}-pixel patch of the input (its receptive field). So it describes a region, not one pixel. In a real CNN, this tensor would be flattened and fed to a classifier. And every kernel above would be learned by backpropagation, not written by hand.`,
     },
   ];
 
@@ -364,7 +364,7 @@ export default function CnnPipelineSim() {
   return (
     <SimShell
       title="CNN Feature Extraction"
-      subtitle="A real two-layer convolutional pipeline on your image. Kernels are hand-designed (not learned) so you can see what each one extracts."
+      subtitle="A real two-layer CNN runs on your image. The kernels are hand-made (not learned), so you can see what each one picks out."
       controls={<Controls s={s} />}
       aside={
         <div className="flex flex-col gap-3">
@@ -387,7 +387,7 @@ export default function CnnPipelineSim() {
             ))}
           </div>
           <p className="text-xs text-faint">
-            Colours: grayscale for the image; teal = positive, clay = negative for pre-activation maps. Each map is scaled to its own maximum, so compare patterns, not absolute brightness, across maps.
+            Colours: grey for the image. For maps before ReLU, teal = positive and clay = negative. Each map is scaled to its own max, so compare patterns between maps, not brightness.
           </p>
         </div>
       }
@@ -435,7 +435,7 @@ export default function CnnPipelineSim() {
         </button>
       </div>
       {error && <p className="mb-2 text-xs text-clay">{error}</p>}
-      <p className="mb-3 text-[11px] text-faint">Uploaded images never leave your browser — all processing happens on a canvas on this page.</p>
+      <p className="mb-3 text-[11px] text-faint">Your image never leaves your browser. Everything runs on this page.</p>
 
       <div className="flex flex-col gap-3">
         {stageBox(0, <MapCanvas plane={net.input} mode="gray" pal={pal} width={128} label="Input image, grayscale 64 by 64" />, shape(1, net.input))}

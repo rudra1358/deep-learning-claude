@@ -73,7 +73,7 @@ export const SURFACES: Surface[] = [
     lrAdaptive: 0.1,
     logScale: false,
     minima: [[0, 0]],
-    note: "Curvatures 0.2 and 4 (condition number 20). Plain SGD must keep η < 2/4 = 0.5 for the steep y-direction, which makes the shallow x-direction crawl.",
+    note: "Curvatures 0.2 and 4 (condition number 20: one way is 20× steeper). Plain SGD needs η < 2/4 = 0.5 for the steep y-direction, so the gentle x-direction crawls.",
   },
   {
     id: "rosenbrock",
@@ -88,7 +88,7 @@ export const SURFACES: Surface[] = [
     lrAdaptive: 0.05,
     logScale: true,
     minima: [[1, 1]],
-    note: "A curved, narrow banana-shaped valley with its minimum at (1, 1). Reaching the valley floor is easy; travelling along it is slow.",
+    note: "A narrow, curved, banana-shaped valley with its minimum at (1, 1). Getting down to the floor is easy. Moving along it is slow.",
   },
   {
     id: "saddle",
@@ -106,7 +106,7 @@ export const SURFACES: Surface[] = [
       [0, 1],
       [0, -1],
     ],
-    note: "A saddle point at (0, 0): a minimum along x, a maximum along y. Starting almost on the ridge y = 0, the escape direction has a tiny gradient.",
+    note: "A saddle point at (0, 0): lowest along x, highest along y. You start almost on the ridge y = 0, where the way out has a tiny gradient.",
   },
   {
     id: "wells",
@@ -121,7 +121,7 @@ export const SURFACES: Surface[] = [
     lrAdaptive: 0.05,
     logScale: false,
     minima: WELLS.map((w) => w.c),
-    note: "Four Gaussian wells of different depths on a shallow bowl. Which well an optimizer ends in depends on its start point and its momentum.",
+    note: "Four dips (Gaussian wells) of different depths in a shallow bowl. Which dip an optimizer ends in depends on where it starts and its momentum.",
   },
 ];
 

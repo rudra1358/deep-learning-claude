@@ -570,7 +570,7 @@ const lesson: Lesson = {
   id: "m06/momentum-adaptive",
   title: "Momentum and Adaptive Optimizers in Depth: EMAs, Heavy Ball, Nesterov, AdaGrad to AdamW",
   summary:
-    "The theory behind the optimizer update rules: exponential moving averages and bias correction, momentum as a low-pass filter and as a heavy ball, the exact quadratic analysis that gives the optimal momentum for a condition number, Nesterov's extra damping, why per-parameter step sizes help sparse and badly scaled problems, Adam as a signal-to-noise-normalised step, AMSGrad, L2 versus decoupled weight decay, the SGD-vs-Adam generalisation debate, optimizer memory and a practical recipe per domain.",
+    "Why the popular optimizers work, when they fail and how to set them. We cover moving averages and bias correction, momentum as a noise filter and as a rolling heavy ball, the exact math that gives the best momentum for a problem, Nesterov's extra braking, why per-parameter step sizes help sparse and badly scaled data, Adam's step as a signal-to-noise ratio, AMSGrad, L2 versus decoupled weight decay, the SGD-vs-Adam debate, optimizer memory and a practical recipe per domain.",
   minutes: 90,
   level: "intermediate",
   prerequisites: ["m06/gradient-descent", "m02/eigen-svd", "m02/optimization-math", "m04/backpropagation"],
@@ -581,21 +581,32 @@ const lesson: Lesson = {
     intro: [
       {
         t: "p",
-        text: "The lesson [Gradient Descent and Its Descendants](/learn/m06/gradient-descent) gives the update equations of Momentum, Nesterov, AdaGrad, RMSProp, Adam, AdamW and Nadam, with a two-step worked example of each. This lesson assumes those equations and asks the questions that come next: **why** do they work, **when** do they fail, and **how** should their hyperparameters be chosen? Every answer is derived on a model problem and then checked numerically.",
+        text: "In [Gradient Descent and Its Descendants](/learn/m06/gradient-descent) you met the update rules of Momentum, Nesterov, AdaGrad, RMSProp, Adam, AdamW and Nadam. This lesson asks the next questions: **why** do they work, **when** do they fail, and **how** should you set their knobs? We answer each one on a small model problem and then check it with code.",
       },
       {
         t: "p",
-        text: "Two ideas carry almost all modern optimizers. The first is **averaging over time**: momentum and Adam's first moment are exponential moving averages (EMAs) of gradients, which smooth out noise and accumulate speed along consistent directions. The second is **per-parameter normalisation**: AdaGrad, RMSProp and Adam divide each coordinate's step by a running estimate of that coordinate's gradient size, which equalises progress across parameters whose gradients differ by orders of magnitude. Polyak introduced heavy-ball momentum in 1964, Nesterov his accelerated method in 1983; Duchi, Hazan and Singer published AdaGrad in 2011; Kingma and Ba published Adam in 2015; Reddi, Kale and Kumar identified a convergence flaw in Adam and proposed AMSGrad in 2018; Loshchilov and Hutter's AdamW (2019) fixed the interaction with weight decay.",
+        text: "Two ideas power almost every modern optimizer:",
+      },
+      {
+        t: "list",
+        items: [
+          "**Averaging over time.** Momentum and Adam keep a running average of recent gradients (an exponential moving average, or EMA). Noise cancels out, and speed builds up in directions that stay the same.",
+          "**A separate step size per parameter.** AdaGrad, RMSProp and Adam divide each parameter's step by how big its gradients usually are. Parameters with huge and tiny gradients then move at a similar pace.",
+        ],
       },
       {
         t: "p",
-        text: "These optimizers are used everywhere: SGD with momentum still trains many image models, AdamW trains essentially every large Transformer, AdaGrad-style methods remain common for sparse embedding tables in recommender systems. Choosing between them, and setting their four or five hyperparameters, is one of the most consequential decisions in a training run — and one where folklore is common. The goal here is to replace folklore with mechanisms you can derive.",
+        text: "History in one line: Polyak's heavy ball (1964), Nesterov (1983), AdaGrad by Duchi, Hazan and Singer (2011), Adam by Kingma and Ba (2015), AMSGrad by Reddi, Kale and Kumar (2018, a fix for a flaw in Adam's proof), AdamW by Loshchilov and Hutter (2019, a fix for weight decay).",
+      },
+      {
+        t: "p",
+        text: "SGD with momentum still trains many image models, AdamW trains nearly every large Transformer, and AdaGrad-style methods are common for sparse embedding tables. Picking one and setting its knobs is full of folklore; we replace it with reasons you can work out yourself.",
       },
       {
         t: "callout",
         kind: "key",
-        title: "What this lesson adds",
-        text: String.raw`EMAs in depth (window $1/(1-\beta)$, variance reduction, bias correction as weight renormalisation); momentum as a low-pass filter and a discretised heavy ball; the eigen-analysis of momentum on a quadratic, giving $\beta^\star = \big(\tfrac{\sqrt\kappa-1}{\sqrt\kappa+1}\big)^2$ and rate $\tfrac{\sqrt\kappa-1}{\sqrt\kappa+1}$; Nesterov's extra damping and smaller stability limit; AdaGrad's decaying rate and why it suits sparse features; Adam's step as a signal-to-noise ratio, its bounds and the role of $\epsilon$; AMSGrad; the different fixed points of Adam + L2 and AdamW; implicit bias and the generalisation debate; optimizer memory; a recipe per domain.`,
+        title: "The headline result",
+        text: String.raw`With the right momentum, $\beta^\star = \big(\tfrac{\sqrt\kappa-1}{\sqrt\kappa+1}\big)^2$, the error shrinks by $\tfrac{\sqrt\kappa-1}{\sqrt\kappa+1}$ per step, so steps grow like $\sqrt\kappa$ instead of $\kappa$. Adaptive methods add a per-parameter step of about $\eta$ times the gradient's signal-to-noise ratio.`,
       },
     ],
 
@@ -604,10 +615,10 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`[Gradient Descent and Its Descendants](/learn/m06/gradient-descent) — **essential**. You need the update equations of all optimizers, the result that gradient descent on a quadratic converges iff $0 < \eta < 2/\lambda_{\max}$, and the definition of the condition number $\kappa = \lambda_{\max}/\lambda_{\min}$.`,
-          String.raw`[Eigenvalues and the SVD](/learn/m02/eigen-svd) — a symmetric matrix $H = Q\Lambda Q^\top$ decouples a quadratic into independent one-dimensional problems; the spectral radius (largest absolute eigenvalue) of an iteration matrix decides whether a linear recursion converges.`,
+          String.raw`[Gradient Descent and Its Descendants](/learn/m06/gradient-descent) — **essential**. You need all the update rules, the fact that gradient descent on a quadratic converges only if $0 < \eta < 2/\lambda_{\max}$, and the **condition number** $\kappa = \lambda_{\max}/\lambda_{\min}$ (how much steeper the steepest direction is than the flattest).`,
+          String.raw`[Eigenvalues and the SVD](/learn/m02/eigen-svd) — writing $H = Q\Lambda Q^\top$ splits a quadratic into separate one-dimensional problems. The **spectral radius** (largest absolute eigenvalue) of an update matrix decides whether a repeated update shrinks the error.`,
           String.raw`[Optimization math](/learn/m02/optimization-math) — convexity, smoothness and the Hessian as curvature.`,
-          "[Backpropagation](/learn/m04/backpropagation) — the gradients that every optimizer consumes.",
+          "[Backpropagation](/learn/m04/backpropagation) — where the gradients every optimizer uses come from.",
           String.raw`Basic complex numbers: the roots of $r^2 - br + c = 0$ are complex when $b^2 < 4c$, and then $|r|^2 = c$. We use this once, in the momentum analysis.`,
         ],
       },
@@ -619,55 +630,55 @@ const lesson: Lesson = {
         t: "callout",
         kind: "analogy",
         title: "A car's suspension and a noise-cancelling headset",
-        text: "A car's suspension lets the body follow the slow shape of the road (a hill, a bend) while ignoring the fast bumps. Momentum does the same to the gradient sequence: the slow component — the direction the loss keeps decreasing in — passes through and even gets amplified, while the fast component — the sign-flipping oscillation across a narrow valley, or mini-batch noise — is filtered out. An adaptive optimizer is more like a headset with automatic gain control on every channel: loud channels are turned down and quiet ones turned up, so every parameter moves at a comparable pace regardless of how large its raw gradients are.",
+        text: "A car's suspension lets the car follow the slow shape of the road (a hill, a bend) while ignoring fast bumps. Momentum does the same to gradients: the slow part — the direction the loss keeps going down — passes through and even gets stronger, while the fast part — zig-zagging across a narrow valley, or mini-batch noise — is smoothed away. An adaptive optimizer is like a headset that sets the volume of every channel on its own: loud channels get turned down, quiet ones up, so every parameter moves at a similar pace. Where it stops: real optimizers only see numbers, not a road.",
       },
       {
         t: "p",
-        text: "Think of an elongated valley: steep walls across, a gentle slope along the floor. Plain gradient descent must take steps small enough not to bounce off the walls, so it crawls along the floor. A heavy ball rolling down the same valley keeps its speed along the floor (each push adds to the last) while its sideways sloshing is damped because the sideways pushes alternate in direction and cancel. That is the entire geometric content of momentum — and the quadratic analysis below turns it into exact numbers: with the right settings the number of steps scales with $\\sqrt{\\kappa}$ instead of $\\kappa$.",
+        text: "Picture a long, narrow valley: steep walls across, a gentle slope along the floor. Plain gradient descent must take small steps so it doesn't bounce off the walls, so it crawls along the floor. A heavy ball rolling down the same valley keeps building speed along the floor (each push adds to the last). Its sideways sloshing dies out, because the sideways pushes keep changing direction and cancel. That is all momentum does — and the math below turns it into exact numbers: with the right settings, the number of steps grows like $\\sqrt{\\kappa}$ instead of $\\kappa$.",
       },
       {
         t: "p",
-        text: "Adaptive methods attack a different problem. In a network, the gradient for an embedding row of a rare word is zero almost always; the gradient for a bias in the last layer is large on every step. One global learning rate cannot suit both. Dividing each parameter's gradient by its own typical magnitude makes the step size roughly the same for every parameter — Adam's step is close to $\\pm\\eta$ per coordinate when the gradient's sign is consistent, and automatically shrinks when the gradient is mostly noise.",
+        text: "Adaptive methods solve a different problem. In a network, the gradient for the embedding of a rare word is almost always zero, while the gradient for a last-layer bias is large on every step. One shared learning rate cannot suit both. Dividing each parameter's gradient by its own typical size makes the step about the same for everyone. Adam's step is close to $\\pm\\eta$ per parameter when the gradient keeps the same sign, and shrinks on its own when the gradient is mostly noise.",
       },
       {
         t: "list",
         items: [
-          String.raw`**EMA** — a running average that forgets old values geometrically; $\beta = 0.9$ remembers roughly the last 10 values, $\beta = 0.999$ the last 1000.`,
-          "**Low-pass filter** — something that passes slowly varying signals and attenuates quickly varying ones.",
-          "**Preconditioning** — rescaling the gradient (here: per coordinate) so that the problem looks better conditioned to the optimizer.",
-          "**Decoupled weight decay** — shrinking the weights directly instead of through the gradient, so the adaptive rescaling does not distort it.",
+          String.raw`**EMA** — a running average that slowly forgets old values; $\beta = 0.9$ remembers roughly the last 10 values, $\beta = 0.999$ the last 1000.`,
+          "**Low-pass filter** — something that lets slow changes through and weakens fast ones.",
+          "**Preconditioning** — rescaling the gradient (here: per parameter) so the problem looks evenly shaped to the optimizer.",
+          "**Decoupled weight decay** — shrinking the weights directly instead of through the gradient, so the adaptive rescaling cannot distort it.",
         ],
       },
     ],
 
     /* ------------------------------------------------------------------ */
     mechanism: [
-      { t: "h", text: "One Adam(W) step, with every piece of state" },
+      { t: "h", text: "One Adam(W) step, with everything it stores" },
       {
         t: "steps",
         items: [
-          { title: "Receive the gradient", text: String.raw`Backprop produces $g_t$ for every parameter (after optional gradient clipping). The step counter $t$ is incremented: $t = 1$ on the first update.` },
-          { title: "Decoupled weight decay (AdamW only)", text: String.raw`PyTorch applies it first, to the current weights: $\theta \leftarrow \theta\,(1 - \eta\lambda)$. In Adam with weight_decay (L2), instead $\lambda\theta$ is added to $g_t$ here.` },
-          { title: "Update the first moment", tex: String.raw`m_t = \beta_1 m_{t-1} + (1-\beta_1)\, g_t` },
-          { title: "Update the second moment", tex: String.raw`v_t = \beta_2 v_{t-1} + (1-\beta_2)\, g_t^2` },
+          { title: "Receive the gradient", text: String.raw`Backprop gives $g_t$ for every parameter (after optional gradient clipping). The step counter goes up by one: $t = 1$ on the first update.` },
+          { title: "Decoupled weight decay (AdamW only)", text: String.raw`PyTorch does this first, on the current weights: $\theta \leftarrow \theta\,(1 - \eta\lambda)$. In plain Adam with weight_decay (L2), $\lambda\theta$ is instead added to $g_t$ here.` },
+          { title: "Update the first moment (running average of gradients)", tex: String.raw`m_t = \beta_1 m_{t-1} + (1-\beta_1)\, g_t` },
+          { title: "Update the second moment (running average of squared gradients)", tex: String.raw`v_t = \beta_2 v_{t-1} + (1-\beta_2)\, g_t^2` },
           { title: "AMSGrad only: keep the running maximum", tex: String.raw`v^{\max}_t = \max(v^{\max}_{t-1},\, v_t)\ \text{ is used instead of } v_t` },
-          { title: "Bias-correct both moments", tex: String.raw`\hat m_t = \frac{m_t}{1-\beta_1^t}, \qquad \hat v_t = \frac{v_t}{1-\beta_2^t}` },
-          { title: "Normalised step", tex: String.raw`\theta \leftarrow \theta - \eta\, \frac{\hat m_t}{\sqrt{\hat v_t} + \epsilon}` },
+          { title: "Fix the zero-start bias of both", tex: String.raw`\hat m_t = \frac{m_t}{1-\beta_1^t}, \qquad \hat v_t = \frac{v_t}{1-\beta_2^t}` },
+          { title: "Take the normalised step", tex: String.raw`\theta \leftarrow \theta - \eta\, \frac{\hat m_t}{\sqrt{\hat v_t} + \epsilon}` },
         ],
       },
       {
         t: "p",
-        text: String.raw`All operations are element-wise, so the cost is a handful of vector operations per parameter. The state is $m$ and $v$ (two tensors the size of the model), plus $v^{\max}$ for AMSGrad, plus the scalar $t$.`,
+        text: String.raw`Every operation works on each number separately, so the cost is a few vector operations per parameter. Adam stores $m$ and $v$ (two tensors the size of the model), plus $v^{\max}$ for AMSGrad, plus the counter $t$.`,
       },
-      { t: "h", text: "Heavy ball: two equivalent ways to write momentum" },
+      { t: "h", text: "Heavy ball: two ways to write the same momentum" },
       {
         t: "p",
-        text: String.raw`PyTorch's form $v_t = \beta v_{t-1} + g_t,\ \theta_{t+1} = \theta_t - \eta v_t$ can be rewritten without $v$. Since $\theta_t - \theta_{t-1} = -\eta v_{t-1}$,`,
+        text: String.raw`PyTorch writes momentum as $v_t = \beta v_{t-1} + g_t,\ \theta_{t+1} = \theta_t - \eta v_t$. We can remove $v$: since $\theta_t - \theta_{t-1} = -\eta v_{t-1}$,`,
       },
-      { t: "math", tex: String.raw`\theta_{t+1} = \theta_t - \eta\, g_t + \beta\,(\theta_t - \theta_{t-1})`, caption: "Polyak's heavy-ball form: a gradient step plus a fraction β of the previous displacement." },
+      { t: "math", tex: String.raw`\theta_{t+1} = \theta_t - \eta\, g_t + \beta\,(\theta_t - \theta_{t-1})`, caption: "Polyak's heavy-ball form: a normal gradient step plus a fraction β of the last move." },
       {
         t: "p",
-        text: "This is the form used in every theoretical analysis below. The last term is literally inertia: the parameters keep moving in the direction they were already moving, scaled down by β (friction).",
+        text: "We use this form in all the math below. The last term is inertia: the weights keep moving the way they were already going, slowed by β (like friction).",
       },
       { t: "h", text: "Nesterov: from the look-ahead form to PyTorch's form" },
       {
@@ -681,18 +692,18 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: "The final line only needs the gradient at the stored parameters, so it fits the standard `loss.backward(); opt.step()` loop. It is exactly what `torch.optim.SGD(..., momentum=β, nesterov=True)` implements.",
+        text: "The last line only needs the gradient at the stored weights, so it fits the usual `loss.backward(); opt.step()` loop. This is exactly what `torch.optim.SGD(..., momentum=β, nesterov=True)` does.",
       },
-      { t: "h", text: "What each hyperparameter controls" },
+      { t: "h", text: "What each knob controls" },
       {
         t: "table",
         head: ["Knob", "Controls", "Typical value", "Raise it when", "Lower it when"],
         rows: [
-          [String.raw`$\beta$ (momentum)`, String.raw`averaging window $\approx 1/(1-\beta)$; effective step $\eta/(1-\beta)$`, "0.9", "very ill-conditioned problem, noisy gradients", "training oscillates or diverges; very short runs"],
-          [String.raw`$\beta_1$ (Adam)`, "smoothing of the gradient direction", "0.9", "noisy gradients", String.raw`GANs and other non-stationary games (0.5 or 0 is common)`],
-          [String.raw`$\beta_2$ (Adam)`, String.raw`window of the squared-gradient estimate, $\approx 1/(1-\beta_2)$ steps`, "0.999 (0.95–0.98 for large Transformers)", "gradients are very noisy and stationary", "loss spikes from stale second moments; large-batch Transformer training"],
-          [String.raw`$\epsilon$`, String.raw`floor on the denominator; caps the step at $\eta\,|\hat m|/\epsilon$`, String.raw`$10^{-8}$`, "updates are too jumpy for tiny-gradient parameters, low-precision arithmetic", "almost never"],
-          [String.raw`$\lambda$ (weight decay)`, String.raw`shrinkage per step $\eta\lambda$`, "0.01–0.1 (AdamW), 1e-4–5e-4 (SGD)", "overfitting", "underfitting; never on biases and normalisation gains"],
+          [String.raw`$\beta$ (momentum)`, String.raw`memory of about $1/(1-\beta)$ steps; effective step $\eta/(1-\beta)$`, "0.9", "very unevenly shaped problem, noisy gradients", "training oscillates or diverges; very short runs"],
+          [String.raw`$\beta_1$ (Adam)`, "smoothing of the gradient direction", "0.9", "noisy gradients", String.raw`GANs and other two-player games that keep changing (0.5 or 0 is common)`],
+          [String.raw`$\beta_2$ (Adam)`, String.raw`memory of the squared-gradient average, $\approx 1/(1-\beta_2)$ steps`, "0.999 (0.95–0.98 for large Transformers)", "gradients are very noisy and steady over time", "loss spikes from out-of-date second moments; large-batch Transformer training"],
+          [String.raw`$\epsilon$`, String.raw`floor under the denominator; caps the step at $\eta\,|\hat m|/\epsilon$`, String.raw`$10^{-8}$`, "updates too jumpy for tiny-gradient parameters, low-precision arithmetic", "almost never"],
+          [String.raw`$\lambda$ (weight decay)`, String.raw`shrinking per step $\eta\lambda$`, "0.01–0.1 (AdamW), 1e-4–5e-4 (SGD)", "overfitting", "underfitting; never on biases and normalisation gains"],
         ],
       },
     ],
@@ -703,28 +714,32 @@ const lesson: Lesson = {
       {
         t: "math",
         tex: String.raw`m_t = \beta\, m_{t-1} + (1-\beta)\, g_t,\quad m_0 = 0 \qquad\Longrightarrow\qquad m_t = \sum_{k=0}^{t-1} (1-\beta)\beta^{k}\, g_{t-k}`,
-        caption: String.raw`$g_t$ — the value being averaged (a gradient or a squared gradient); $\beta \in [0,1)$ — decay; $k$ — age of a value in steps.`,
+        caption: String.raw`$g_t$ — the value being averaged (a gradient or a squared gradient); $\beta \in [0,1)$ — how slowly it forgets; $k$ — how many steps old a value is.`,
       },
       {
         t: "p",
-        text: String.raw`**Effective window.** The weight on a value of age $k$ is $w_k = (1-\beta)\beta^k$. For an infinitely long history the weights sum to 1, and the mean age is $\sum_k k\,w_k = \beta/(1-\beta)$ (9 steps for $\beta = 0.9$). After $1/(1-\beta)$ steps a weight has fallen by $\beta^{1/(1-\beta)} \approx e^{-1}$, because $\ln \beta \approx -(1-\beta)$. Hence the rule of thumb: an EMA averages over roughly the last $1/(1-\beta)$ values — 10, 100 and 1000 for $\beta = 0.9, 0.99, 0.999$.`,
+        text: String.raw`In words: each new average keeps a fraction $\beta$ of the old one and mixes in a bit of the new value. Unrolled, a value $k$ steps old gets weight $w_k = (1-\beta)\beta^k$ — older values count less and less.`,
       },
       {
         t: "p",
-        text: String.raw`**Noise reduction.** If the $g_t$ are independent with variance $\sigma^2$, the stationary variance of the EMA is $\sigma^2(1-\beta)^2\sum_k \beta^{2k} = \sigma^2\,\frac{1-\beta}{1+\beta}$. A plain average of $N$ samples has variance $\sigma^2/N$, so an EMA is as good as averaging $N_{\text{eff}} = \frac{1+\beta}{1-\beta}$ samples — 19 for $\beta = 0.9$, about twice the window.`,
+        text: String.raw`**How far back it looks.** Over a long history the weights sum to 1, and the average age is $\sum_k k\,w_k = \beta/(1-\beta)$ (9 steps for $\beta = 0.9$). After $1/(1-\beta)$ steps a weight has dropped to $\beta^{1/(1-\beta)} \approx e^{-1}$, because $\ln \beta \approx -(1-\beta)$. So the rule of thumb: an EMA averages roughly the last $1/(1-\beta)$ values — 10, 100 and 1000 for $\beta = 0.9, 0.99, 0.999$.`,
       },
       {
         t: "p",
-        text: String.raw`**Bias of the zero start.** With $m_0 = 0$, only $t$ values have been seen, and their weights sum to $\sum_{k=0}^{t-1}(1-\beta)\beta^k = 1 - \beta^t < 1$. The missing weight $\beta^t$ sits on the fictitious initial value 0, pulling the average towards zero. Dividing by $1 - \beta^t$ **renormalises the weights to sum to one**:`,
+        text: String.raw`**How much noise it removes.** If the $g_t$ are independent with variance $\sigma^2$, the EMA settles to variance $\sigma^2(1-\beta)^2\sum_k \beta^{2k} = \sigma^2\,\frac{1-\beta}{1+\beta}$. A plain average of $N$ samples has variance $\sigma^2/N$, so an EMA is as good as averaging $N_{\text{eff}} = \frac{1+\beta}{1-\beta}$ samples — 19 for $\beta = 0.9$, about twice its window.`,
+      },
+      {
+        t: "p",
+        text: String.raw`**The zero-start problem.** With $m_0 = 0$, only $t$ values have been seen, and their weights add up to $\sum_{k=0}^{t-1}(1-\beta)\beta^k = 1 - \beta^t < 1$. The missing weight $\beta^t$ sits on the made-up starting value 0, which drags the average toward zero. Dividing by $1 - \beta^t$ **rescales the weights so they sum to one**:`,
       },
       {
         t: "math",
         tex: String.raw`\hat m_t = \frac{m_t}{1-\beta^t} = \frac{\sum_{k=0}^{t-1} \beta^k g_{t-k}}{\sum_{k=0}^{t-1}\beta^k}`,
-        caption: "Bias correction turns the zero-started EMA into an exactly normalised weighted average of the values seen so far.",
+        caption: "Bias correction turns the zero-started EMA into a proper weighted average of the values seen so far.",
       },
       {
         t: "p",
-        text: String.raw`This is the cleanest way to understand Adam's correction: it needs no assumption about stationarity (the expectation argument $\mathbb{E}[m_t] = (1-\beta^t)\mathbb{E}[g]$ from the previous lesson is a consequence). The correction matters for about as long as $\beta^t$ is not negligible: $\beta^t < 0.01$ requires $t > \ln 0.01/\ln\beta$, i.e. **44** steps for $\beta = 0.9$ but **4603** steps for $\beta_2 = 0.999$. Adam's second moment is biased for thousands of steps, which is why the correction is not a cosmetic detail.`,
+        text: String.raw`This view needs no assumption that gradients are steady (the previous lesson's $\mathbb{E}[m_t] = (1-\beta^t)\mathbb{E}[g]$ follows from it). It matters while $\beta^t$ is not tiny: $\beta^t < 0.01$ needs $t > \ln 0.01/\ln\beta$, which is **44** steps for $\beta = 0.9$ but **4603** steps for $\beta_2 = 0.999$. Adam's second moment stays biased for thousands of steps, so the correction is not a cosmetic detail.`,
       },
       { t: "h", text: "Worked example: an EMA of three gradients" },
       {
@@ -738,34 +753,34 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The raw EMA (0.2, 0.58, 0.822) is nowhere near the data (2, 4, 3); the corrected values are exactly the weighted averages. These numbers are printed by the verification program below.`,
+        text: String.raw`The raw EMA (0.2, 0.58, 0.822) is nowhere near the data (2, 4, 3). The corrected values are exactly the weighted averages. The program below prints these numbers.`,
       },
 
       { t: "h", text: "2. Momentum as a low-pass filter" },
       {
         t: "p",
-        text: String.raw`Treat the gradient sequence as a signal and feed it a pure oscillation $g_t = e^{i\omega t}$ of angular frequency $\omega$ ($\omega = 0$: constant; $\omega = \pi$: sign flips every step). In steady state the velocity $v_t = \beta v_{t-1} + g_t$ is also an oscillation, $v_t = G(\omega)\,e^{i\omega t}$. Substituting, $G = \beta G e^{-i\omega} + 1$, so`,
+        text: String.raw`Treat the gradients as a signal and feed in a pure wave $g_t = e^{i\omega t}$ with frequency $\omega$ ($\omega = 0$: constant; $\omega = \pi$: flips sign every step). Once settled, the velocity $v_t = \beta v_{t-1} + g_t$ is the same wave times a factor: $v_t = G(\omega)\,e^{i\omega t}$. Plugging in gives $G = \beta G e^{-i\omega} + 1$, so`,
       },
       {
         t: "math",
         tex: String.raw`G(\omega) = \frac{1}{1 - \beta e^{-i\omega}}, \qquad |G(0)| = \frac{1}{1-\beta}, \qquad |G(\pi)| = \frac{1}{1+\beta}`,
-        caption: String.raw`$|G(\omega)|$ — the gain: by how much momentum amplifies a gradient component of frequency $\omega$.`,
+        caption: String.raw`$|G(\omega)|$ — the gain: how much momentum boosts a gradient part that repeats at frequency $\omega$.`,
       },
       {
         t: "p",
-        text: String.raw`For $\beta = 0.9$ a constant gradient is amplified 10×, a period-4 oscillation is multiplied by 0.743, and a sign-flipping one by 0.526: the ratio between the slowest and fastest components is $(1+\beta)/(1-\beta) = 19$. This is the precise meaning of "accelerates consistent directions and damps oscillations". The EMA form $(1-\beta)v$ used by Adam has the same shape scaled by $(1-\beta)$: gain 1 at $\omega = 0$ and $0.0526$ at $\omega = \pi$.`,
+        text: String.raw`For $\beta = 0.9$, a constant gradient is boosted 10×, a wave with period 4 is multiplied by 0.743, and a sign-flipping one by 0.526. The slowest part beats the fastest by $(1+\beta)/(1-\beta) = 19$. That is the exact meaning of "speeds up steady directions and damps oscillations". Adam's EMA form $(1-\beta)v$ has the same shape scaled by $(1-\beta)$: gain 1 at $\omega = 0$ and $0.0526$ at $\omega = \pi$.`,
       },
 
       { t: "h", text: "3. The heavy ball as a physical system" },
       {
         t: "p",
-        text: String.raw`The heavy-ball form $\theta_{t+1} - \theta_t = \beta(\theta_t - \theta_{t-1}) - \eta\nabla L(\theta_t)$ is a finite-difference discretisation of a ball of mass $m$ moving in the potential $L$ with friction $\gamma$: $m\ddot\theta + \gamma\dot\theta + \nabla L(\theta) = 0$. With time step $h$, $\ddot\theta \approx (\theta_{t+1} - 2\theta_t + \theta_{t-1})/h^2$ and $\dot\theta \approx (\theta_t - \theta_{t-1})/h$; matching coefficients gives $\beta = 1 - \gamma h/m$ and $\eta = h^2/m$. So $1 - \beta$ is the friction per step. Without friction ($\beta \to 1$) the ball oscillates forever; with very high friction ($\beta \to 0$) it creeps (plain gradient descent). Too little friction is a real failure mode — it is what happens with $\beta = 0.99$ in the exercise below.`,
+        text: String.raw`The heavy-ball form $\theta_{t+1} - \theta_t = \beta(\theta_t - \theta_{t-1}) - \eta\nabla L(\theta_t)$ is a step-by-step version of a ball with mass $m$ rolling on the surface $L$ with friction $\gamma$: $m\ddot\theta + \gamma\dot\theta + \nabla L(\theta) = 0$. With time step $h$, use $\ddot\theta \approx (\theta_{t+1} - 2\theta_t + \theta_{t-1})/h^2$ and $\dot\theta \approx (\theta_t - \theta_{t-1})/h$; matching terms gives $\beta = 1 - \gamma h/m$ and $\eta = h^2/m$. So $1 - \beta$ is the friction per step. With no friction ($\beta \to 1$) the ball swings forever; with lots of friction ($\beta \to 0$) it creeps (plain gradient descent). Too little friction is a real failure — you will see it with $\beta = 0.99$ in the exercise.`,
       },
 
       { t: "h", text: "4. Momentum on a quadratic: the exact analysis" },
       {
         t: "p",
-        text: String.raw`Take $L(\theta) = \tfrac12(\theta-\theta^\star)^\top H(\theta-\theta^\star)$ with eigenvalues $\mu = \lambda_{\min} \le \lambda_i \le \lambda_{\max} = L$. As for gradient descent, the eigen-coordinates decouple. For one direction with curvature $\lambda$ and error $e_t$, the heavy-ball update is a **second-order** linear recursion:`,
+        text: String.raw`Take a bowl-shaped loss $L(\theta) = \tfrac12(\theta-\theta^\star)^\top H(\theta-\theta^\star)$ whose curvatures (eigenvalues) run from $\mu = \lambda_{\min}$ to $\lambda_{\max} = L$. As with gradient descent, each eigen-direction behaves on its own. For one direction with curvature $\lambda$ and error $e_t$ (distance from the minimum), heavy ball gives a recursion that looks two steps back:`,
       },
       {
         t: "math",
@@ -773,20 +788,20 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`The error shrinks like $\rho(M_\lambda)^t$, where $\rho$ is the spectral radius. The eigenvalues of $M_\lambda$ are the roots of the characteristic polynomial`,
+        text: String.raw`The error shrinks like $\rho(M_\lambda)^t$, where $\rho$ is the spectral radius (the size of the largest eigenvalue). The eigenvalues of $M_\lambda$ are the roots of`,
       },
       { t: "math", tex: String.raw`r^2 - (1+\beta-\eta\lambda)\, r + \beta = 0, \qquad r_1 r_2 = \beta` },
       {
         t: "list",
         items: [
-          String.raw`**Complex roots** when $(1+\beta-\eta\lambda)^2 < 4\beta$, i.e. $(1-\sqrt\beta)^2 < \eta\lambda < (1+\sqrt\beta)^2$. Then $|r_1| = |r_2|$ and $|r|^2 = r_1 r_2 = \beta$, so the rate is exactly $\sqrt{\beta}$, **independent of the curvature**. The error spirals in (a damped oscillation).`,
-          String.raw`**Real roots, small curvature** ($\eta\lambda < (1-\sqrt\beta)^2$): the slow root is $r \approx 1 - \eta\lambda/(1-\beta)$ — exactly gradient descent with the effective learning rate $\eta/(1-\beta)$. This is the acceleration of flat directions.`,
-          String.raw`**Instability** when a root leaves the unit circle. Evaluating the polynomial at $r = -1$ gives $2 + 2\beta - \eta\lambda = 0$, so heavy ball is stable iff $0 < \eta\lambda < 2(1+\beta)$ — the limit 2 of plain gradient descent becomes 3.8 for $\beta = 0.9$.`,
+          String.raw`**Complex roots** when $(1+\beta-\eta\lambda)^2 < 4\beta$, i.e. $(1-\sqrt\beta)^2 < \eta\lambda < (1+\sqrt\beta)^2$. Then both roots have the same size and $|r|^2 = r_1 r_2 = \beta$, so the rate is exactly $\sqrt{\beta}$, **whatever the curvature**. The error spirals in (a damped wobble).`,
+          String.raw`**Real roots, low curvature** ($\eta\lambda < (1-\sqrt\beta)^2$): the slow root is $r \approx 1 - \eta\lambda/(1-\beta)$ — gradient descent with an effective learning rate $\eta/(1-\beta)$. This is how momentum speeds up flat directions.`,
+          String.raw`**Blow-up** when a root leaves the unit circle. Putting $r = -1$ into the polynomial gives $2 + 2\beta - \eta\lambda = 0$, so heavy ball is stable only if $0 < \eta\lambda < 2(1+\beta)$ — plain gradient descent's limit of 2 becomes 3.8 for $\beta = 0.9$.`,
         ],
       },
       {
         t: "p",
-        text: String.raw`**Optimal tuning.** To make every curvature in $[\mu, L]$ converge at the same rate $\sqrt\beta$, put the whole interval into the complex regime with the end-points on its boundary: $\eta\mu = (1-\sqrt\beta)^2$ and $\eta L = (1+\sqrt\beta)^2$. Taking square roots and adding: $\sqrt\eta(\sqrt L + \sqrt\mu) = 2$. Subtracting: $\sqrt\eta(\sqrt L - \sqrt\mu) = 2\sqrt\beta$. Hence`,
+        text: String.raw`**Best settings.** To make every curvature in $[\mu, L]$ shrink at the same rate $\sqrt\beta$, place the whole range inside the complex zone, with its ends on the edges: $\eta\mu = (1-\sqrt\beta)^2$ and $\eta L = (1+\sqrt\beta)^2$. Take square roots and add: $\sqrt\eta(\sqrt L + \sqrt\mu) = 2$. Subtract: $\sqrt\eta(\sqrt L - \sqrt\mu) = 2\sqrt\beta$. So`,
       },
       {
         t: "math",
@@ -795,23 +810,23 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`**Numbers for $\kappa = 100$** ($\mu = 1$, $L = 100$): gradient descent's best $\eta = 2/101 = 0.0198$ gives rate $99/101 = 0.9802$; reducing the error $10^6$-fold takes $\ln 10^{-6}/\ln 0.9802 = 691$ steps. Heavy ball with $\eta^\star = 4/121 = 0.03306$ and $\beta^\star = (9/11)^2 = 0.6694$ has rate $9/11 = 0.8182$ and needs **69** steps — a $\sqrt\kappa = 10$-fold speed-up. A brute-force grid search over $(\eta, \beta)$ finds no better pair (best grid rate 0.81854 at $\eta = 0.033$, $\beta = 0.670$). The derivation guarantees this for the worst case over all curvatures in $[\mu, L]$; on a problem with only a few eigenvalues, other settings can do better for a finite number of steps (see the exercise).`,
+        text: String.raw`**Numbers for $\kappa = 100$** ($\mu = 1$, $L = 100$): gradient descent's best $\eta = 2/101 = 0.0198$ gives rate $99/101 = 0.9802$, so shrinking the error $10^6$-fold takes $\ln 10^{-6}/\ln 0.9802 = 691$ steps. Heavy ball with $\eta^\star = 4/121 = 0.03306$ and $\beta^\star = (9/11)^2 = 0.6694$ has rate $9/11 = 0.8182$ and needs **69** steps — a $\sqrt\kappa = 10$-fold speed-up. A grid search over $(\eta, \beta)$ finds nothing better (best rate 0.81854 at $\eta = 0.033$, $\beta = 0.670$). This is a worst-case guarantee; with only a few curvatures, other settings can win over a short run (see the exercise).`,
       },
       {
         t: "callout",
         kind: "note",
         title: "What this says about β = 0.9 in practice",
-        text: String.raw`With $\beta = 0.9$ every direction with $0.00263 < \eta\lambda < 3.787$ converges at exactly $\sqrt{0.9} = 0.9487$ per step. Raising $\eta$ does not speed these directions up; it only pulls more of the flat directions into that regime. Directions flatter than $(1-\sqrt\beta)^2/\eta$ still converge like gradient descent with rate $\eta/(1-\beta)$. Deep-learning losses are not quadratics, but this picture — momentum buys a 10× larger effective step on flat directions at the cost of oscillation on steep ones — explains much of practice.`,
+        text: String.raw`With $\beta = 0.9$, every direction with $0.00263 < \eta\lambda < 3.787$ shrinks at exactly $\sqrt{0.9} = 0.9487$ per step. Raising $\eta$ does not speed these up; it only pulls more flat directions into that zone. Directions flatter than $(1-\sqrt\beta)^2/\eta$ still behave like gradient descent with rate $\eta/(1-\beta)$. Real losses are not quadratics, but this picture — a 10× bigger effective step on flat directions, paid for by wobbling on steep ones — explains a lot of practice.`,
       },
 
-      { t: "h", text: "5. Nesterov: extra damping on steep directions" },
+      { t: "h", text: "5. Nesterov: extra braking on steep directions" },
       {
         t: "p",
-        text: String.raw`For Nesterov's method the same eigen-analysis (with $a = \eta\lambda$) gives the recursion $e_{t+1} = (1+\beta)(1-a)\,e_t - \beta(1-a)\,e_{t-1}$, with characteristic polynomial $r^2 - (1+\beta)(1-a)r + \beta(1-a) = 0$. Now the product of the roots is $\beta(1-a)$ instead of $\beta$. In the complex regime the rate is $\sqrt{\beta(1-\eta\lambda)}$: **steeper directions are damped more**. For $\beta = 0.9$ and $\eta\lambda = 0.5$, heavy ball contracts by 0.9487 per step, Nesterov by $\sqrt{0.45} = 0.6708$. This is the quantitative version of "the look-ahead gradient corrects the overshoot before it happens".`,
+        text: String.raw`For Nesterov, the same analysis (with $a = \eta\lambda$) gives $e_{t+1} = (1+\beta)(1-a)\,e_t - \beta(1-a)\,e_{t-1}$, with polynomial $r^2 - (1+\beta)(1-a)r + \beta(1-a) = 0$. Now the roots multiply to $\beta(1-a)$ instead of $\beta$. In the complex zone the rate is $\sqrt{\beta(1-\eta\lambda)}$: **steeper directions get braked more**. For $\beta = 0.9$ and $\eta\lambda = 0.5$, heavy ball shrinks the error by 0.9487 per step, Nesterov by $\sqrt{0.45} = 0.6708$. That is the number behind "the look-ahead gradient corrects the overshoot before it happens".`,
       },
       {
         t: "p",
-        text: String.raw`The price: evaluating at $r = -1$ gives $1 + (1+\beta)(1-a) + \beta(1-a) = 0$, i.e. Nesterov is stable only for $\eta\lambda < \frac{2(1+\beta)}{1+2\beta}$ — **1.357** for $\beta = 0.9$, versus 3.8 for heavy ball. Nesterov's step always contains the fresh gradient with weight $1+\beta$, so it reacts more strongly to curvature. In practice that is why Nesterov tolerates a somewhat smaller $\eta$ but is often faster at the best $\eta$ (64 vs 105 steps on the 10-dimensional quadratic in the code section). On smooth convex (not strongly convex) problems, Nesterov's method attains the error bound $O(1/t^2)$ versus $O(1/t)$ for gradient descent — the classical acceleration result (Nesterov, 1983).`,
+        text: String.raw`The price: putting $r = -1$ in gives $1 + (1+\beta)(1-a) + \beta(1-a) = 0$, so Nesterov is stable only for $\eta\lambda < \frac{2(1+\beta)}{1+2\beta}$ — **1.357** for $\beta = 0.9$, versus 3.8 for heavy ball. Nesterov's step always includes the fresh gradient with weight $1+\beta$, so it reacts more strongly to curvature. So it needs a smaller $\eta$ but is often faster at its best $\eta$ (64 vs 105 steps on the 10-D quadratic in the code section). On smooth convex (not strongly convex) problems, Nesterov's error falls like $O(1/t^2)$ versus $O(1/t)$ for gradient descent — the classic acceleration result (Nesterov, 1983).`,
       },
       {
         t: "code",
@@ -824,61 +839,61 @@ const lesson: Lesson = {
       { t: "h", text: "6. Adaptive step sizes: AdaGrad, sparse features, RMSProp" },
       {
         t: "p",
-        text: String.raw`AdaGrad's effective learning rate for coordinate $i$ is $\eta_{i,t} = \eta/\sqrt{G_{i,t}}$ with $G_{i,t} = \sum_{s \le t} g_{i,s}^2$. Two consequences follow directly.`,
+        text: String.raw`AdaGrad gives parameter $i$ the learning rate $\eta_{i,t} = \eta/\sqrt{G_{i,t}}$, where $G_{i,t} = \sum_{s \le t} g_{i,s}^2$ is the running total of its squared gradients. Two things follow.`,
       },
       {
         t: "list",
         items: [
-          String.raw`**Decay.** If a coordinate's gradient has a roughly constant magnitude $|g|$, then $G_{i,t} = t g^2$ and the step is $\eta |g|/\sqrt{t g^2} = \eta/\sqrt t$. The schedule $\eta_t \propto 1/\sqrt t$ is exactly what online convex optimisation theory prescribes (it gives regret $O(\sqrt T)$), but in non-convex deep learning, where the optimizer must keep moving for millions of steps, it shuts training down.`,
-          String.raw`**Sparse features.** If feature $j$ is non-zero in only $n_j$ of the examples seen so far, its gradient is non-zero only on those steps, so $G_j \approx n_j\,\overline{g^2}$ and its effective rate is $\propto 1/\sqrt{n_j}$. A feature seen 100 times gets a 10× larger rate than one seen 10 000 times. This is exactly right for a rare feature: each of its few observations carries a lot of information about its weight. With a single global rate, either the rare weights barely move or the frequent ones oscillate.`,
+          String.raw`**The rate keeps shrinking.** If a gradient has a roughly constant size $|g|$, then $G_{i,t} = t g^2$ and the step is $\eta |g|/\sqrt{t g^2} = \eta/\sqrt t$. Online convex optimisation theory recommends exactly this schedule (it gives regret $O(\sqrt T)$), but in deep learning, which needs millions of steps, it stalls training.`,
+          String.raw`**Sparse features.** If feature $j$ is non-zero in only $n_j$ of the examples seen so far, it only gets gradients on those steps, so $G_j \approx n_j\,\overline{g^2}$ and its rate is $\propto 1/\sqrt{n_j}$. A feature seen 100 times gets a 10× larger rate than one seen 10 000 times. That is right for a rare feature: each of its few sightings says a lot about its weight. With one shared rate, either rare weights barely move or frequent ones oscillate.`,
         ],
       },
       {
         t: "p",
-        text: String.raw`RMSProp replaces the sum by an EMA: $s_{i,t} \approx \mathbb{E}_{\text{recent}}[g_i^2]$, so the effective rate is $\eta/\text{RMS}(g_i)$ over the last $\approx 1/(1-\rho)$ steps — it stays constant when gradients are stationary and adapts when their scale drifts. The trade-off is that the rare-feature advantage is weaker: once a rare feature has not appeared for a few hundred steps its $s$ decays towards 0, and the next occurrence produces a large normalised step instead of a calibrated one. The sparse-feature experiment in the code section shows both effects.`,
+        text: String.raw`RMSProp swaps the total for an EMA: $s_{i,t} \approx \mathbb{E}_{\text{recent}}[g_i^2]$, so the rate is $\eta/\text{RMS}(g_i)$ over about the last $1/(1-\rho)$ steps. It stays steady when gradients are steady and adapts when their size drifts. The cost: the rare-feature advantage is weaker. If a rare feature has not appeared for a few hundred steps, its $s$ fades toward 0, and its next appearance gives a big, badly sized step. The sparse-feature experiment in the code section shows both effects.`,
       },
 
       { t: "h", text: "7. Adam's step is a normalised, sign-like step" },
       {
         t: "p",
-        text: String.raw`Write the per-coordinate step as $\Delta_t = -\eta\, r_t$ with $r_t = \hat m_t/(\sqrt{\hat v_t} + \epsilon)$. Three regimes explain most of Adam's behaviour.`,
+        text: String.raw`Write each parameter's step as $\Delta_t = -\eta\, r_t$ with $r_t = \hat m_t/(\sqrt{\hat v_t} + \epsilon)$. Three cases explain most of how Adam behaves.`,
       },
       {
         t: "list",
         items: [
-          String.raw`**No averaging.** With $\beta_1 = \beta_2 = 0$, $r_t = g_t/|g_t| = \operatorname{sign}(g_t)$: Adam degenerates into **sign descent**, every coordinate moving by exactly $\eta$.`,
-          String.raw`**Signal-to-noise ratio.** Suppose a coordinate's gradient is stationary with mean $\mu_g$ and variance $\sigma^2$. For long windows $\hat m \approx \mu_g$ and $\hat v \approx \mathbb{E}[g^2] = \mu_g^2 + \sigma^2$, so $r \approx \mu_g/\sqrt{\mu_g^2 + \sigma^2}$. When the gradient is consistent ($|\mu_g| \gg \sigma$) the step is $\approx \pm\eta$; when it is mostly noise ($|\mu_g| \ll \sigma$) the step shrinks in proportion to the SNR $\mu_g/\sigma$. Adam therefore slows down automatically near a minimum, where the true gradient is small but the mini-batch noise is not — an implicit annealing that SGD does not have. Simulation with unit noise: $\mu_g = 10, 1, 0.1$ give average steps $0.995\eta,\ 0.704\eta,\ 0.096\eta$ against the predictions $0.995, 0.707, 0.0995$.`,
-          String.raw`**Bounds.** By Cauchy–Schwarz, $|\sum_k a_k g_k| \le \sqrt{\sum_k a_k^2/b_k}\,\sqrt{\sum_k b_k g_k^2}$ with $a_k = (1-\beta_1)\beta_1^k$, $b_k = (1-\beta_2)\beta_2^k$. Summing the geometric series (valid when $\beta_1^2 < \beta_2$) gives, for large $t$, $|r_t| \le \frac{1-\beta_1}{\sqrt{(1-\beta_2)(1-\beta_1^2/\beta_2)}}$ — **7.27** for the defaults. The bound is reached only when gradients grow geometrically; a more realistic bad case — a gradient burst of size 1 after 2000 steps of size $10^{-3}$ — gives $r = 2.97$. So "Adam moves each parameter by at most about $\eta$" is a good rule of thumb, not a guarantee: sudden gradient bursts after quiet periods produce larger steps, one reason gradient clipping and warm-up are still used with Adam.`,
+          String.raw`**No averaging.** With $\beta_1 = \beta_2 = 0$, $r_t = g_t/|g_t| = \operatorname{sign}(g_t)$: Adam becomes **sign descent**, and every parameter moves by exactly $\eta$.`,
+          String.raw`**Signal-to-noise ratio (SNR).** Say a parameter's gradient has steady mean $\mu_g$ and variance $\sigma^2$. Over long windows $\hat m \approx \mu_g$ and $\hat v \approx \mathbb{E}[g^2] = \mu_g^2 + \sigma^2$, so $r \approx \mu_g/\sqrt{\mu_g^2 + \sigma^2}$. If the gradient is consistent ($|\mu_g| \gg \sigma$), the step is $\approx \pm\eta$. If it is mostly noise ($|\mu_g| \ll \sigma$), the step shrinks in line with the SNR $\mu_g/\sigma$. So Adam slows down by itself near a minimum, where the true gradient is small but mini-batch noise is not — a built-in cooling that SGD lacks. In a simulation with unit noise, $\mu_g = 10, 1, 0.1$ give average steps $0.995\eta,\ 0.704\eta,\ 0.096\eta$, against predictions of $0.995, 0.707, 0.0995$.`,
+          String.raw`**Upper limit.** By Cauchy–Schwarz, $|\sum_k a_k g_k| \le \sqrt{\sum_k a_k^2/b_k}\,\sqrt{\sum_k b_k g_k^2}$ with $a_k = (1-\beta_1)\beta_1^k$, $b_k = (1-\beta_2)\beta_2^k$. Summing the series (valid when $\beta_1^2 < \beta_2$) gives, for large $t$, $|r_t| \le \frac{1-\beta_1}{\sqrt{(1-\beta_2)(1-\beta_1^2/\beta_2)}}$ — **7.27** for the defaults. This worst case needs gradients that grow geometrically; a realistic bad case — a gradient of size 1 after 2000 steps of size $10^{-3}$ — gives $r = 2.97$. So "Adam moves each parameter by at most about $\eta$" is a rule of thumb, not a promise — one reason gradient clipping and warm-up are still used with Adam.`,
         ],
       },
       {
         t: "p",
-        text: String.raw`**The role of $\epsilon$.** For a constant gradient $g$, $r = |g|/(|g| + \epsilon)$. With $\epsilon = 10^{-8}$ the step is $\eta$ for any $|g| \gg 10^{-8}$; at $|g| = \epsilon$ it is halved; below, Adam turns into SGD with learning rate $\eta/\epsilon$ (huge). Increasing $\epsilon$ to $10^{-3}$ means coordinates with gradients smaller than about $10^{-3}$ are no longer normalised up to full steps ($r = 0.09$ at $|g| = 10^{-4}$). A large $\epsilon$ therefore interpolates between Adam and momentum SGD with learning rate $\eta/\epsilon$. Larger values than the default are used in practice for stability, e.g. $\epsilon = 10^{-6}$ in RoBERTa (Liu et al., 2019); in reduced precision, $10^{-8}$ can even underflow to zero in float16.`,
+        text: String.raw`**What $\epsilon$ does.** For a constant gradient $g$, $r = |g|/(|g| + \epsilon)$. With $\epsilon = 10^{-8}$ the step is $\eta$ for any $|g| \gg 10^{-8}$; at $|g| = \epsilon$ it is halved; below that, Adam turns into SGD with a huge learning rate $\eta/\epsilon$. Raising $\epsilon$ to $10^{-3}$ means gradients smaller than about $10^{-3}$ no longer get full-size steps ($r = 0.09$ at $|g| = 10^{-4}$). So a large $\epsilon$ slides Adam toward momentum SGD with learning rate $\eta/\epsilon$. Larger values are used in practice for stability, e.g. $\epsilon = 10^{-6}$ in RoBERTa (Liu et al., 2019); in float16, $10^{-8}$ can even round down to zero.`,
       },
       {
         t: "table",
         head: ["Setting", "Common default", "When to change it, and why"],
         rows: [
-          [String.raw`$\eta$`, String.raw`$10^{-3}$ (from scratch), $10^{-5}$–$10^{-4}$ (fine-tuning), $3\times10^{-4}$ (many RL and LLM runs)`, "Always tune it first (with a schedule, see the next lesson). Because steps are about η per coordinate, η is a step length in parameter units: shrink it when weights are small (fine-tuning) or the model is large."],
-          [String.raw`$\beta_1$`, "0.9", String.raw`0.5 (or 0) in GAN training, where the loss landscape changes as the other network trains, so a long memory of old gradients is harmful (DCGAN used Adam with $\beta_1 = 0.5$, $\eta = 2\times10^{-4}$).`],
-          [String.raw`$\beta_2$`, "0.999", String.raw`0.98 (original Transformer, RoBERTa) or 0.95 (GPT-3, LLaMA). A shorter window lets $v$ react quickly when gradient scale jumps; with 0.999 a sudden large gradient is divided by a stale, too-small $\sqrt{v}$ and the step explodes (see the bound above).`],
-          [String.raw`$\epsilon$`, String.raw`$10^{-8}$`, String.raw`$10^{-6}$ or larger for stability in some large-scale or reduced-precision runs; much larger values (up to 0.1–1) turn Adam into momentum SGD and have been used in some vision and RL settings.`],
-          ["weight decay (AdamW)", "0.01 (PyTorch default); 0.1 for LLM pre-training", "Tune jointly with η: the per-step shrinkage is ηλ."],
+          [String.raw`$\eta$`, String.raw`$10^{-3}$ (from scratch), $10^{-5}$–$10^{-4}$ (fine-tuning), $3\times10^{-4}$ (many RL and LLM runs)`, "Always tune it first (with a schedule, see the next lesson). Since each parameter moves about η per step, η is a step length in weight units: shrink it when weights are small (fine-tuning) or the model is large."],
+          [String.raw`$\beta_1$`, "0.9", String.raw`0.5 (or 0) for GANs, where the loss surface keeps changing as the other network trains, so a long memory of old gradients hurts (DCGAN used Adam with $\beta_1 = 0.5$, $\eta = 2\times10^{-4}$).`],
+          [String.raw`$\beta_2$`, "0.999", String.raw`0.98 (original Transformer, RoBERTa) or 0.95 (GPT-3, LLaMA). A shorter memory lets $v$ react fast when gradient size jumps; with 0.999 a sudden large gradient is divided by an old, too-small $\sqrt{v}$ and the step explodes (see the limit above).`],
+          [String.raw`$\epsilon$`, String.raw`$10^{-8}$`, String.raw`$10^{-6}$ or larger for stability in some large-scale or low-precision runs; much larger values (up to 0.1–1) turn Adam into momentum SGD and have been used in some vision and RL settings.`],
+          ["weight decay (AdamW)", "0.01 (PyTorch default); 0.1 for LLM pre-training", "Tune together with η: the shrink per step is ηλ."],
         ],
       },
 
       { t: "h", text: "8. AMSGrad: when Adam fails to converge" },
       {
         t: "p",
-        text: String.raw`Reddi, Kale and Kumar ("On the Convergence of Adam and Beyond", ICLR 2018) found an error in Adam's original convergence proof and built explicit convex problems on which Adam converges to the wrong point. The mechanism: the effective learning rate $\eta/\sqrt{\hat v_t}$ is **not monotone** — it grows again whenever recent gradients are small. If rare large gradients carry the important information, the EMA forgets them within $\approx 1/(1-\beta_2)$ steps, and the frequent small gradients then receive large normalised steps that outweigh them.`,
+        text: String.raw`Reddi, Kale and Kumar ("On the Convergence of Adam and Beyond", ICLR 2018) found a mistake in Adam's original convergence proof and built simple convex problems where Adam settles on the wrong answer. The cause: the effective rate $\eta/\sqrt{\hat v_t}$ can **go back up** when recent gradients are small. If rare large gradients carry the key information, the EMA forgets them within about $1/(1-\beta_2)$ steps, and the frequent small gradients then get large steps that outweigh them.`,
       },
       {
         t: "p",
-        text: String.raw`Their simplest example is an online problem on $x \in [-1, 1]$: the loss is $C x$ on every third step and $-x$ on the others, with $C > 2$. The average gradient is $(C - 2)/3 > 0$, so the optimum is $x = -1$. With $C = 3$, $\beta_1 = 0$ and $\beta_2 = 1/(1 + C^2) = 0.1$, the steady-state normalised gradients over one period are $+1.0472, -0.7623, -0.9658$: their sum $-0.68$ is **negative**, so Adam moves towards $+1$ — the worst point. AMSGrad uses $v^{\max}_t = \max(v^{\max}_{t-1}, v_t)$ in the denominator, so after the large gradient appears once its scale is never forgotten and the effective rate is non-increasing; it recovers the optimum. With the default $\beta_2 = 0.999$ both converge on this particular problem; the paper also proves that for any fixed $\beta_1 < \sqrt{\beta_2}$ there are stochastic convex problems on which Adam does not converge.`,
+        text: String.raw`Their simplest example: an online problem on $x \in [-1, 1]$ whose loss is $C x$ on every third step and $-x$ on the others, with $C > 2$. The average gradient is $(C - 2)/3 > 0$, so the best point is $x = -1$. With $C = 3$, $\beta_1 = 0$ and $\beta_2 = 1/(1 + C^2) = 0.1$, the normalised gradients over one cycle settle at $+1.0472, -0.7623, -0.9658$. Their sum, $-0.68$, is **negative**, so Adam drifts toward $+1$ — the worst point. AMSGrad divides by $v^{\max}_t = \max(v^{\max}_{t-1}, v_t)$ instead, so once a large gradient appears its size is never forgotten and the rate can only fall. It finds the right answer. With the default $\beta_2 = 0.999$ both work on this problem, but the paper also proves that for any fixed $\beta_1 < \sqrt{\beta_2}$ there are stochastic convex problems where Adam does not converge.`,
       },
       {
         t: "p",
-        text: "In deep-learning practice AMSGrad has rarely given clear improvements over Adam with a well-chosen β₂ and learning-rate decay, which is why it remains an option (`amsgrad=True`) rather than the default. Its value is conceptual: Adam's adaptivity needs a long enough memory, and decaying the learning rate is part of what makes Adam converge.",
+        text: "In deep-learning practice AMSGrad has rarely beaten Adam with a good β₂ and a decaying learning rate, so it stays an option (`amsgrad=True`), not the default. Its lesson is about ideas: Adam needs a long enough memory, and decaying the learning rate is part of what makes Adam converge.",
       },
       {
         t: "code",
@@ -888,15 +903,15 @@ const lesson: Lesson = {
         output: ADAM_OUT,
       },
 
-      { t: "h", text: "9. L2 regularisation versus decoupled weight decay: different fixed points" },
+      { t: "h", text: "9. L2 regularisation versus decoupled weight decay: different end points" },
       {
         t: "p",
-        text: String.raw`Let $\ell(\theta)$ be the data loss. **Adam + L2** runs Adam on $\ell(\theta) + \tfrac{\lambda}{2}\lVert\theta\rVert^2$. Whatever the preconditioner does along the way, a stationary point satisfies $\hat m \to 0$, i.e.`,
+        text: String.raw`Let $\ell(\theta)$ be the data loss. **Adam + L2** runs Adam on $\ell(\theta) + \tfrac{\lambda}{2}\lVert\theta\rVert^2$. Whatever the rescaling does on the way, it stops where $\hat m \to 0$, i.e.`,
       },
       { t: "math", tex: String.raw`\nabla\ell(\theta) + \lambda\theta = 0 \qquad \text{(the minimiser of the L2-regularised loss)}` },
       {
         t: "p",
-        text: String.raw`**AdamW** computes $m, v$ from $\nabla\ell$ alone and shrinks separately. A stationary point satisfies $\eta\,\hat m/(\sqrt{\hat v}+\epsilon) + \eta\lambda\theta = 0$, i.e.`,
+        text: String.raw`**AdamW** builds $m, v$ from $\nabla\ell$ alone and shrinks the weights separately. It stops where $\eta\,\hat m/(\sqrt{\hat v}+\epsilon) + \eta\lambda\theta = 0$, i.e.`,
       },
       {
         t: "math",
@@ -904,23 +919,43 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`AdamW is therefore **not** minimising any L2-regularised loss: in its equilibrium the decay balances the normalised gradient, not the raw one. Since the normalised gradient is at most about 1 per coordinate, AdamW behaves like a soft box constraint $|\theta_i| \lesssim 1/\lambda$, plus an equal relative shrinkage of every weight while the gradient signal is weak. On logistic regression for the standardised breast-cancer data with $\lambda = 0.05$, Adam + L2 lands on the exact L2 optimum found by scikit-learn ($\lVert\theta\rVert = 1.468$, KKT residual $1.3\times10^{-5}$), whereas AdamW ends at $\lVert\theta\rVert = 47.8$ with its largest weight 19.6 — just under $1/\lambda = 20$ (the data are nearly separable, so the unregularised loss keeps pushing weights outwards). Neither is "wrong"; they are different regularisers, and AdamW's version has empirically been the better one for deep networks (Loshchilov & Hutter, 2019). For SGD the two coincide exactly, because there is no preconditioner.`,
+        text: String.raw`So AdamW is **not** minimising any L2-regularised loss: at rest, the decay balances the normalised gradient, not the raw one. Since the normalised gradient is at most about 1 per parameter, AdamW acts like a soft fence $|\theta_i| \lesssim 1/\lambda$, plus the same relative shrink for every weight while the gradient signal is weak.`,
+      },
+      {
+        t: "p",
+        text: String.raw`Test: logistic regression on the standardised breast-cancer data with $\lambda = 0.05$. Adam + L2 lands on the exact L2 optimum found by scikit-learn ($\lVert\theta\rVert = 1.468$, KKT residual $1.3\times10^{-5}$). AdamW ends at $\lVert\theta\rVert = 47.8$ with its largest weight 19.6 — just under $1/\lambda = 20$ (the data are nearly separable, so the plain loss keeps pushing weights outward). Neither is "wrong": they are different regularisers, and AdamW's has worked better for deep networks (Loshchilov & Hutter, 2019). For SGD the two are identical, because there is no rescaling.`,
       },
 
       { t: "h", text: "10. Implicit bias and the generalisation debate" },
       {
         t: "p",
-        text: String.raw`When a model can fit the training data in many ways, **which** solution an optimizer finds matters for test performance. A clean example: under-determined least squares (20 equations, 50 unknowns). Gradient descent started at 0 only ever adds multiples of rows of the data matrix to $\theta$, so it stays in their span and converges to the **minimum-norm** interpolating solution. Adam's per-coordinate rescaling leaves that subspace, and it converges to a different interpolating solution (in our run: norm 0.648 versus 0.598, distance 0.249 from the minimum-norm solution; code section).`,
+        text: String.raw`When a model can fit the training data in many ways, **which** fit the optimizer finds affects test results. A clean example: least squares with 20 equations and 50 unknowns. Gradient descent started at 0 only ever adds combinations of the data rows to $\theta$, so it stays in their span and ends at the **minimum-norm** solution that fits exactly. Adam's per-parameter rescaling leaves that span and finds a different exact fit (in our run: norm 0.648 versus 0.598, distance 0.249 from the minimum-norm solution; code section).`,
       },
       {
         t: "p",
-        text: "Wilson, Roelofs, Stern, Srebro and Recht (\"The Marginal Value of Adaptive Gradient Methods in Machine Learning\", NeurIPS 2017) built on this kind of argument: they constructed a linear problem where adaptive methods generalise much worse than SGD, and reported experiments (image classification, language modelling, parsing) in which well-tuned SGD with momentum matched or beat the adaptive methods on test error. The debate since then is empirical and has several threads: part of the gap was traced to coupled L2 regularisation (fixed by AdamW); careful tuning studies (e.g. Choi et al., 2019, \"On Empirical Comparisons of Optimizers for Deep Learning\") found that when all hyperparameters — including ε — are tuned, Adam-type methods do not underperform momentum SGD; and Transformer models are in practice trained almost exclusively with Adam-type optimizers because SGD trains them poorly. The honest summary: on convolutional image classifiers with standard recipes, SGD + momentum often generalises as well as or slightly better than Adam; on Transformers AdamW is the norm; in any single project the difference is usually smaller than the effect of the learning-rate schedule and regularisation.",
+        text: "Wilson, Roelofs, Stern, Srebro and Recht (\"The Marginal Value of Adaptive Gradient Methods in Machine Learning\", NeurIPS 2017) built a linear problem where adaptive methods generalise much worse than SGD, and in their experiments well-tuned SGD with momentum matched or beat them on test error. Since then the evidence has been mixed:",
+      },
+      {
+        t: "list",
+        items: [
+          "Part of the gap came from coupled L2 regularisation, which AdamW fixed.",
+          "Careful tuning studies (e.g. Choi et al., 2019, \"On Empirical Comparisons of Optimizers for Deep Learning\") found that when every knob — including ε — is tuned, Adam-type methods do not lose to momentum SGD.",
+          "Transformers are trained almost only with Adam-type optimizers, because SGD trains them poorly.",
+        ],
+      },
+      {
+        t: "p",
+        text: "The honest summary: on convolutional image classifiers with standard recipes, SGD + momentum often generalises as well as or slightly better than Adam; on Transformers AdamW is the norm; and in any one project the difference is usually smaller than the effect of the learning-rate schedule and regularisation.",
       },
 
       { t: "h", text: "11. Memory cost of optimizer state" },
       {
         t: "p",
-        text: String.raw`For $P$ parameters, SGD stores nothing extra, momentum stores $v$ ($P$ numbers), Adam stores $m$ and $v$ ($2P$), AMSGrad $3P$. Measured in PyTorch on a 407 050-parameter MLP: 0×, 1×, 2× and 3× the parameter count. In 32-bit floats every copy costs $4P$ bytes. For GPT-2 small ($P$ = 124 439 808, counted from its layer shapes in the framework code) the weights take 0.50 GB, the gradients 0.50 GB and Adam's $m$ and $v$ another 1.00 GB — the optimizer state is as large as weights and gradients combined. In mixed-precision training the usual accounting (popularised by the ZeRO paper, Rajbhandari et al., 2020) is 16 bytes per parameter: 2 + 2 for half-precision weights and gradients, 4 + 4 + 4 for the fp32 master weights, $m$ and $v$. For a 7-billion-parameter model that is **112 GB before a single activation is stored** — more than one 80 GB accelerator holds. This is why memory-saving optimizers exist (Adafactor's factored second moment, 8-bit optimizer states, sharding the state across devices).`,
+        text: String.raw`For $P$ parameters, SGD stores nothing extra, momentum stores $v$ ($P$ numbers), Adam $m$ and $v$ ($2P$), AMSGrad $3P$ (measured in PyTorch on a 407 050-parameter MLP). In 32-bit floats each copy costs $4P$ bytes. For GPT-2 small ($P$ = 124 439 808, counted from its layer shapes in the framework code), the weights take 0.50 GB, the gradients 0.50 GB and Adam's $m$ and $v$ another 1.00 GB — as much as weights and gradients together.`,
+      },
+      {
+        t: "p",
+        text: String.raw`In mixed-precision training the usual count (made popular by the ZeRO paper, Rajbhandari et al., 2020) is 16 bytes per parameter: 2 + 2 for half-precision weights and gradients, 4 + 4 + 4 for the fp32 master weights, $m$ and $v$. For a 7-billion-parameter model that is **112 GB before a single activation is stored** — more than one 80 GB accelerator holds. Hence memory-saving optimizers (Adafactor, 8-bit states, splitting state across devices).`,
       },
     ],
 
@@ -928,17 +963,17 @@ const lesson: Lesson = {
     visual: [
       {
         t: "p",
-        text: "The optimizer race below runs the exact update rules of this lesson (PyTorch conventions, β = 0.9, Adam defaults) on two-dimensional surfaces. Use it to see the quadratic analysis in action.",
+        text: "The optimizer race below runs this lesson's exact update rules (PyTorch conventions, β = 0.9, Adam defaults) on 2-D surfaces. Use it to watch the math in action.",
       },
       { t: "sim", id: "optimizers", caption: "Optimizer race: SGD, Momentum, Nesterov, AdaGrad, RMSProp and Adam on the same surface. Click the map to move the start point." },
       {
         t: "list",
         items: [
-          String.raw`**Elongated valley, SGD-family η = 0.2.** The curvatures are 0.2 and 4, so $\eta\lambda$ = 0.04 and 0.8. For Momentum both lie inside the complex regime $0.0026 < \eta\lambda < 3.79$, so both directions spiral in at rate $\sqrt{0.9} = 0.949$ — watch Momentum overshoot the valley floor and swing back. SGD's flat direction contracts only by $1 - 0.04 = 0.96$ per step.`,
-          String.raw`**Same surface, raise η to about 0.45.** SGD is close to its limit $2/4 = 0.5$ and zig-zags. Momentum is still stable (its limit is $3.8/4 = 0.95$), Nesterov's limit is $1.357/4 = 0.34$ — above that Nesterov diverges first, exactly as the stability formula predicts.`,
-          String.raw`**Lower η to 0.05.** Now $\eta\lambda$ is 0.01 (flat) and 0.2 (steep). Heavy ball spirals in both directions at $\sqrt{0.9} = 0.949$ per step, while Nesterov damps the steep direction at $\sqrt{0.9 \times 0.8} = 0.849$, so its path overshoots the valley floor less.`,
-          "**Adaptive methods on the valley.** Adam and RMSProp start by moving diagonally (equal steps of about η per coordinate, the sign-like regime), then RMSProp keeps hovering around the minimum because its normalised step never shrinks, while Adam's momentum averages the sign flips and settles. AdaGrad's steps shrink like 1/√t.",
-          "**Saddle.** The escape direction has a tiny gradient (y = 0.01). SGD and Momentum need many steps for it to grow; Adam normalises the tiny gradient into a full-size step and escapes almost immediately — the same mechanism that helps rare features.",
+          String.raw`**Elongated valley, SGD-family η = 0.2.** The curvatures are 0.2 and 4, so $\eta\lambda$ = 0.04 and 0.8. For Momentum both lie in the complex zone $0.0026 < \eta\lambda < 3.79$, so both directions spiral in at rate $\sqrt{0.9} = 0.949$ — watch Momentum overshoot the valley floor and swing back. SGD's flat direction shrinks only by $1 - 0.04 = 0.96$ per step.`,
+          String.raw`**Same surface, raise η to about 0.45.** SGD is near its limit $2/4 = 0.5$ and zig-zags. Momentum is still stable (its limit is $3.8/4 = 0.95$). Nesterov's limit is $1.357/4 = 0.34$, so above that it blows up first, as the formula predicts.`,
+          String.raw`**Lower η to 0.05.** Now $\eta\lambda$ is 0.01 (flat) and 0.2 (steep). Heavy ball spirals in both directions at $\sqrt{0.9} = 0.949$ per step, while Nesterov brakes the steep direction at $\sqrt{0.9 \times 0.8} = 0.849$, so it overshoots the floor less.`,
+          "**Adaptive methods on the valley.** Adam and RMSProp first move diagonally (steps of about η per coordinate). Then RMSProp hovers around the minimum, because its normalised step never shrinks, while Adam's momentum averages out the sign flips and settles. AdaGrad's steps shrink like 1/√t.",
+          "**Saddle.** The escape direction has a tiny gradient (y = 0.01). SGD and Momentum need many steps for it to grow; Adam turns it into a full-size step and escapes almost at once — the trick that helps rare features.",
         ],
       },
     ],
@@ -947,7 +982,7 @@ const lesson: Lesson = {
     scratch: [
       {
         t: "p",
-        text: "One `Optimizer` class implements every method of this lesson with PyTorch's conventions (they are checked against `torch.optim` to 1e-16 in the framework section). Three experiments follow: (1) a 10-dimensional quadratic with κ = 100, once axis-aligned and once randomly rotated, each method using its best learning rate from the same grid; (2) logistic regression on the real breast-cancer dataset with raw versus standardised features; (3) logistic regression with sparse binary features of very different frequencies.",
+        text: "One `Optimizer` class implements every method here with PyTorch's conventions (checked against `torch.optim` to 1e-16 in the framework section). Three experiments, each method using its best learning rate from the same grid: (1) a 10-D quadratic with κ = 100, once lined up with the axes and once randomly rotated; (2) logistic regression on the real breast-cancer data, raw versus standardised features; (3) logistic regression with sparse 0/1 features of very different frequencies.",
       },
       {
         t: "code",
@@ -960,13 +995,13 @@ const lesson: Lesson = {
       {
         t: "list",
         items: [
-          String.raw`**Rotation invariance.** SGD, heavy ball and Nesterov need exactly the same number of steps on the aligned and the rotated quadratic (184, 105, 64): their updates are linear in the gradient, so they do not care about the coordinate system. Nesterov beats heavy ball at β = 0.9 because of its extra damping of steep directions (section 5). Momentum's gain here is below the theoretical $\sqrt\kappa$ factor because β = 0.9 is fixed rather than set to $\beta^\star = 0.669$.`,
-          String.raw`**Adaptive methods are not rotation invariant.** AdaGrad needs 7 steps when the curvature directions coincide with the coordinate axes (its diagonal preconditioner then captures the curvature), but 126 when they are rotated. Adam is much less affected here (103 vs 113), because its step is driven by the sign of the gradient more than by its scale. RMSProp is slowest by far: with a constant η its normalised step never shrinks, so it can only meet a tight tolerance with a tiny η — the "hovering" seen in the simulator.`,
-          String.raw`**Badly scaled real data.** The raw breast-cancer features have standard deviations from 0.0023 to 577, a ratio of about 250 000. SGD and momentum must use $\eta \approx 10^{-5}$ to $10^{-6}$ to stay stable for the largest features, and reach a training loss of only 0.24–0.25. The adaptive methods, which rescale each weight separately, get to 0.17–0.20. But all of them are far behind **every** optimizer on standardised features (0.032–0.043, test accuracy 95–96%). Per-parameter adaptation softens bad scaling; it does not replace preprocessing.`,
-          String.raw`**Sparse features.** In one pass over 20 000 examples, frequent features are seen about 5 700 times and rare ones about 84 times. AdaGrad recovers the weights best overall (mean error 0.203) and is the best adaptive method on the rare features (0.378): its accumulator stays small for rare features, giving them a large effective rate. Momentum SGD learns the frequent features well (0.176) but leaves the rare ones far off (0.514); RMSProp, whose EMA forgets rare features between occurrences, also does poorly on them (0.506).`,
+          String.raw`**Rotation doesn't matter to SGD-type methods.** SGD, heavy ball and Nesterov need exactly the same steps on the aligned and rotated quadratic (184, 105, 64): their updates are linear in the gradient, so the choice of axes is irrelevant. Nesterov beats heavy ball at β = 0.9 thanks to its extra braking (section 5). Momentum gains less than the ideal $\sqrt\kappa$ because β = 0.9 is fixed instead of $\beta^\star = 0.669$.`,
+          String.raw`**Rotation does matter to adaptive methods.** AdaGrad needs 7 steps when the curvature directions line up with the axes (its per-axis rescaling then captures the curvature), but 126 when rotated. Adam is much less affected (103 vs 113), because its step follows the gradient's sign more than its size. RMSProp is slowest: with a fixed η its normalised step never shrinks, so it needs a tiny η to meet a tight target — the "hovering" from the simulator.`,
+          String.raw`**Badly scaled real data.** The raw features have standard deviations from 0.0023 to 577, a ratio of about 250 000. SGD and momentum must use $\eta \approx 10^{-5}$ to $10^{-6}$ to stay stable on the largest features, and only reach a training loss of 0.24–0.25. The adaptive methods reach 0.17–0.20. But all are far behind **every** optimizer on standardised features (0.032–0.043, test accuracy 95–96%). Adaptivity softens bad scaling; it does not replace preprocessing.`,
+          String.raw`**Sparse features.** In one pass over 20 000 examples, frequent features appear about 5 700 times and rare ones about 84 times. AdaGrad recovers the weights best overall (mean error 0.203) and is the best adaptive method on rare features (0.378): its total stays small for them, so their rate stays large. Momentum SGD learns frequent features well (0.176) but leaves rare ones far off (0.514); RMSProp, whose EMA forgets rare features between sightings, also does poorly on them (0.506).`,
         ],
       },
-      { t: "h", text: "Weight decay, fixed points and implicit bias" },
+      { t: "h", text: "Weight decay, end points and implicit bias" },
       {
         t: "code",
         lang: "python",
@@ -976,7 +1011,7 @@ const lesson: Lesson = {
       },
       {
         t: "p",
-        text: String.raw`Adam + L2 converges to the L2-regularised optimum computed by scikit-learn (identical norm 1.468 and largest weight 0.425; the gradient of the regularised objective is $1.3\times10^{-5}$). AdamW does not: its gradient of that objective stays at 2.4 because it is solving a different problem, and its largest weight sits just under $1/\lambda = 20$, as predicted by the fixed-point equation of section 9. In the under-determined regression, gradient descent lands exactly on the minimum-norm interpolating solution, while Adam interpolates the data (training MSE $2.4\times10^{-8}$) with a different, larger-norm solution — the implicit-bias effect behind the generalisation debate.`,
+        text: String.raw`Adam + L2 reaches scikit-learn's L2-regularised optimum (same norm 1.468 and largest weight 0.425; the gradient of the regularised objective is $1.3\times10^{-5}$). AdamW does not: its gradient of that objective stays at 2.4 because it solves a different problem, and its largest weight sits just under $1/\lambda = 20$, as section 9 predicts. In the under-determined regression, gradient descent lands exactly on the minimum-norm solution, while Adam fits the data (training MSE $2.4\times10^{-8}$) with a different, larger-norm solution — the implicit-bias effect behind the generalisation debate.`,
       },
     ],
 
@@ -990,7 +1025,7 @@ const lesson: Lesson = {
             blocks: [
               {
                 t: "p",
-                text: "The program re-implements the updates compactly in NumPy and runs the same 300 mini-batch steps with `torch.optim` in float64. Agreement to about 1e-16 proves the equations of this lesson are exactly PyTorch's (including Nesterov's re-parameterised form, AMSGrad's maximum of the uncorrected v, and AdamW's decay-before-update order). It then measures optimizer-state memory and computes it for a GPT-2-small-sized model.",
+                text: "This program runs the same 300 mini-batch steps in NumPy and with `torch.optim` in float64. Agreement to about 1e-16 proves this lesson's equations are exactly PyTorch's (including Nesterov's rewritten form, AMSGrad's maximum of the uncorrected v, and AdamW's decay-first order). It then measures optimizer memory, also for a GPT-2-small-sized model.",
               },
               {
                 t: "code",
@@ -1009,10 +1044,10 @@ const lesson: Lesson = {
               {
                 t: "list",
                 items: [
-                  "`SGD(momentum=β, dampening=0)` stores the velocity in `state['momentum_buffer']`; the first step sets it to the gradient itself.",
+                  "`SGD(momentum=β, dampening=0)` keeps the velocity in `state['momentum_buffer']`; the first step sets it to the gradient itself.",
                   "`Adam(weight_decay=λ)` is coupled L2; `AdamW(weight_decay=λ)` is decoupled and multiplies the weights by `1 - lr*λ` before the Adam step.",
-                  "`Adam(amsgrad=True)` adds a third state tensor `max_exp_avg_sq`; it is the maximum of the *uncorrected* v, which is then bias-corrected.",
-                  "Optimizer state lives in `opt.state[p]`; `opt.state_dict()` must be saved with the model checkpoint, otherwise a resumed run restarts m and v from zero (and, with Adam, the bias correction from t = 1).",
+                  "`Adam(amsgrad=True)` adds a third state tensor `max_exp_avg_sq`: the maximum of the *uncorrected* v, which is then bias-corrected.",
+                  "Optimizer state lives in `opt.state[p]`. Save `opt.state_dict()` with the model checkpoint, or a resumed run restarts m and v from zero (and, with Adam, the bias correction from t = 1).",
                 ],
               },
             ],
@@ -1054,8 +1089,8 @@ for name, opt in optimizers.items():
               {
                 t: "list",
                 items: [
-                  "Keras's `SGD(momentum=β)` uses the form v ← βv − ηg, θ ← θ + v, which equals PyTorch's for a constant learning rate (they differ only when η changes, because Keras folds η into v).",
-                  "Keras defaults: `epsilon=1e-7` for Adam and RMSprop, and Adagrad starts its accumulator at 0.1 — set them explicitly to reproduce PyTorch numbers.",
+                  "Keras's `SGD(momentum=β)` uses v ← βv − ηg, θ ← θ + v. This equals PyTorch's form for a constant learning rate; they differ only when η changes, because Keras folds η into v.",
+                  "Keras defaults: `epsilon=1e-7` for Adam and RMSprop, and Adagrad starts its total at 0.1 — set them explicitly to reproduce PyTorch numbers.",
                   "`tf.keras.optimizers.AdamW` (TF ≥ 2.11) is decoupled; use `exclude_from_weight_decay(var_names=[...])` to skip biases and normalisation layers.",
                 ],
               },
@@ -1071,19 +1106,19 @@ for name, opt in optimizers.items():
         t: "table",
         head: ["Method", "Key idea", "Advantages", "Disadvantages", "Use cases"],
         rows: [
-          ["Heavy ball (Polyak 1964)", String.raw`$\theta_{t+1} = \theta_t - \eta g_t + \beta(\theta_t - \theta_{t-1})$`, String.raw`$\sqrt\kappa$ speed-up on quadratics; larger stability limit $2(1+\beta)/\lambda$`, "no acceleration guarantee on general convex problems; can oscillate", "SGD training of CNNs"],
-          ["Nesterov (1983)", "gradient at the look-ahead point", String.raw`extra damping $\sqrt{\beta(1-\eta\lambda)}$; $O(1/t^2)$ on smooth convex problems`, String.raw`smaller stability limit $2(1+\beta)/((1+2\beta)\lambda)$`, "default choice when using SGD + momentum"],
-          ["AdaGrad (2011)", String.raw`divide by $\sqrt{\sum g^2}$`, "strong theory for convex online learning; ideal for sparse features", String.raw`rate decays like $1/\sqrt t$`, "sparse linear models, embedding tables"],
-          ["RMSProp (2012)", String.raw`divide by $\sqrt{\mathrm{EMA}(g^2)}$`, "non-decaying adaptive rate", "no bias correction; hovers without decay", "RNNs and RL historically"],
+          ["Heavy ball (Polyak 1964)", String.raw`$\theta_{t+1} = \theta_t - \eta g_t + \beta(\theta_t - \theta_{t-1})$`, String.raw`$\sqrt\kappa$ speed-up on quadratics; larger stability limit $2(1+\beta)/\lambda$`, "no speed-up guarantee on general convex problems; can oscillate", "SGD training of CNNs"],
+          ["Nesterov (1983)", "gradient at the look-ahead point", String.raw`extra braking $\sqrt{\beta(1-\eta\lambda)}$; $O(1/t^2)$ on smooth convex problems`, String.raw`smaller stability limit $2(1+\beta)/((1+2\beta)\lambda)$`, "default choice when using SGD + momentum"],
+          ["AdaGrad (2011)", String.raw`divide by $\sqrt{\sum g^2}$`, "strong theory for convex online learning; ideal for sparse features", String.raw`rate shrinks like $1/\sqrt t$`, "sparse linear models, embedding tables"],
+          ["RMSProp (2012)", String.raw`divide by $\sqrt{\mathrm{EMA}(g^2)}$`, "adaptive rate that doesn't shrink", "no bias correction; hovers without decay", "RNNs and RL historically"],
           ["Adam (2015)", "EMA momentum ÷ RMS, bias-corrected", "robust defaults; scale-free step ≈ η·SNR", "2 state copies; can fail to converge (AMSGrad example)", "general default"],
-          ["AMSGrad (2018)", String.raw`use $\max_s v_s$`, "non-increasing effective rate; fixes the counterexamples", "3 state copies; rarely better in practice", "when Adam's loss oscillates late in training"],
-          ["AdamW (2019)", "decoupled shrinkage", "weight decay independent of the preconditioner", "a different regulariser from L2", "Transformers, LLMs, ViTs"],
+          ["AMSGrad (2018)", String.raw`use $\max_s v_s$`, "rate never increases; fixes the counterexamples", "3 state copies; rarely better in practice", "when Adam's loss oscillates late in training"],
+          ["AdamW (2019)", "decoupled shrinking", "weight decay independent of the rescaling", "a different regulariser from L2", "Transformers, LLMs, ViTs"],
           ["Adamax (Kingma & Ba 2015)", String.raw`$\ell_\infty$ norm: $u_t = \max(\beta_2 u_{t-1}, |g_t|)$`, "no bias correction needed for u; bounded step", "rarely better than Adam", "embeddings, occasionally"],
-          ["Nadam (Dozat 2016)", "Nesterov momentum inside Adam", "slightly faster early progress at times", "small gains", "drop-in Adam replacement"],
-          ["RAdam (Liu et al. 2020)", "switches off the adaptive term while v is too poorly estimated", "removes the need for warm-up in some settings", "extra complexity", "when warm-up is hard to tune"],
-          ["Adafactor (Shazeer & Stern 2018)", "factored row/column second moments for matrices", "sub-linear memory for v", "less precise per-parameter scaling", "very large models (e.g. T5)"],
-          ["Lion (Chen et al. 2023)", "update = sign of an interpolated momentum", "1 state copy; sign steps", String.raw`needs smaller $\eta$ and larger $\lambda$ than AdamW`, "large vision and language models"],
-          ["8-bit optimizers (Dettmers et al. 2022)", "store m and v quantised to 8 bits block-wise", "~4× less optimizer memory", "implementation complexity", "fine-tuning large models on limited memory"],
+          ["Nadam (Dozat 2016)", "Nesterov momentum inside Adam", "sometimes slightly faster early on", "small gains", "drop-in Adam replacement"],
+          ["RAdam (Liu et al. 2020)", "turns off the adaptive part while v is still poorly estimated", "removes the need for warm-up in some settings", "extra complexity", "when warm-up is hard to tune"],
+          ["Adafactor (Shazeer & Stern 2018)", "stores row and column averages instead of a full second moment for matrices", "much less memory for v", "less precise per-parameter scaling", "very large models (e.g. T5)"],
+          ["Lion (Chen et al. 2023)", "update = sign of a blended momentum", "1 state copy; sign steps", String.raw`needs smaller $\eta$ and larger $\lambda$ than AdamW`, "large vision and language models"],
+          ["8-bit optimizers (Dettmers et al. 2022)", "store m and v in 8 bits, block by block", "~4× less optimizer memory", "harder to implement", "fine-tuning large models on limited memory"],
         ],
       },
     ],
@@ -1094,13 +1129,13 @@ for name, opt in optimizers.items():
         t: "table",
         head: ["Domain", "Common recipe", "Why"],
         rows: [
-          ["Image classification CNNs (from scratch)", String.raw`SGD + momentum 0.9 (often Nesterov), $\eta = 0.1$ per 256 examples of batch, weight decay $10^{-4}$ (ImageNet ResNets) to $5\times10^{-4}$ (CIFAR), step or cosine schedule`, "Well-understood, good generalisation; BatchNorm keeps the problem reasonably conditioned so adaptivity matters less."],
-          ["Transformers / LLM pre-training", String.raw`AdamW, $\beta = (0.9, 0.95)$, weight decay 0.1, warm-up then cosine decay to about 10% of the peak, gradient clipping at 1.0 (the GPT-3 and LLaMA papers report settings of this form)`, String.raw`Gradient scales differ enormously between embeddings, attention and MLP weights; a shorter $\beta_2$ window reacts to loss spikes.`],
-          ["Fine-tuning pretrained Transformers", String.raw`AdamW, $\eta$ between $10^{-5}$ and $10^{-4}$ (BERT's paper searched 2e-5 to 5e-5), short linear warm-up and decay, few epochs`, "The pretrained weights are already good; Adam's η is a per-coordinate step length, so it must be small to avoid destroying them."],
-          ["GANs", String.raw`Adam with $\beta_1 = 0.5$ (or 0), $\eta = 2\times10^{-4}$ (DCGAN)`, "The objective changes as the opponent trains; a long momentum memory follows stale directions."],
-          ["Reinforcement learning", String.raw`Adam, $\eta \approx 3\times10^{-4}$ (PPO's MuJoCo setting), gradient clipping`, "Non-stationary targets, high-variance gradients."],
-          ["Recommender systems / sparse embeddings", "AdaGrad or sparse Adam variants (`torch.optim.SparseAdam`) for embedding tables; a dense optimizer for the rest", "Rows of rare items get gradients rarely; per-row accumulators give them calibrated, larger steps and only touched rows need updating."],
-          ["Small tabular / quick baselines", String.raw`Adam, $\eta = 10^{-3}$`, "Works with almost no tuning; the problem is small enough that memory is irrelevant."],
+          ["Image classification CNNs (from scratch)", String.raw`SGD + momentum 0.9 (often Nesterov), $\eta = 0.1$ per 256 examples of batch, weight decay $10^{-4}$ (ImageNet ResNets) to $5\times10^{-4}$ (CIFAR), step or cosine schedule`, "Well understood, generalises well; BatchNorm keeps the problem fairly evenly shaped, so adaptivity matters less."],
+          ["Transformers / LLM pre-training", String.raw`AdamW, $\beta = (0.9, 0.95)$, weight decay 0.1, warm-up then cosine decay to about 10% of the peak, gradient clipping at 1.0 (the GPT-3 and LLaMA papers report settings of this form)`, String.raw`Gradient sizes differ hugely between embeddings, attention and MLP weights; a shorter $\beta_2$ memory reacts to loss spikes.`],
+          ["Fine-tuning pretrained Transformers", String.raw`AdamW, $\eta$ between $10^{-5}$ and $10^{-4}$ (BERT's paper searched 2e-5 to 5e-5), short linear warm-up and decay, few epochs`, "The pretrained weights are already good; Adam's η is a per-parameter step length, so it must be small not to wreck them."],
+          ["GANs", String.raw`Adam with $\beta_1 = 0.5$ (or 0), $\eta = 2\times10^{-4}$ (DCGAN)`, "The goal shifts as the opponent trains; a long momentum memory follows out-of-date directions."],
+          ["Reinforcement learning", String.raw`Adam, $\eta \approx 3\times10^{-4}$ (PPO's MuJoCo setting), gradient clipping`, "Moving targets, very noisy gradients."],
+          ["Recommender systems / sparse embeddings", "AdaGrad or sparse Adam variants (`torch.optim.SparseAdam`) for embedding tables; a dense optimizer for the rest", "Rare items' rows get gradients rarely; per-row totals give them well-sized, larger steps, and only touched rows need updating."],
+          ["Small tabular / quick baselines", String.raw`Adam, $\eta = 10^{-3}$`, "Works with almost no tuning; the problem is small, so memory doesn't matter."],
           ["Memory-limited training of huge models", "AdamW with sharded state (ZeRO/FSDP), Adafactor, or 8-bit states", "Adam's two fp32 copies dominate memory at billions of parameters."],
         ],
       },
@@ -1111,13 +1146,13 @@ for name, opt in optimizers.items():
       {
         t: "list",
         items: [
-          String.raw`**Momentum: speed versus stability.** It turns $\kappa$ into $\sqrt\kappa$ on quadratics and raises the stability limit to $2(1+\beta)/\lambda$, but the effective step $\eta/(1-\beta)$ is 10× larger, so a learning rate tuned without momentum diverges with it. Too much momentum ($\beta \to 1$) is under-damped: rate $\sqrt\beta \to 1$.`,
-          "**Nesterov: damping versus range.** Faster on steep directions at the best η, but a stability limit almost 3× lower than heavy ball's for β = 0.9.",
-          "**Adaptivity is diagonal.** AdaGrad/RMSProp/Adam fix axis-aligned scale differences, not rotated ill-conditioning (126 vs 7 steps for AdaGrad in the experiment). Normalisation layers and good parameterisation still matter.",
-          "**Adaptivity is approximately scale-free.** Adam's step depends on the gradient's sign and SNR, not its magnitude: robust to badly scaled losses and layers, but it also means Adam keeps taking η-sized steps on parameters whose gradients are tiny noise — the role of ε and of decaying η.",
-          "**Memory.** 0, 1, 2 and 3 state copies for SGD, momentum, Adam and AMSGrad. At 7 billion parameters Adam's mixed-precision footprint is 112 GB before activations.",
-          "**Generalisation is empirical.** Different optimizers find different solutions (implicit bias). SGD + momentum often matches or beats Adam on CNN image classification; AdamW is the norm for Transformers. Tune before concluding.",
-          "**Hyperparameter sensitivity.** Adam's defaults work surprisingly often; SGD needs η and its schedule tuned carefully. But Adam's apparent robustness can hide a suboptimal η — it should be tuned too.",
+          String.raw`**Momentum: speed versus stability.** It turns $\kappa$ into $\sqrt\kappa$ on quadratics and raises the stability limit to $2(1+\beta)/\lambda$, but the effective step $\eta/(1-\beta)$ is 10× larger. Too much momentum ($\beta \to 1$) means too little friction: rate $\sqrt\beta \to 1$.`,
+          "**Nesterov: braking versus range.** Faster on steep directions at its best η, but a stability limit almost 3× lower than heavy ball's for β = 0.9.",
+          "**Adaptivity works per axis.** It fixes scale differences along the axes, not rotated unevenness (126 vs 7 steps for AdaGrad). Normalisation layers and good parameterisation still matter.",
+          "**Adaptivity roughly ignores scale.** Robust to badly scaled losses and layers, but Adam keeps taking η-sized steps on parameters whose gradients are tiny noise — hence ε and a decaying η.",
+          "**Memory.** 0, 1, 2 and 3 state copies for SGD, momentum, Adam and AMSGrad.",
+          "**Generalisation is an empirical question.** Different optimizers find different solutions. Tune before you conclude.",
+          "**Tuning sensitivity.** Adam's defaults work surprisingly often; SGD needs η and its schedule tuned with care. But Adam's robustness can hide a poor η — tune it too.",
         ],
       },
     ],
@@ -1127,32 +1162,32 @@ for name, opt in optimizers.items():
       {
         t: "list",
         items: [
-          String.raw`**Switching on momentum without lowering η.** The steady-state step becomes $\eta/(1-\beta)$: 10× for $\beta = 0.9$, 100× for 0.99. Fix: divide η by about $1/(1-\beta)$ as a starting point, then re-tune.`,
-          String.raw`**Using β = 0.99 "for more acceleration".** On the quadratic every complex-regime direction then converges at $\sqrt{0.99} = 0.995$ per step: the exercise shows it is far slower than β = 0.9. Momentum must match the conditioning ($\beta^\star$ from $\kappa$), not be maximised.`,
-          String.raw`**Assuming Nesterov is "momentum but strictly better".** Its stability limit is lower ($1.357/\lambda$ vs $3.8/\lambda$ at β = 0.9). A learning rate that is fine for heavy ball can make Nesterov diverge.`,
-          String.raw`**Dropping Adam's bias correction "because it only matters early".** For $\beta_2 = 0.999$ the bias exceeds 1% for the first 4603 steps; without correction $\sqrt{v}$ is too small and the early steps are inflated ($3.16\eta$ at $t = 1$).`,
+          String.raw`**Turning on momentum without lowering η.** The steady step becomes $\eta/(1-\beta)$: 10× for $\beta = 0.9$, 100× for 0.99. Fix: divide η by about $1/(1-\beta)$ to start, then re-tune.`,
+          String.raw`**Using β = 0.99 "for more speed".** On the quadratic every complex-zone direction then shrinks at only $\sqrt{0.99} = 0.995$ per step; the exercise shows it is far slower than β = 0.9. Momentum should match the problem's shape ($\beta^\star$ from $\kappa$), not be maxed out.`,
+          String.raw`**Assuming Nesterov is "momentum, but always better".** Its stability limit is lower ($1.357/\lambda$ vs $3.8/\lambda$ at β = 0.9). A learning rate that is fine for heavy ball can make Nesterov blow up.`,
+          String.raw`**Dropping Adam's bias correction "because it only matters early".** For $\beta_2 = 0.999$ the bias is above 1% for the first 4603 steps. Without correction $\sqrt{v}$ is too small and early steps are too big ($3.16\eta$ at $t = 1$).`,
           String.raw`**Believing Adam's step can never exceed η.** After a quiet period, a gradient burst gives about $3\eta$ (and up to $7.27\eta$ in the worst case for the defaults). Fix: gradient clipping, warm-up, or a smaller $\beta_2$ (0.95–0.98) for spiky problems.`,
-          String.raw`**Treating ε as numerically irrelevant.** It sets the gradient scale below which Adam stops normalising. With half-precision states, $10^{-8}$ can underflow; for tiny-gradient parameters, a larger ε changes the dynamics substantially.`,
-          "**Using `Adam(weight_decay=λ)` and calling it AdamW.** It is L2: weights with large gradient variance are barely regularised. Fix: `AdamW`, and exclude biases and normalisation parameters.",
-          String.raw`**Transferring λ between Adam + L2, AdamW and SGD.** They are different regularisers with different fixed points; AdamW's per-step shrinkage is $\eta\lambda$, so changing η changes the effective decay. Re-tune λ whenever the optimizer or η changes.`,
-          "**Not saving optimizer state in checkpoints.** Resuming Adam with empty m, v and t = 0 produces a burst of η-sized steps in every coordinate. Fix: save and load `optimizer.state_dict()`.",
-          "**Expecting Adam to fix bad input scaling.** It helps (loss 0.17 vs 0.25 on raw breast-cancer features) but standardising the inputs helped every optimizer far more (0.035).",
+          String.raw`**Treating ε as a harmless detail.** It sets the gradient size below which Adam stops normalising. In half precision, $10^{-8}$ can round to zero; for tiny-gradient parameters, a larger ε changes training a lot.`,
+          "**Using `Adam(weight_decay=λ)` and calling it AdamW.** That is L2: weights with very noisy gradients are barely regularised. Fix: use `AdamW`, and skip biases and normalisation parameters.",
+          String.raw`**Reusing λ across Adam + L2, AdamW and SGD.** They are different regularisers with different end points. AdamW's shrink per step is $\eta\lambda$, so changing η changes the real decay. Re-tune λ whenever the optimizer or η changes.`,
+          "**Not saving optimizer state in checkpoints.** Resuming Adam with empty m, v and t = 0 causes a burst of η-sized steps on every parameter. Fix: save and load `optimizer.state_dict()`.",
+          "**Expecting Adam to fix badly scaled inputs.** It helps (loss 0.17 vs 0.25 on raw breast-cancer features), but standardising the inputs helped every optimizer far more (0.035).",
         ],
       },
     ],
 
     /* ------------------------------------------------------------------ */
     interview: [
-      { t: "qa", level: "beginner", q: "What does the momentum coefficient β control?", a: String.raw`β sets how long the optimizer remembers past gradients: the velocity is an exponentially weighted sum with weights $\beta^k$, so the memory is about $1/(1-\beta)$ steps (10 for β = 0.9). Along a direction where gradients agree, the velocity grows to $g/(1-\beta)$, so the effective learning rate becomes $\eta/(1-\beta)$. Along a direction where gradients alternate in sign, contributions cancel and the gain falls to $1/(1+\beta)$. β is also one minus the friction of the equivalent physical heavy ball.` },
-      { t: "qa", level: "beginner", q: "Why does Adam need bias correction?", a: String.raw`Its moving averages start at zero. After $t$ steps the weights on the observed gradients sum to $1-\beta^t$, not 1; the rest of the weight sits on the artificial zero start, so the averages are too small. Dividing by $1-\beta^t$ renormalises the weights so the estimate is a proper weighted average. This matters for $v$ in particular: with $\beta_2 = 0.999$ the bias is above 1% for the first 4603 steps, and without correction the first steps would be about 3× too large.` },
-      { t: "qa", level: "beginner", q: "Why are adaptive methods good for sparse features?", a: String.raw`AdaGrad divides each parameter's step by the root of the sum of its squared gradients. A rare feature produces gradients only when it appears, so its sum stays small and its effective learning rate stays large — roughly proportional to $1/\sqrt{n_j}$, where $n_j$ is how often it has been seen. Each rare observation therefore moves its weight substantially, while frequent features get small, careful steps. A single global learning rate cannot do both.` },
-      { t: "qa", level: "intermediate", q: "Derive the optimal heavy-ball momentum for a quadratic with condition number κ.", a: String.raw`Per eigen-direction with curvature λ, the error obeys $e_{t+1} = (1+\beta-\eta\lambda)e_t - \beta e_{t-1}$, with characteristic polynomial $r^2 - (1+\beta-\eta\lambda)r + \beta$. The roots are complex when $(1-\sqrt\beta)^2 < \eta\lambda < (1+\sqrt\beta)^2$, and then $|r| = \sqrt\beta$ regardless of λ. Choosing η and β so that the interval $[\eta\mu, \eta L]$ exactly fills this region, $\sqrt{\eta\mu} = 1-\sqrt\beta$ and $\sqrt{\eta L} = 1+\sqrt\beta$, gives $\eta = 4/(\sqrt L + \sqrt\mu)^2$ and $\sqrt\beta = (\sqrt\kappa - 1)/(\sqrt\kappa+1)$. The rate is $(\sqrt\kappa-1)/(\sqrt\kappa+1)$, versus $(\kappa-1)/(\kappa+1)$ for gradient descent: for κ = 100, 69 instead of 691 steps per factor $10^6$.` },
-      { t: "qa", level: "intermediate", q: "How does Nesterov momentum differ from heavy ball on a quadratic?", a: String.raw`Nesterov's per-direction recursion is $e_{t+1} = (1+\beta)(1-\eta\lambda)e_t - \beta(1-\eta\lambda)e_{t-1}$. The product of its roots is $\beta(1-\eta\lambda)$ instead of β, so in the oscillatory regime it contracts at $\sqrt{\beta(1-\eta\lambda)}$ — steep directions are damped more than with heavy ball, which reduces overshoot. The price is a smaller stability region, $\eta\lambda < 2(1+\beta)/(1+2\beta)$ (1.357 for β = 0.9) instead of $2(1+\beta)$ (3.8). In PyTorch it is implemented in the re-parameterised form $\phi \leftarrow \phi - \eta(g + \beta v)$, which needs only the gradient at the stored parameters.` },
-      { t: "qa", level: "intermediate", q: "Explain Adam's update as a signal-to-noise ratio. What happens near a minimum?", a: String.raw`For a coordinate whose gradient has mean $\mu_g$ and variance $\sigma^2$, $\hat m \approx \mu_g$ and $\hat v \approx \mu_g^2 + \sigma^2$, so the step is $\eta\,\mu_g/\sqrt{\mu_g^2+\sigma^2}$. Far from a minimum gradients are consistent and the step is about $\pm\eta$ (sign descent). Near a minimum the mean gradient is small compared with the mini-batch noise, so the step shrinks in proportion to $\mu_g/\sigma$ — Adam anneals itself. It never fully stops because m fluctuates, which is why a decaying learning rate is still used.` },
-      { t: "qa", level: "intermediate", q: "What is the role of ε in Adam, and when would you change it?", a: String.raw`The step is $\eta\hat m/(\sqrt{\hat v}+\epsilon)$. For gradients much larger than ε it is irrelevant; for gradients comparable to ε it reduces the normalisation (step $\eta|g|/(|g|+\epsilon)$ for a constant gradient); for gradients far below ε Adam becomes momentum SGD with learning rate $\eta/\epsilon$. Increasing ε (e.g. to 1e-6, as RoBERTa did, or much larger) stabilises training when $\hat v$ is tiny or poorly estimated and makes Adam more SGD-like; it also avoids issues where 1e-8 is not representable in reduced precision.` },
-      { t: "qa", level: "advanced", q: "Why did Reddi et al. propose AMSGrad, and what does it change?", a: String.raw`They showed that Adam's effective learning rate $\eta/\sqrt{\hat v_t}$ can increase over time, because the EMA of squared gradients forgets large but rare gradients within about $1/(1-\beta_2)$ steps. In their online example (loss $Cx$ every third step, $-x$ otherwise, $C = 3$, $\beta_2 = 0.1$) the rare large gradient is normalised to about 1.05 while the two small ones get −0.76 and −0.97, so the net movement goes in the wrong direction and Adam converges to the worst point. AMSGrad uses the running maximum of $v_t$, which makes the effective rate non-increasing and restores convergence; it costs a third state tensor and in deep-learning practice rarely beats Adam with a decaying learning rate.` },
-      { t: "qa", level: "advanced", q: "Adam + L2 and AdamW: are they minimising the same objective?", a: String.raw`No. Adam + L2 runs Adam on $\ell + \tfrac\lambda2\lVert\theta\rVert^2$, so its fixed points satisfy $\nabla\ell + \lambda\theta = 0$ — the L2-regularised optimum (numerically, it matches scikit-learn's solution). AdamW's fixed points satisfy $\hat m/(\sqrt{\hat v}+\epsilon) = -\lambda\theta$: the decay balances the normalised gradient, which is bounded by about 1, so it acts like a soft constraint $|\theta_i| \lesssim 1/\lambda$ together with uniform relative shrinkage. On nearly separable logistic regression with λ = 0.05, Adam + L2 ends at norm 1.47 while AdamW ends at 47.8 with weights just below 20. For SGD the two are identical.` },
-      { t: "qa", level: "advanced", q: "How much memory does Adam need for a 7B-parameter model, and what can be done about it?", a: String.raw`Adam keeps two extra tensors per parameter. In fp32 that alone is $2 \times 4 \times 7\times10^9 = 56$ GB. In standard mixed precision the per-parameter cost is 2 (bf16 weights) + 2 (bf16 gradients) + 4 (fp32 master weights) + 8 (fp32 m and v) = 16 bytes, i.e. 112 GB before activations. Remedies: shard optimizer state across data-parallel workers (ZeRO / FSDP), factor the second moment (Adafactor), quantise the states (8-bit optimizers), or use an optimizer with less state (SGD + momentum, Lion with one copy).` },
+      { t: "qa", level: "beginner", q: "What does the momentum coefficient β control?", a: String.raw`β sets how long the optimizer remembers past gradients. The velocity is a weighted sum with weights $\beta^k$, so the memory is about $1/(1-\beta)$ steps (10 for β = 0.9). Where gradients agree, the velocity grows to $g/(1-\beta)$, so the effective learning rate becomes $\eta/(1-\beta)$. Where gradients flip sign, they cancel and the gain drops to $1/(1+\beta)$. In the physical picture, $1-\beta$ is the friction on the rolling ball.` },
+      { t: "qa", level: "beginner", q: "Why does Adam need bias correction?", a: String.raw`Its running averages start at zero. After $t$ steps the weights on the real gradients add up to $1-\beta^t$, not 1; the rest sits on the fake zero start, so the averages are too small. Dividing by $1-\beta^t$ fixes the weights so the estimate is a proper weighted average. This matters most for $v$: with $\beta_2 = 0.999$ the bias is above 1% for the first 4603 steps, and without correction the first steps would be about 3× too large.` },
+      { t: "qa", level: "beginner", q: "Why are adaptive methods good for sparse features?", a: String.raw`AdaGrad divides each parameter's step by the square root of its total squared gradients. A rare feature only gets gradients when it appears, so its total stays small and its learning rate stays large — roughly $1/\sqrt{n_j}$, where $n_j$ is how often it has been seen. So each rare sighting moves its weight a lot, while frequent features get small, careful steps. One shared learning rate cannot do both.` },
+      { t: "qa", level: "intermediate", q: "Derive the optimal heavy-ball momentum for a quadratic with condition number κ.", a: String.raw`For each eigen-direction with curvature λ, the error follows $e_{t+1} = (1+\beta-\eta\lambda)e_t - \beta e_{t-1}$, with polynomial $r^2 - (1+\beta-\eta\lambda)r + \beta$. The roots are complex when $(1-\sqrt\beta)^2 < \eta\lambda < (1+\sqrt\beta)^2$, and then $|r| = \sqrt\beta$ whatever λ is. Choose η and β so that $[\eta\mu, \eta L]$ exactly fills this zone: $\sqrt{\eta\mu} = 1-\sqrt\beta$ and $\sqrt{\eta L} = 1+\sqrt\beta$. That gives $\eta = 4/(\sqrt L + \sqrt\mu)^2$ and $\sqrt\beta = (\sqrt\kappa - 1)/(\sqrt\kappa+1)$. The rate is $(\sqrt\kappa-1)/(\sqrt\kappa+1)$, versus $(\kappa-1)/(\kappa+1)$ for gradient descent: for κ = 100, 69 instead of 691 steps per factor $10^6$.` },
+      { t: "qa", level: "intermediate", q: "How does Nesterov momentum differ from heavy ball on a quadratic?", a: String.raw`Nesterov's per-direction recursion is $e_{t+1} = (1+\beta)(1-\eta\lambda)e_t - \beta(1-\eta\lambda)e_{t-1}$. Its roots multiply to $\beta(1-\eta\lambda)$ instead of β, so in the wobbling zone it shrinks at $\sqrt{\beta(1-\eta\lambda)}$ — steep directions are braked more than with heavy ball, which reduces overshoot. The price is a smaller stable range: $\eta\lambda < 2(1+\beta)/(1+2\beta)$ (1.357 for β = 0.9) instead of $2(1+\beta)$ (3.8). PyTorch uses the rewritten form $\phi \leftarrow \phi - \eta(g + \beta v)$, which only needs the gradient at the stored weights.` },
+      { t: "qa", level: "intermediate", q: "Explain Adam's update as a signal-to-noise ratio. What happens near a minimum?", a: String.raw`If a parameter's gradient has mean $\mu_g$ and variance $\sigma^2$, then $\hat m \approx \mu_g$ and $\hat v \approx \mu_g^2 + \sigma^2$, so the step is $\eta\,\mu_g/\sqrt{\mu_g^2+\sigma^2}$. Far from a minimum, gradients are consistent and the step is about $\pm\eta$ (sign descent). Near a minimum, the mean gradient is small compared with mini-batch noise, so the step shrinks in line with $\mu_g/\sigma$ — Adam cools itself down. It never fully stops because m keeps jittering, which is why a decaying learning rate is still used.` },
+      { t: "qa", level: "intermediate", q: "What is the role of ε in Adam, and when would you change it?", a: String.raw`The step is $\eta\hat m/(\sqrt{\hat v}+\epsilon)$. For gradients much larger than ε it does nothing. For gradients near ε it weakens the normalisation (step $\eta|g|/(|g|+\epsilon)$ for a constant gradient). For gradients far below ε, Adam becomes momentum SGD with learning rate $\eta/\epsilon$. Raising ε (e.g. to 1e-6, as RoBERTa did, or much larger) steadies training when $\hat v$ is tiny or poorly estimated, makes Adam more SGD-like, and avoids 1e-8 rounding to zero in low precision.` },
+      { t: "qa", level: "advanced", q: "Why did Reddi et al. propose AMSGrad, and what does it change?", a: String.raw`They showed that Adam's effective rate $\eta/\sqrt{\hat v_t}$ can grow over time, because the EMA of squared gradients forgets large but rare gradients within about $1/(1-\beta_2)$ steps. In their online example (loss $Cx$ every third step, $-x$ otherwise, $C = 3$, $\beta_2 = 0.1$), the rare large gradient is normalised to about 1.05 while the two small ones get −0.76 and −0.97. The net move goes the wrong way and Adam ends at the worst point. AMSGrad divides by the running maximum of $v_t$, so the rate can never increase, which restores convergence. It costs a third state tensor and in deep learning rarely beats Adam with a decaying learning rate.` },
+      { t: "qa", level: "advanced", q: "Adam + L2 and AdamW: are they minimising the same objective?", a: String.raw`No. Adam + L2 runs Adam on $\ell + \tfrac\lambda2\lVert\theta\rVert^2$, so it stops where $\nabla\ell + \lambda\theta = 0$ — the L2-regularised optimum (it matches scikit-learn's answer numerically). AdamW stops where $\hat m/(\sqrt{\hat v}+\epsilon) = -\lambda\theta$: the decay balances the normalised gradient, which is at most about 1. So it acts like a soft fence $|\theta_i| \lesssim 1/\lambda$ plus the same relative shrink for all weights. On nearly separable logistic regression with λ = 0.05, Adam + L2 ends at norm 1.47 while AdamW ends at 47.8 with weights just below 20. For SGD the two are identical.` },
+      { t: "qa", level: "advanced", q: "How much memory does Adam need for a 7B-parameter model, and what can be done about it?", a: String.raw`Adam keeps two extra tensors per parameter. In fp32 that alone is $2 \times 4 \times 7\times10^9 = 56$ GB. In standard mixed precision each parameter costs 2 (bf16 weights) + 2 (bf16 gradients) + 4 (fp32 master weights) + 8 (fp32 m and v) = 16 bytes, i.e. 112 GB before activations. Fixes: split optimizer state across data-parallel workers (ZeRO / FSDP), factor the second moment (Adafactor), store the states in 8 bits, or use an optimizer with less state (SGD + momentum, or Lion with one copy).` },
     ],
 
     /* ------------------------------------------------------------------ */
@@ -1160,39 +1195,39 @@ for name, opt in optimizers.items():
       {
         t: "quiz",
         questions: [
-          { kind: "numeric", q: "An EMA uses β = 0.99. What is the variance of the EMA of independent unit-variance noise, (1−β)/(1+β)? (4 decimals)", answer: 0.005, tolerance: 0.0002, explain: "0.01/1.99 = 0.005025 — equivalent to averaging about 199 samples." },
+          { kind: "numeric", q: "An EMA uses β = 0.99. What is the variance of the EMA of independent unit-variance noise, (1−β)/(1+β)? (4 decimals)", answer: 0.005, tolerance: 0.0002, explain: "0.01/1.99 = 0.005025 — like averaging about 199 samples." },
           { kind: "numeric", q: "How many steps until the bias factor β₂ᵗ of Adam's second moment falls below 0.5, for β₂ = 0.999? (round to the nearest step)", answer: 693, tolerance: 1, explain: "t > ln 0.5 / ln 0.999 = 692.8, so t = 693." },
           { kind: "numeric", q: "Heavy ball on a quadratic with μ = 1 and L = 25. What is the optimal β* = ((√κ − 1)/(√κ + 1))²?", answer: 0.4444, tolerance: 0.001, explain: "√κ = 5, (4/6)² = 0.4444; the rate is 2/3 per step versus 24/26 = 0.923 for gradient descent." },
           { kind: "numeric", q: "For the same problem (μ = 1, L = 25), what is the optimal heavy-ball learning rate η* = 4/(√L + √μ)²?", answer: 0.1111, tolerance: 0.001, explain: "4/(5 + 1)² = 4/36 = 0.1111." },
           { kind: "numeric", q: "With β = 0.9, what is the largest ηλ for which Nesterov's method is stable on a quadratic direction, 2(1+β)/(1+2β)?", answer: 1.357, tolerance: 0.002, explain: "3.8/2.8 = 1.357, versus 2(1+β) = 3.8 for heavy ball." },
-          { q: "Momentum with β = 0.9 is fed a gradient that flips sign every step. Compared with a constant gradient of the same size, the steady-state velocity is…", options: ["the same", "about 19× smaller", "about 10× smaller", "zero"], answer: 1, explain: "Gains are 1/(1−β) = 10 at ω = 0 and 1/(1+β) = 0.526 at ω = π; the ratio is (1+β)/(1−β) = 19." },
-          { q: "Which statement about AdaGrad and a 45°-rotated ill-conditioned quadratic is correct?", options: ["Rotation does not matter for AdaGrad", "AdaGrad's diagonal preconditioner cannot capture rotated curvature, so it loses most of its advantage", "AdaGrad diverges on rotated problems", "AdaGrad becomes Newton's method"], answer: 1, explain: "AdaGrad rescales coordinates independently. In the experiment it needed 7 steps on the aligned problem and 126 on the rotated one; SGD and momentum are rotation invariant." },
-          { q: "Adam's stationary gradient for a coordinate has mean 1 and standard deviation 1. Its average step is closest to…", options: ["η", "0.71 η", "0.5 η", "0.1 η"], answer: 1, explain: "μ/√(μ²+σ²) = 1/√2 ≈ 0.707; the simulation gave 0.704." },
-          { q: "At a fixed point of AdamW (weight decay λ), which relation holds?", options: ["∇ℓ(θ) + λθ = 0", "m̂/(√v̂+ε) = −λθ", "θ = 0", "v̂ = λ"], answer: 1, explain: "The decay balances the normalised gradient, so |θᵢ| is at most about 1/λ; Adam + L2 instead satisfies ∇ℓ + λθ = 0." },
+          { q: "Momentum with β = 0.9 gets a gradient that flips sign every step. Compared with a constant gradient of the same size, the settled velocity is…", options: ["the same", "about 19× smaller", "about 10× smaller", "zero"], answer: 1, explain: "Gains are 1/(1−β) = 10 at ω = 0 and 1/(1+β) = 0.526 at ω = π; the ratio is (1+β)/(1−β) = 19." },
+          { q: "Which statement about AdaGrad and a 45°-rotated, unevenly shaped quadratic is correct?", options: ["Rotation does not matter for AdaGrad", "AdaGrad's per-axis rescaling cannot capture rotated curvature, so it loses most of its advantage", "AdaGrad diverges on rotated problems", "AdaGrad becomes Newton's method"], answer: 1, explain: "AdaGrad rescales each coordinate on its own. In the experiment it needed 7 steps on the aligned problem and 126 on the rotated one; SGD and momentum don't care about rotation." },
+          { q: "Adam's steady gradient for a parameter has mean 1 and standard deviation 1. Its average step is closest to…", options: ["η", "0.71 η", "0.5 η", "0.1 η"], answer: 1, explain: "μ/√(μ²+σ²) = 1/√2 ≈ 0.707; the simulation gave 0.704." },
+          { q: "Where AdamW (weight decay λ) comes to rest, which relation holds?", options: ["∇ℓ(θ) + λθ = 0", "m̂/(√v̂+ε) = −λθ", "θ = 0", "v̂ = λ"], answer: 1, explain: "The decay balances the normalised gradient, so |θᵢ| is at most about 1/λ; Adam + L2 instead satisfies ∇ℓ + λθ = 0." },
         ],
       },
       {
         t: "exercise",
         title: "Numerical: momentum regimes by hand",
-        prompt: "A quadratic direction has curvature λ = 4 and you use heavy-ball momentum with β = 0.81 and η = 0.05. (a) Compute ηλ and decide whether the roots of r² − (1+β−ηλ)r + β are real or complex. (b) Give the per-step contraction factor. (c) Is the method stable for this direction, and up to which η would it remain stable? (d) Repeat (a)–(b) for Nesterov with the same η and β.",
-        hint: "Complex iff (1−√β)² < ηλ < (1+√β)². Stability: ηλ < 2(1+β) for heavy ball.",
+        prompt: "A quadratic direction has curvature λ = 4, and you use heavy-ball momentum with β = 0.81 and η = 0.05. (a) Compute ηλ and decide whether the roots of r² − (1+β−ηλ)r + β are real or complex. (b) Give the shrink factor per step. (c) Is the method stable for this direction, and up to which η would it stay stable? (d) Repeat (a)–(b) for Nesterov with the same η and β.",
+        hint: "Complex if (1−√β)² < ηλ < (1+√β)². Stability: ηλ < 2(1+β) for heavy ball.",
         solution: [
-          { t: "p", text: String.raw`(a) $\eta\lambda = 0.2$. With $\sqrt\beta = 0.9$: $(1-0.9)^2 = 0.01$ and $(1+0.9)^2 = 3.61$. Since $0.01 < 0.2 < 3.61$ the roots are complex. Check: the polynomial is $r^2 - 1.61 r + 0.81$, discriminant $1.61^2 - 3.24 = 2.5921 - 3.24 = -0.6479 < 0$.` },
-          { t: "p", text: String.raw`(b) $|r| = \sqrt{\beta} = 0.9$ per step (the error spirals in, losing 10% per step). Plain gradient descent with the same η would contract by $|1 - 0.2| = 0.8$ — faster for this steep direction; momentum pays off on the flat directions.` },
-          { t: "p", text: String.raw`(c) Stable iff $\eta\lambda < 2(1+\beta) = 3.62$, i.e. $\eta < 3.62/4 = 0.905$.` },
+          { t: "p", text: String.raw`(a) $\eta\lambda = 0.2$. With $\sqrt\beta = 0.9$: $(1-0.9)^2 = 0.01$ and $(1+0.9)^2 = 3.61$. Since $0.01 < 0.2 < 3.61$, the roots are complex. Check: the polynomial is $r^2 - 1.61 r + 0.81$, discriminant $1.61^2 - 3.24 = 2.5921 - 3.24 = -0.6479 < 0$.` },
+          { t: "p", text: String.raw`(b) $|r| = \sqrt{\beta} = 0.9$ per step (the error spirals in, losing 10% per step). Plain gradient descent with the same η would shrink it by $|1 - 0.2| = 0.8$ — faster for this steep direction; momentum pays off on the flat ones.` },
+          { t: "p", text: String.raw`(c) Stable if $\eta\lambda < 2(1+\beta) = 3.62$, i.e. $\eta < 3.62/4 = 0.905$.` },
           { t: "p", text: String.raw`(d) Nesterov: polynomial $r^2 - (1+\beta)(1-\eta\lambda) r + \beta(1-\eta\lambda) = r^2 - 1.448 r + 0.648$. Discriminant $1.448^2 - 4(0.648) = 2.0967 - 2.592 = -0.4953 < 0$, complex, so $|r| = \sqrt{0.648} = 0.805$. Its stability limit is $\eta\lambda < 2(1.81)/(2.62) = 1.382$, i.e. $\eta < 0.345$.` },
         ],
       },
       {
         t: "exercise",
         title: "Coding: tune heavy ball for κ = 1000 and check the theory",
-        prompt: "Write a function returning the optimal (η, β) for heavy ball given μ and L. On a quadratic with 50 curvatures spread uniformly over [1, 1000] and start x₀ = (1, …, 1), compare after 300 and 1000 steps: gradient descent with η = 2/(μ+L), heavy ball with the optimal pair, and heavy ball with β fixed at 0.9 and at 0.99 (choose the best η on a grid by the 300-step result). Explain the ranking.",
+        prompt: "Write a function that returns the optimal (η, β) for heavy ball given μ and L. On a quadratic with 50 curvatures spread evenly over [1, 1000] and start x₀ = (1, …, 1), compare after 300 and 1000 steps: gradient descent with η = 2/(μ+L), heavy ball with the optimal pair, and heavy ball with β fixed at 0.9 and at 0.99 (pick the best η on a grid by the 300-step result). Explain the ranking.",
         hint: "Use the PyTorch form v ← βv + λx, x ← x − ηv; the gradient of ½Σλᵢxᵢ² is λ ⊙ x.",
         solution: [
           { t: "code", lang: "python", title: "tune_heavy_ball.py", code: EX_PY, output: EX_OUT },
           {
             t: "p",
-            text: String.raw`Gradient descent's rate $999/1001 = 0.998$ leaves the error at 0.78 after 300 steps. The optimal pair ($\eta^\star = 0.00376$, $\beta^\star = 0.881$) has asymptotic rate 0.9387 and is best after 1000 steps ($6.5\times10^{-25}$). After only 300 steps, β = 0.9 with a tuned η is slightly ahead: the optimal choice puts the extreme curvatures exactly on a double root, whose error decays like $t\,\rho^t$ instead of $\rho^t$, and this polynomial factor matters at short horizons. β = 0.99 is badly under-damped: every oscillating direction contracts only by $\sqrt{0.99} = 0.995$ per step, so it is barely better than gradient descent. More momentum is not better; the right momentum depends on κ.`,
+            text: String.raw`Gradient descent's rate $999/1001 = 0.998$ leaves the error at 0.78 after 300 steps. The optimal pair ($\eta^\star = 0.00376$, $\beta^\star = 0.881$) has long-run rate 0.9387 and is best after 1000 steps ($6.5\times10^{-25}$). After only 300 steps, β = 0.9 with a tuned η is slightly ahead: the optimal choice puts the extreme curvatures exactly on a double root, whose error shrinks like $t\,\rho^t$ instead of $\rho^t$, and that extra factor $t$ matters over short runs. β = 0.99 has far too little friction: every wobbling direction shrinks only by $\sqrt{0.99} = 0.995$ per step, barely better than gradient descent. More momentum is not better; the right momentum depends on κ.`,
           },
         ],
       },
@@ -1204,15 +1239,15 @@ for name, opt in optimizers.items():
         t: "list",
         items: [
           String.raw`EMA $m_t = \beta m_{t-1} + (1-\beta)g_t$: window $\approx 1/(1-\beta)$, mean age $\beta/(1-\beta)$, noise variance factor $(1-\beta)/(1+\beta)$.`,
-          String.raw`Bias correction $\hat m_t = m_t/(1-\beta^t)$ renormalises the weights of a zero-started EMA; for $\beta_2 = 0.999$ it matters for thousands of steps.`,
-          String.raw`Momentum is a low-pass filter: gain $1/(1-\beta)$ for constant gradients, $1/(1+\beta)$ for alternating ones; equivalently a heavy ball with friction $1-\beta$.`,
-          String.raw`Heavy ball on a quadratic: rate $\sqrt\beta$ for $(1-\sqrt\beta)^2 < \eta\lambda < (1+\sqrt\beta)^2$, stable iff $\eta\lambda < 2(1+\beta)$; optimal $\eta^\star = 4/(\sqrt L+\sqrt\mu)^2$, $\beta^\star = ((\sqrt\kappa-1)/(\sqrt\kappa+1))^2$, rate $(\sqrt\kappa-1)/(\sqrt\kappa+1)$.`,
-          String.raw`Nesterov: rate $\sqrt{\beta(1-\eta\lambda)}$ (extra damping of steep directions), stable iff $\eta\lambda < 2(1+\beta)/(1+2\beta)$; PyTorch form $\phi \leftarrow \phi - \eta(g + \beta v)$.`,
-          String.raw`AdaGrad: per-coordinate rate $\eta/\sqrt{\sum g^2}$ — $\propto 1/\sqrt{n_j}$ for sparse features, $\propto 1/\sqrt t$ for dense ones. RMSProp: $\eta/\mathrm{RMS}_{\text{recent}}(g)$.`,
+          String.raw`Bias correction $\hat m_t = m_t/(1-\beta^t)$ fixes the weights of a zero-started EMA; for $\beta_2 = 0.999$ it matters for thousands of steps.`,
+          String.raw`Momentum is a low-pass filter: gain $1/(1-\beta)$ for constant gradients, $1/(1+\beta)$ for flipping ones; equally, a heavy ball with friction $1-\beta$.`,
+          String.raw`Heavy ball on a quadratic: rate $\sqrt\beta$ for $(1-\sqrt\beta)^2 < \eta\lambda < (1+\sqrt\beta)^2$, stable only if $\eta\lambda < 2(1+\beta)$; best $\eta^\star = 4/(\sqrt L+\sqrt\mu)^2$, $\beta^\star = ((\sqrt\kappa-1)/(\sqrt\kappa+1))^2$, rate $(\sqrt\kappa-1)/(\sqrt\kappa+1)$.`,
+          String.raw`Nesterov: rate $\sqrt{\beta(1-\eta\lambda)}$ (extra braking on steep directions), stable only if $\eta\lambda < 2(1+\beta)/(1+2\beta)$; PyTorch form $\phi \leftarrow \phi - \eta(g + \beta v)$.`,
+          String.raw`AdaGrad: per-parameter rate $\eta/\sqrt{\sum g^2}$ — $\propto 1/\sqrt{n_j}$ for sparse features, $\propto 1/\sqrt t$ for dense ones. RMSProp: $\eta/\mathrm{RMS}_{\text{recent}}(g)$.`,
           String.raw`Adam's step $\approx \eta\,\mu_g/\sqrt{\mu_g^2+\sigma^2}$: sign-like when the signal is strong, shrinking with SNR; worst case $\approx 7.27\eta$ for default betas; ε sets where normalisation stops.`,
-          String.raw`AMSGrad uses $\max_s v_s$ so the effective rate never increases; fixes Reddi et al.'s counterexamples.`,
-          String.raw`Adam + L2 converges to $\nabla\ell + \lambda\theta = 0$; AdamW to $\hat m/\sqrt{\hat v} = -\lambda\theta$ (soft box $|\theta_i| \lesssim 1/\lambda$).`,
-          "Optimizers have implicit biases (GD → minimum-norm solution); SGD-vs-Adam generalisation differences are empirical and task-dependent.",
+          String.raw`AMSGrad uses $\max_s v_s$ so the rate never increases; fixes Reddi et al.'s counterexamples.`,
+          String.raw`Adam + L2 ends at $\nabla\ell + \lambda\theta = 0$; AdamW at $\hat m/\sqrt{\hat v} = -\lambda\theta$ (soft fence $|\theta_i| \lesssim 1/\lambda$).`,
+          "Optimizers have implicit biases (GD → minimum-norm solution); SGD-vs-Adam generalisation gaps are empirical and depend on the task.",
           "State memory: momentum 1×, Adam 2×, AMSGrad 3× parameters; mixed-precision Adam ≈ 16 bytes/parameter (112 GB for 7B).",
         ],
       },
@@ -1223,11 +1258,11 @@ for name, opt in optimizers.items():
       {
         t: "list",
         items: [
-          "[Learning Rate Schedules and Gradient Clipping](/learn/m06/lr-schedules) — every result here assumed a constant η; warm-up and decay are what make Adam stable at the start and precise at the end.",
-          "[Regularization: L1, L2, Dropout, Early Stopping](/learn/m07/regularization) — places weight decay and the implicit bias of optimizers among the other tools against overfitting.",
-          "[Batch, Layer and Group Normalization](/learn/m07/normalization) — normalisation improves the conditioning that limits every optimizer here, including the rotated ill-conditioning adaptive methods cannot fix.",
-          "[Weight Initialization](/learn/m07/initialization) — the scale of the first gradients, which decides how large the early Adam steps and momentum velocities are.",
-          "[Gradient Descent and Its Descendants](/learn/m06/gradient-descent) — revisit the update equations and the two-step worked example with the theory from this lesson in mind.",
+          "[Learning Rate Schedules and Gradient Clipping](/learn/m06/lr-schedules) — everything here assumed a fixed η; warm-up and decay make Adam stable at the start and precise at the end.",
+          "[Regularization: L1, L2, Dropout, Early Stopping](/learn/m07/regularization) — puts weight decay and optimizers' implicit bias next to the other tools against overfitting.",
+          "[Batch, Layer and Group Normalization](/learn/m07/normalization) — normalisation evens out the problem's shape, which limits every optimizer here, including the rotated unevenness adaptive methods cannot fix.",
+          "[Weight Initialization](/learn/m07/initialization) — sets the size of the first gradients, which decides how big early Adam steps and momentum velocities are.",
+          "[Gradient Descent and Its Descendants](/learn/m06/gradient-descent) — revisit the update rules and the two-step worked example with this lesson's theory in mind.",
         ],
       },
     ],

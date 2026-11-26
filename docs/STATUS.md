@@ -1,6 +1,6 @@
 ﻿# Implementation Status
 
-_Last updated: 2026-11-25 (round 8: Modules 15–20 completed — every topic in the curriculum, Module 0 through Module 20, now has a full lesson)._
+_Last updated: 2026-11-26 (round 9: the whole site rewritten in plain, beginner-friendly English — see below)._
 
 ## Complete and verified
 
@@ -89,6 +89,21 @@ To review: no TF/Keras, ONNX, Flask, MLflow or W&B code in these modules was exe
 "not executed in CI"); TorchScript and `torch.ao.quantization` emit deprecation warnings on Python 3.14 (silenced,
 stated in the lesson); the m18 latency benchmark is a single real run marked "timings vary between runs"; the min-p
 citation (Nguyen et al. 2024) and the Besiroglu et al. 2024 Chinchilla-replication remark deserve an editorial check.
+
+## Round 9 — plain-language rewrite (2026-11-26)
+At the user's request every learner-facing text was rewritten to read like a patient, friendly teacher, **without
+getting longer**: all 86 lessons (prose words now 93–100% of the original, average ≈ 95%), 701 glossary definitions,
+curriculum/paper/project text, page copy, lesson section labels ("The Big Idea", "The Math, Step by Step", "Try It
+Yourself"…), the narration and labels of all 46 simulators, and the notes in `web/lib/sim/*` and `web/lib/arch.ts`.
+Standard: `docs/CONTENT_GUIDE.md` §3; brief for rewrite agents: `docs/REWRITE_BRIEF.md`.
+Safety net: `node scripts/check-prose-only.mjs` compares every lesson with a git ref and fails if any code block,
+output, display formula, step formula, simulator, quiz answer, exercise/interview count, metadata or link changed, or
+if prose grew beyond 105% — all 86 pass. `check-lessons.mjs` (KaTeX strict, links, counts) passes; Python was not
+re-run because the guard proves code and outputs are byte-identical.
+Bugs fixed on the way: formulas whose LaTeX backslashes had been eaten by plain "..." strings (initialization,
+residual connections, regression losses, positional encoding), garbled characters (â‰¤, Ã—) on the Architectures and
+Projects pages, a count slip in the pooling lesson (five → six convolutions). A few minor history asides and paper
+titles were dropped to stay within the length budget (authors and years kept).
 
 ## Not started
 Project implementations (see ROADMAP.md). Every curriculum topic and every simulator in the specification exists.

@@ -22,7 +22,7 @@ import {
 
 const MODEL_URL = "/models/diffusion.json";
 const TITLE = "Diffusion Model Explorer (trained models)";
-const SUBTITLE = "Real DDPM noise-prediction networks running in your browser: forward noising, reverse denoising, DDPM vs DDIM, guided digits.";
+const SUBTITLE = "Real diffusion networks that predict noise, running in your browser. Add noise, remove it, compare DDPM vs DDIM, and guide digits.";
 const N_POINTS = 300;
 const LIM = 3.6; // half-width of the 2-D plot (standardised units)
 
@@ -196,10 +196,10 @@ function ForwardTab({ model, tabs }: { model: DiffusionModel; tabs: ReactNode })
       }
       aside={
         <div className="space-y-3">
-          <Narration title={t === 0 ? "t = 0: the data" : `t = ${t}: one closed-form jump`}>
+          <Narration title={t === 0 ? "t = 0: the data" : `t = ${t}: one direct jump`}>
             {t === 0
-              ? "300 real points from the two-moons data the model was trained on (standardised). Press Play: every frame jumps straight from x₀ to x_t with the closed form — no step-by-step simulation is needed."
-              : `x_t = √ᾱ_t·x₀ + √(1−ᾱ_t)·ε with ᾱ_${t} = ${fmt(ab, 4)}: each point keeps ${fmt(Math.sqrt(ab), 3)} of its position and receives ${fmt(Math.sqrt(1 - ab), 3)} units of standard Gaussian noise. ${snr > 1 ? "Signal still dominates (SNR > 1): the moons are visible." : snr > 0.05 ? "Noise now dominates (SNR < 1): the shape is fading." : "Essentially pure N(0, I) noise: the data is forgotten."}`}
+              ? "300 real points from the two-moons data the model trained on (standardised). Press Play. Each frame jumps straight from x₀ to x_t with one formula, so we never need to add noise step by step."
+              : `x_t = √ᾱ_t·x₀ + √(1−ᾱ_t)·ε with ᾱ_${t} = ${fmt(ab, 4)}: each point keeps ${fmt(Math.sqrt(ab), 3)} of its position and gets ${fmt(Math.sqrt(1 - ab), 3)} units of standard Gaussian noise. ${snr > 1 ? "Signal is still stronger (SNR, signal-to-noise ratio, > 1): you can see the moons." : snr > 0.05 ? "Noise is now stronger (SNR < 1): the shape is fading." : "This is almost pure N(0, I) noise. The data is gone."}`}
           </Narration>
           <div>
             <Stat k={`β_${t}`} v={fmt(beta, 4)} />
@@ -218,7 +218,7 @@ function ForwardTab({ model, tabs }: { model: DiffusionModel; tabs: ReactNode })
     >
       <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="min-w-0">
-          <Scatter pts={xt} label={`Two-moons data noised to step ${t}`} caption={`x_t for 300 points, ${kind} schedule (the same ε for every t, so you can follow each point).`} />
+          <Scatter pts={xt} label={`Two-moons data noised to step ${t}`} caption={`x_t for 300 points, ${kind} schedule. Each point uses the same ε at every t, so you can follow it.`} />
           {digitT && (
             <div className="mt-2 flex items-center gap-3">
               <div className="w-14 shrink-0">
@@ -228,14 +228,14 @@ function ForwardTab({ model, tabs }: { model: DiffusionModel; tabs: ReactNode })
               <div className="w-14 shrink-0">
                 <Digit px={digitT} label={`Digit noised to step ${t}`} size={56} />
               </div>
-              <span className="text-xs text-muted">the same q(x_t | x₀) applied to a 64-pixel digit</span>
+              <span className="text-xs text-muted">the same noising q(x_t | x₀), on a 64-pixel digit</span>
             </div>
           )}
         </div>
         <div className="min-w-0 space-y-1">
-          <LineChart title="ᾱ_t (fraction of signal variance left)" T={T} t={t} yMin={0} yMax={1} yTicks={[0, 0.5, 1]} label="alpha-bar for linear and cosine schedules" series={[{ name: "linear", color: "var(--accent)", y: Array.from(lin.alphaBar) }, { name: "cosine", color: "var(--clay)", y: Array.from(scheds.cosine.alphaBar) }]} />
+          <LineChart title="ᾱ_t (share of the signal left)" T={T} t={t} yMin={0} yMax={1} yTicks={[0, 0.5, 1]} label="alpha-bar for linear and cosine schedules" series={[{ name: "linear", color: "var(--accent)", y: Array.from(lin.alphaBar) }, { name: "cosine", color: "var(--clay)", y: Array.from(scheds.cosine.alphaBar) }]} />
           <LineChart title="log₁₀ SNR = log₁₀ ᾱ/(1−ᾱ)" T={T} t={t} yMin={-6} yMax={3} yTicks={[-6, -3, 0, 3]} label="log signal-to-noise ratio for both schedules" series={[{ name: "linear", color: "var(--accent)", y: logSnr(lin) }, { name: "cosine", color: "var(--clay)", y: logSnr(scheds.cosine) }]} />
-          <p className="text-xs text-muted">The linear schedule destroys information quickly in the middle steps; the cosine schedule keeps ᾱ near 1 longer and declines almost linearly in the middle. Both models below were trained with the linear one.</p>
+          <p className="text-xs text-muted">The linear schedule wipes out information fast in the middle steps. The cosine schedule keeps ᾱ near 1 longer, then falls almost in a straight line. Both models below were trained with the linear one.</p>
         </div>
       </div>
     </SimShell>
@@ -334,12 +334,12 @@ function ReverseTab({ model, tabs }: { model: DiffusionModel; tabs: ReactNode })
         <div className="space-y-3">
           <Narration title={k === 0 ? "Start: pure Gaussian noise" : done ? "Done: generated samples" : `${sampler.toUpperCase()} step ${k} of ${nSteps}`}>
             {k === 0
-              ? `x_T ~ N(0, I): ${N_POINTS} points with no information about the moons. Press Play — the trained network predicts the noise ε̂ in each point and the sampler removes part of it.`
+              ? `x_T ~ N(0, I): ${N_POINTS} points that know nothing about the moons. Press Play. The trained network guesses the noise ε̂ in each point, and the sampler removes part of it.`
               : done
-                ? `All ${nSteps} steps taken. Energy distance to real data: ${fmt(ed, 4)} (two independent real samples of this size differ by ${fmt(edRef, 4)}; 0 = identical distributions).`
+                ? `All ${nSteps} steps done. Energy distance (how different two point clouds are) to real data: ${fmt(ed, 4)}. Two separate real samples this size differ by ${fmt(edRef, 4)}; 0 = identical.`
                 : sampler === "ddpm"
-                  ? `Now at t = ${tNow}. The step from t = ${tNow + 1} used ε̂ (RMS ${fmt(epsNorm, 3)}) to compute the posterior mean, then added fresh noise σ·z with σ = √β̃ = ${fmt(sigmaLast, 3)}.`
-                  : `Now at t = ${tNow} (jumped from t = ${times[k - 1] + 1}). DDIM moves each point deterministically toward its predicted x̂₀ and re-noises it with the same ε̂ — no fresh noise.`}
+                  ? `Now at t = ${tNow}. The step from t = ${tNow + 1} used ε̂ (RMS ${fmt(epsNorm, 3)}) to find the posterior mean, the best guess for the less-noisy point. Then it added fresh noise σ·z with σ = √β̃ = ${fmt(sigmaLast, 3)}.`
+                  : `Now at t = ${tNow} (jumped from t = ${times[k - 1] + 1}). DDIM moves each point toward its predicted x̂₀ with no randomness, then re-noises it with the same ε̂. No fresh noise is added.`}
           </Narration>
           <div>
             <Stat k="current t" v={tNow} />
@@ -378,10 +378,10 @@ function ReverseTab({ model, tabs }: { model: DiffusionModel; tabs: ReactNode })
     >
       <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Scatter pts={x} ghost={showX0 && lastX0 && !done ? lastX0 : null} label={`Samples at reverse step ${k}`} caption={<>Generated points (blue){showX0 ? ", the network's current guess x̂₀ (gold)" : ""}. t = {tNow}.</>} />
-        <Scatter pts={done ? x : real} real={done ? real : undefined} label={done ? "Generated samples over real data" : "Real training distribution"} caption={done ? "Final comparison: generated (blue) over real data (grey)." : "Target: real two-moons data (what the model was trained on)."} />
+        <Scatter pts={done ? x : real} real={done ? real : undefined} label={done ? "Generated samples over real data" : "Real training distribution"} caption={done ? "Final check: generated (blue) on top of real data (grey)." : "Target: real two-moons data (what the model trained on)."} />
       </div>
       <p className="mt-2 text-xs text-muted">
-        <span className="font-medium text-accent">A real trained model.</span> ε-prediction MLP with {net.nParams.toLocaleString()} parameters ({net.json.hidden.join("–")} SiLU units, 32-d sinusoidal time embedding), trained in PyTorch for {net.json.training.steps.toLocaleString()} steps on 20,000 two-moons points, T = {T}, linear β schedule; final training loss {net.json.training.final_loss}.
+        <span className="font-medium text-accent">This is a real trained model.</span> An MLP that predicts the noise ε, with {net.nParams.toLocaleString()} parameters ({net.json.hidden.join("–")} SiLU units, 32-d sine-wave time embedding). Trained in PyTorch for {net.json.training.steps.toLocaleString()} steps on 20,000 two-moons points, T = {T}, linear β schedule. Final training loss {net.json.training.final_loss}.
       </p>
     </SimShell>
   );
@@ -453,14 +453,14 @@ function DigitsTab({ model, net, tabs }: { model: DiffusionModel; net: Net; tabs
         <div className="space-y-3">
           <Narration title={k === 0 ? "Start: 10 images of pure noise" : done ? "Done" : `${sampler.toUpperCase()} step ${k} of ${nSteps} (t = ${tNow})`}>
             {k === 0
-              ? `Each image is 64 independent N(0, 1) pixels. The network gets the class label c and, for guidance, is also run with the null label ∅; the two predictions are combined as ε̃ = (1+w)·ε(x, c) − w·ε(x, ∅) with w = ${w}.`
+              ? `Each image is 64 independent N(0, 1) pixels. The network gets the class label c. For guidance, it also runs with an empty label ∅. The two guesses are combined as ε̃ = (1+w)·ε(x, c) − w·ε(x, ∅), with w = ${w}.`
               : done
-                ? `Generated in ${nSteps} network evaluations per image${w ? " (×2 for guidance)" : ""}. Compare with real digits below. Try w = 0 (no guidance): shapes get vaguer and some come out as the wrong class; large w gives bolder, more uniform digits.`
-                : `Top row: the current noisy x_t. Bottom row: the network's guess of the finished image x̂₀ = (x_t − √(1−ᾱ_t)ε̃)/√ᾱ_t. The guess settles early (coarse shape) and later steps refine detail.`}
+                ? `Made with ${nSteps} network runs per image${w ? " (×2 for guidance)" : ""}. Compare with the real digits below. Try w = 0 (no guidance): shapes get blurrier and some come out as the wrong digit. A large w gives bolder, more alike digits.`
+                : `Top row: the current noisy x_t. Bottom row: the network's guess of the finished image, x̂₀ = (x_t − √(1−ᾱ_t)ε̃)/√ᾱ_t. The rough shape settles early, and later steps add detail.`}
           </Narration>
           <div className="text-xs">
             <div className="mb-1 font-medium">Measured in PyTorch (300 images, 30 per class)</div>
-            <p className="mb-1 text-muted">Share classified as the requested digit by a logistic-regression classifier trained on the real digits (which scores {fmt(met.classifier_train_acc_on_real * 100, 1)}% on them):</p>
+            <p className="mb-1 text-muted">Share that a logistic-regression classifier labels as the requested digit. It was trained on the real digits and scores {fmt(met.classifier_train_acc_on_real * 100, 1)}% on them:</p>
             <Stat k="DDPM, w = 0" v={`${fmt(met.acc_ddpm_w0 * 100, 1)}%`} />
             <Stat k="DDPM, w = 1" v={`${fmt(met.acc_ddpm_w1 * 100, 1)}%`} />
             <Stat k="DDPM, w = 3" v={`${fmt(met.acc_ddpm_w3 * 100, 1)}%`} />
@@ -502,7 +502,7 @@ function DigitsTab({ model, net, tabs }: { model: DiffusionModel; net: Net; tabs
           </>
         )}
         <p className="text-xs text-muted">
-          <span className="font-medium text-accent">A real trained model.</span> Class-conditional ε-prediction MLP with {net.nParams.toLocaleString()} parameters ({net.json.hidden.join("–")} SiLU units), trained in PyTorch for {net.json.training.steps.toLocaleString()} steps on the 1,797 8×8 scikit-learn digits; the label was dropped 10% of the time so the same network also predicts unconditionally (classifier-free guidance). Final training loss {net.json.training.final_loss}. With so little data it partly memorises: compare the nearest-train distance with the real-to-real distance.
+          <span className="font-medium text-accent">This is a real trained model.</span> An MLP that predicts the noise ε for a given class, with {net.nParams.toLocaleString()} parameters ({net.json.hidden.join("–")} SiLU units). Trained in PyTorch for {net.json.training.steps.toLocaleString()} steps on the 1,797 8×8 scikit-learn digits. The label was hidden 10% of the time, so the same network also works with no label (classifier-free guidance). Final training loss {net.json.training.final_loss}. With so little data it partly memorises: compare the nearest-train distance with the real-to-real distance.
         </p>
       </div>
     </SimShell>
@@ -539,7 +539,7 @@ export default function DiffusionSim() {
   if (error) {
     return (
       <SimShell title={TITLE} subtitle={SUBTITLE}>
-        <p className="text-sm text-clay">Could not load the model ({error}). Check your connection and reload the page.</p>
+        <p className="text-sm text-clay">Could not load the model ({error}). Check your internet connection and reload the page.</p>
       </SimShell>
     );
   }
@@ -547,7 +547,7 @@ export default function DiffusionSim() {
     return (
       <SimShell title={TITLE} subtitle={SUBTITLE}>
         <div className="flex h-40 items-center justify-center text-sm text-muted" role="status">
-          Loading the trained models (≈350 KB of weights)…
+          Loading the trained models (about 350 KB of weights)…
         </div>
       </SimShell>
     );
@@ -561,7 +561,7 @@ export default function DiffusionSim() {
       {tab === "digits" && model.digits && <DigitsTab model={model} net={model.digits} tabs={tabs} />}
       {check && (
         <p className="-mt-4 mb-6 px-1 text-[11px] text-faint">
-          Browser engine vs PyTorch on stored verification vectors: max |Δε| = {check.epsMaxDiff.toExponential(1)}, max |Δx₀| over full DDIM trajectories = {check.ddimMaxDiff.toExponential(1)} ({check.checked} numbers checked).
+          Your browser vs PyTorch on saved test inputs: max |Δε| = {check.epsMaxDiff.toExponential(1)}, max |Δx₀| over full DDIM trajectories = {check.ddimMaxDiff.toExponential(1)} ({check.checked} numbers checked).
         </p>
       )}
     </div>

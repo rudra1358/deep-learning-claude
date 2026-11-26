@@ -85,23 +85,23 @@ export default function GradientDescentSim() {
 
   let story: ReactNode;
   if (pending) {
-    const dir = pending.g > 0 ? "uphill to the right, so the step goes left" : pending.g < 0 ? "uphill to the left, so the step goes right" : "flat, so the step is zero";
+    const dir = pending.g > 0 ? "uphill is to the right, so we step left" : pending.g < 0 ? "uphill is to the left, so we step right" : "flat, so the step is zero";
     const better = pending.fNext < pending.fx;
     story = (
       <>
         <p>
-          Step {k + 1}: at x = {fmt(pending.x)}, the slope is f&apos;(x) = {fmt(pending.g)} — {dir}.
+          Step {k + 1}: at x = {fmt(pending.x)}, the slope is f&apos;(x) = {fmt(pending.g)}: {dir}.
         </p>
         <p className="mt-1 font-mono text-xs text-text">
           x ← {fmt(pending.x)} − {fmt(eta)} × ({fmt(pending.g)}) = {fmt(pending.xNext)}
         </p>
         <p className="mt-1">
-          f goes from {fmt(pending.fx)} to {fmt(pending.fNext)} ({better ? "decrease" : "increase — overshoot"}).
+          f goes from {fmt(pending.fx)} to {fmt(pending.fNext)} ({better ? "lower, good" : "higher: we overshot"}).
         </p>
       </>
     );
   } else if (traj.diverged) {
-    story = <p>Diverged after {steps.length} steps: |x| exceeded {divergeBound(fn)} and is still growing — each step overshot further than the last. Reduce η below the stability limit.</p>;
+    story = <p>Blew up (diverged) after {steps.length} steps: |x| passed {divergeBound(fn)} and keeps growing. Each step overshot further than the last. Lower η below the stability limit.</p>;
   } else {
     story = (
       <p>
@@ -113,7 +113,7 @@ export default function GradientDescentSim() {
   return (
     <SimShell
       title="Gradient Descent in 1-D"
-      subtitle="x ← x − η·f′(x). Click the plot to choose a starting point."
+      subtitle="x ← x − η·f′(x): step downhill, scaled by the learning rate η. Click the plot to pick a starting point."
       controls={
         <div className="space-y-2.5">
           <Controls s={s} />
@@ -138,14 +138,14 @@ export default function GradientDescentSim() {
             <p className="text-muted">{fn.note}</p>
             {Number.isFinite(fCur) && (
               <p className="mt-1.5 text-muted">
-                Local curvature f&apos;&apos;(x) = {fmt(fn.d2f(xCur))}.{" "}
+                Curvature here (how fast the slope changes) f&apos;&apos;(x) = {fmt(fn.d2f(xCur))}.{" "}
                 {Number.isFinite(etaStable) ? (
                   <>
-                    A quadratic with this curvature is stable for η &lt; 2/f&apos;&apos; = {fmt(etaStable)}; your η = {fmt(eta)} is{" "}
+                    A parabola with this curvature is stable for η &lt; 2/f&apos;&apos; = {fmt(etaStable)}. Your η = {fmt(eta)} is{" "}
                     <span className={eta < etaStable ? "text-accent" : "text-clay"}>{eta < etaStable ? "below" : "above"}</span> it.
                   </>
                 ) : (
-                  "Curvature ≤ 0 here: the quadratic model gives no stability limit."
+                  "Curvature ≤ 0 here, so the parabola rule gives no stability limit."
                 )}
               </p>
             )}
@@ -219,7 +219,7 @@ export default function GradientDescentSim() {
         )}
         {!inX(xCur) && (
           <text x={xCur > xb ? M.l + PW - 6 : M.l + 6} y={M.t + PH / 2} textAnchor={xCur > xb ? "end" : "start"} fontSize={11} fill="var(--clay)">
-            {xCur > xb ? "→" : "←"} off chart: x = {fmt(xCur, 2)}
+            {xCur > xb ? "→" : "←"} off the chart: x = {fmt(xCur, 2)}
           </text>
         )}
       </svg>
@@ -238,7 +238,7 @@ export default function GradientDescentSim() {
             {history.length === 0 && (
               <tr>
                 <td colSpan={6} className="py-1 text-faint">
-                  No updates yet — press Step.
+                  No updates yet. Press Step.
                 </td>
               </tr>
             )}

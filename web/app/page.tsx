@@ -19,21 +19,21 @@ export default function Home() {
       {/* Hero */}
       <section className="grid items-center gap-10 py-16 md:py-24 lg:grid-cols-[1.1fr_1fr]">
         <div>
-          <p className="mb-4 text-sm text-accent">An interactive deep learning curriculum</p>
+          <p className="mb-4 text-sm text-accent">A hands-on deep learning course</p>
           <h1 className="font-serif text-4xl leading-[1.1] font-semibold tracking-tight md:text-[3.4rem]">
             Learn deep learning
             <br />
-            by watching it compute.
+            by watching it work.
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
-            From vectors and derivatives to backpropagation, CNNs, LSTMs and Transformers. Every concept is explained from first principles, derived mathematically, implemented in Python, and shown in a simulator that runs the real calculation.
+            From vectors and derivatives to backpropagation, CNNs, LSTMs and Transformers. Every idea is built up from scratch, worked through in math, coded in Python, and shown in a simulator that does the real calculation.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href={`/learn/${firstLesson}`} className="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-bg hover:bg-accent-strong">
               Start learning <ArrowRight size={16} />
             </Link>
             <Link href="/curriculum" className="inline-flex items-center gap-2 rounded-lg border border-border-strong bg-surface px-5 py-2.5 text-sm font-medium hover:bg-surface-2">
-              Explore the curriculum
+              See all lessons
             </Link>
           </div>
           <dl className="mt-10 flex gap-8 text-sm">
@@ -57,13 +57,13 @@ export default function Home() {
         </div>
         <figure className="card p-5">
           <HeroNetwork />
-          <figcaption className="mt-2 text-center text-xs text-faint">A real forward and backward pass: activations on neurons, gradients δ beneath them.</figcaption>
+          <figcaption className="mt-2 text-center text-xs text-faint">A real forward and backward pass: each neuron's output on top, its gradient δ below.</figcaption>
         </figure>
       </section>
 
       {/* Roadmap preview */}
       <section className="border-t border-border py-16">
-        <SectionHead title="One path, from first principles to research" link={{ href: "/roadmap", label: "Full roadmap" }} />
+        <SectionHead title="One path, from the basics to research" link={{ href: "/roadmap", label: "Full roadmap" }} />
         <ol className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
           {PHASES.map((ph, i) => {
             const mods = MODULES.filter((m) => m.phase === ph);
@@ -101,7 +101,7 @@ export default function Home() {
 
       {/* Flagship simulators */}
       <section className="border-t border-border py-16">
-        <SectionHead title="Simulations that run the real algorithm" link={{ href: "/playground", label: "All simulators" }} />
+        <SectionHead title="Simulators that do the real math" link={{ href: "/playground", label: "All simulators" }} />
         <div className="grid gap-4 md:grid-cols-3">
           {flagship.map(([id, s]) => (
             <Link key={id} href={`/playground/${id}`} className="card group p-6 hover:border-border-strong">
@@ -124,11 +124,11 @@ export default function Home() {
       {/* Lesson structure */}
       <section className="grid gap-10 border-t border-border py-16 lg:grid-cols-[1fr_1.3fr]">
         <div>
-          <h2 className="font-serif text-3xl font-semibold">Every lesson, the same sixteen steps</h2>
+          <h2 className="font-serif text-3xl font-semibold">Every lesson follows the same 16 steps</h2>
           <p className="mt-4 text-muted">
-            Concepts are never introduced before their prerequisites. Each lesson moves from intuition to mechanism, to mathematics with worked numbers, to a simulation, to code you can run — first from scratch in NumPy, then in PyTorch and Keras — and ends with practice, interview questions and a recap.
+            You never meet an idea before the ones it builds on. Each lesson goes from the big idea, to how it works, to the math with real numbers, to a simulator, to code you can run — first from scratch in NumPy, then in PyTorch and Keras — and ends with practice, interview questions and a recap.
           </p>
-          <p className="mt-4 text-muted">All code examples are executed during authoring and show their real output. NumPy examples run right in your browser.</p>
+          <p className="mt-4 text-muted">Every code example was actually run, and shows its real output. NumPy examples run right in your browser.</p>
         </div>
         <ol className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
           {SECTION_ORDER.map(([k, label], i) => (
@@ -142,7 +142,7 @@ export default function Home() {
 
       {/* Projects */}
       <section className="border-t border-border py-16">
-        <SectionHead title="Three end-to-end industry projects" link={{ href: "/projects", label: "Project details" }} />
+        <SectionHead title="Three complete real-world projects" link={{ href: "/projects", label: "See the projects" }} />
         <div className="grid gap-4 md:grid-cols-3">
           {PROJECTS.map((p) => (
             <Link key={p.id} href={`/projects#${p.id}`} className="card group p-6 hover:border-border-strong">

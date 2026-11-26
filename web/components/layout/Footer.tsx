@@ -12,7 +12,7 @@ export function Footer() {
       <div className="mx-auto grid max-w-[1200px] gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <div className="font-serif font-semibold">Deep Learning University</div>
-          <p className="mt-2 text-sm text-muted">Learn deep learning by watching it compute — every number in every simulation is the real calculation.</p>
+          <p className="mt-2 text-sm text-muted">Learn deep learning by watching it work — every number in every simulator is really calculated.</p>
         </div>
         {COLS.map((c) => (
           <div key={c.title}>

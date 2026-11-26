@@ -8,16 +8,16 @@ const GROUPS: { title: string; items: { name: string; by: string; url: string; n
   {
     title: "Textbooks (free online)",
     items: [
-      { name: "Deep Learning", by: "Goodfellow, Bengio & Courville (MIT Press, 2016)", url: "https://www.deeplearningbook.org/", note: "The standard graduate reference; strong on mathematical foundations." },
-      { name: "Dive into Deep Learning", by: "Zhang, Lipton, Li & Smola", url: "https://d2l.ai/", note: "Interactive book with runnable PyTorch/TensorFlow/JAX code." },
+      { name: "Deep Learning", by: "Goodfellow, Bengio & Courville (MIT Press, 2016)", url: "https://www.deeplearningbook.org/", note: "The classic in-depth textbook; great on the math behind deep learning." },
+      { name: "Dive into Deep Learning", by: "Zhang, Lipton, Li & Smola", url: "https://d2l.ai/", note: "A hands-on book with PyTorch/TensorFlow/JAX code you can run." },
       { name: "Mathematics for Machine Learning", by: "Deisenroth, Faisal & Ong (Cambridge, 2020)", url: "https://mml-book.github.io/", note: "Linear algebra, calculus and probability for ML." },
-      { name: "Neural Networks and Deep Learning", by: "Michael Nielsen", url: "http://neuralnetworksanddeeplearning.com/", note: "A gentle, thorough derivation of backpropagation." },
+      { name: "Neural Networks and Deep Learning", by: "Michael Nielsen", url: "http://neuralnetworksanddeeplearning.com/", note: "A gentle, careful walk-through of how backpropagation works." },
     ],
   },
   {
     title: "Official documentation",
     items: [
-      { name: "PyTorch documentation & tutorials", by: "PyTorch", url: "https://pytorch.org/docs/stable/index.html", note: "API reference for torch, nn, optim, autograd." },
+      { name: "PyTorch documentation & tutorials", by: "PyTorch", url: "https://pytorch.org/docs/stable/index.html", note: "Reference pages for torch, nn, optim and autograd." },
       { name: "TensorFlow / Keras guides", by: "TensorFlow", url: "https://www.tensorflow.org/guide", note: "Keras APIs, GradientTape, SavedModel." },
       { name: "NumPy documentation", by: "NumPy", url: "https://numpy.org/doc/stable/", note: "Arrays, broadcasting, linear algebra." },
       { name: "Hugging Face documentation", by: "Hugging Face", url: "https://huggingface.co/docs", note: "Transformers, Tokenizers, Diffusers, Datasets." },
@@ -35,7 +35,7 @@ const GROUPS: { title: string; items: { name: string; by: string; url: string; n
     items: [
       { name: "Hugging Face Datasets Hub", by: "Hugging Face", url: "https://huggingface.co/datasets", note: "Thousands of text, vision and audio datasets." },
       { name: "torchvision datasets", by: "PyTorch", url: "https://pytorch.org/vision/stable/datasets.html", note: "MNIST, CIFAR, ImageNet loaders and more." },
-      { name: "COCO", by: "Common Objects in Context", url: "https://cocodataset.org/", note: "Detection, segmentation and captioning benchmark." },
+      { name: "COCO", by: "Common Objects in Context", url: "https://cocodataset.org/", note: "A standard test set for detection, segmentation and captioning." },
     ],
   },
 ];
@@ -43,8 +43,8 @@ const GROUPS: { title: string; items: { name: string; by: string; url: string; n
 export default function ResourcesPage() {
   return (
     <Container>
-      <PageHeader eyebrow="Resources" title="Further reading and tools">
-        A short, curated list. Use these alongside the lessons — not instead of understanding the derivations yourself.
+      <PageHeader eyebrow="Resources" title="More to read and use">
+        A short, hand-picked list. Use these alongside the lessons — not as a replacement for working through the math yourself.
       </PageHeader>
       {GROUPS.map((g) => (
         <section key={g.title} className="py-8">

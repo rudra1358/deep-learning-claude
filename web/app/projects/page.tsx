@@ -10,15 +10,15 @@ export const metadata: Metadata = { title: "Industry Projects" };
 export default function ProjectsPage() {
   return (
     <Container>
-      <PageHeader eyebrow="Capstone projects" title="Three end-to-end deep learning systems">
-        Real engineering projects: requirements, architecture, data, model selection, training, evaluation, an API, a frontend and deployment. Each runs real model inference â€” no canned outputs.
+      <PageHeader eyebrow="Capstone projects" title="Three complete deep learning systems">
+        Real projects, built the way companies build them: requirements, design, data, choosing a model, training, testing, an API, a frontend and deployment. Each one runs a real model — no fake, pre-made outputs.
       </PageHeader>
       <div className="my-8 rounded-lg border border-gold/40 bg-gold-soft p-4 text-sm">
-        <strong>Status:</strong> the designs below are final; the step-by-step build guides and source repositories are the next phase of development (see <code className="font-mono text-xs">docs/ROADMAP.md</code>). Milestones you tick here are saved to your progress.
+        <strong>Status:</strong> the plans below are final. Step-by-step build guides and source code come next (see <code className="font-mono text-xs">docs/ROADMAP.md</code>). Milestones you tick here are saved to your progress.
       </div>
       {PROJECTS.map((p, i) => (
         <article key={p.id} id={p.id} className="scroll-mt-20 border-b border-border py-12 last:border-0">
-          <div className="font-mono text-sm text-faint">Project {i + 1} Â· {p.domain}</div>
+          <div className="font-mono text-sm text-faint">Project {i + 1} · {p.domain}</div>
           <h2 className="mt-1 font-serif text-3xl font-semibold">{p.title}</h2>
           <p className="mt-3 max-w-3xl text-lg text-muted">{p.problem}</p>
 
@@ -26,9 +26,9 @@ export default function ProjectsPage() {
             <div>
               <H>Use cases</H>
               <ul className="list-disc space-y-1 pl-5 text-sm">{p.useCases.map((u) => <li key={u}>{u}</li>)}</ul>
-              <H>Functional requirements</H>
+              <H>What it must do</H>
               <ul className="list-disc space-y-1 pl-5 text-sm">{p.requirements.functional.map((u) => <li key={u}>{u}</li>)}</ul>
-              <H>Non-functional requirements</H>
+              <H>Quality targets (non-functional)</H>
               <ul className="list-disc space-y-1 pl-5 text-sm">{p.requirements.nonFunctional.map((u) => <li key={u}>{u}</li>)}</ul>
             </div>
             <div>
@@ -67,13 +67,13 @@ export default function ProjectsPage() {
               <ul className="space-y-2 text-sm">
                 {p.models.map((m) => (
                   <li key={m.name}>
-                    <span className="font-medium">{m.name}</span> â€” <span className="text-muted">{m.why}</span>
+                    <span className="font-medium">{m.name}</span> — <span className="text-muted">{m.why}</span>
                   </li>
                 ))}
               </ul>
               <H>Hardware</H>
               <p className="text-sm text-muted">{p.hardware}</p>
-              <H>Prerequisite lessons</H>
+              <H>Lessons to take first</H>
               <div className="flex flex-wrap gap-2">
                 {p.prerequisites.map((t) => (
                   <Link key={t} href={`/learn/${t}`} className="rounded-full border border-border px-2.5 py-1 text-xs hover:border-accent">
@@ -83,7 +83,7 @@ export default function ProjectsPage() {
               </div>
             </div>
             <div>
-              <H>Repository structure</H>
+              <H>Folder structure</H>
               <pre className="overflow-x-auto rounded-lg border border-border bg-code p-4 font-mono text-xs leading-relaxed">{p.tree}</pre>
               <H>Milestones</H>
               <MilestoneList projectId={p.id} milestones={p.milestones} />

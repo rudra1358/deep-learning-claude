@@ -17,13 +17,13 @@ import {
 
 const STAGES = [
   "Float weights",
-  "Calibrate the range",
+  "Measure the range",
   "Scale s",
   "Zero-point z",
   "Divide by s",
   "Add z and round",
   "Clip to the integer grid",
-  "Dequantize",
+  "Turn back into floats",
   "Error and model output",
 ] as const;
 
@@ -89,29 +89,29 @@ export default function QuantizationSim() {
     const where = `weight w[${selRow}][${selCol}] = ${sgn(x, 4)}`;
     switch (stage) {
       case 0:
-        return `Three rows (output channels) of a real weight matrix; their magnitudes differ by about 10×. We follow ${where}. A ${bits}-bit grid has ${levels} levels.`;
+        return `Here are three rows (output channels) of a real weight matrix. Their sizes differ by about 10×. We follow ${where}. A ${bits}-bit grid has only ${levels} allowed values.`;
       case 1:
         return mode === "symmetric"
           ? `Symmetric: the range is ±max|w| ${gran === "per-tensor" ? "over the whole matrix" : "of this row"} = ±${fmt(Math.max(Math.abs(rMin), Math.abs(rMax)), 4)}${clip < 1 ? `, clipped to ${Math.round(clip * 100)}% → ±${fmt(p.hi, 4)}` : ""}.`
-          : `Asymmetric: min = ${sgn(rMin, 4)}, max = ${sgn(rMax, 4)} ${gran === "per-tensor" ? "over the whole matrix" : "of this row"}, extended to contain 0${clip < 1 ? ` and clipped to ${Math.round(clip * 100)}%` : ""}.`;
+          : `Asymmetric: min = ${sgn(rMin, 4)}, max = ${sgn(rMax, 4)} ${gran === "per-tensor" ? "over the whole matrix" : "of this row"}, stretched to include 0${clip < 1 ? ` and clipped to ${Math.round(clip * 100)}%` : ""}.`;
       case 2:
         return mode === "symmetric"
-          ? `s = range max / (2^(b−1) − 1) = ${fmt(p.hi, 4)} / ${p.qmax} = ${fmt(p.scale, 5)}. Grid ticks are spaced s apart.`
-          : `s = (β − α) / (2^b − 1) = ${fmt(p.qmax * p.scale, 4)} / ${p.qmax} = ${fmt(p.scale, 5)}. Grid ticks are spaced s apart.`;
+          ? `s = range max / (2^(b−1) − 1) = ${fmt(p.hi, 4)} / ${p.qmax} = ${fmt(p.scale, 5)}. s is the gap between grid ticks.`
+          : `s = (β − α) / (2^b − 1) = ${fmt(p.qmax * p.scale, 4)} / ${p.qmax} = ${fmt(p.scale, 5)}. s is the gap between grid ticks.`;
       case 3:
-        return mode === "symmetric" ? "Symmetric quantization fixes z = 0: real 0 maps to integer 0." : `z = round(−α / s) = ${p.zero}: the integer that represents real 0 exactly.`;
+        return mode === "symmetric" ? "Symmetric quantization fixes the zero-point z = 0, so real 0 becomes integer 0." : `z = round(−α / s) = ${p.zero}. This is the integer that stands for real 0 exactly.`;
       case 4:
-        return `${where} → w / s = ${sgn(x, 4)} / ${fmt(p.scale, 5)} = ${sgn(tr.divided, 4)} (in units of grid steps).`;
+        return `${where} → w / s = ${sgn(x, 4)} / ${fmt(p.scale, 5)} = ${sgn(tr.divided, 4)} (measured in grid steps).`;
       case 5:
         return `w / s + z = ${sgn(tr.shifted, 4)} → round → ${tr.rounded}.`;
       case 6:
         return tr.clipped
-          ? `${tr.rounded} lies outside [${p.qmin}, ${p.qmax}], so it is clipped to q = ${tr.q}. Clipping error can exceed s/2.`
-          : `${tr.rounded} is inside [${p.qmin}, ${p.qmax}]: stored integer q = ${tr.q}. ${qm.clippedCount} of 24 weights were clipped.`;
+          ? `${tr.rounded} is outside [${p.qmin}, ${p.qmax}], so it gets clipped (cut off) to q = ${tr.q}. Clipping error can be bigger than s/2.`
+          : `${tr.rounded} is inside [${p.qmin}, ${p.qmax}], so we store the integer q = ${tr.q}. ${qm.clippedCount} of 24 weights were clipped.`;
       case 7:
         return `ŵ = s (q − z) = ${fmt(p.scale, 5)} × (${tr.q} − ${p.zero}) = ${sgn(tr.xhat, 4)}.`;
       default:
-        return `Error w − ŵ = ${sgn(tr.error, 5)} (|error| ${tr.clipped ? "includes clipping" : `≤ s/2 = ${fmt(p.scale / 2, 5)}`}). Whole matrix: SQNR ${db(qm.stats.sqnrDb)} dB; the classifier keeps ${kept}/${outputs.length} decisions.`;
+        return `Error w − ŵ = ${sgn(tr.error, 5)} (|error| ${tr.clipped ? "includes clipping" : `≤ s/2 = ${fmt(p.scale / 2, 5)}`}). Whole matrix: SQNR (signal-to-noise, higher is better) ${db(qm.stats.sqnrDb)} dB. The classifier keeps ${kept}/${outputs.length} of its answers.`;
     }
   })();
 
@@ -121,7 +121,7 @@ export default function QuantizationSim() {
   return (
     <SimShell
       title="Quantization"
-      subtitle="Round real weights onto a b-bit integer grid: scale, zero-point, rounding, clipping, error — and the effect on a tiny classifier."
+      subtitle="Squeeze real weights onto a small b-bit integer grid to save memory. Follow the scale, zero-point, rounding, clipping and error, and see how a tiny classifier copes."
       controls={
         <Controls
           s={s}
@@ -209,7 +209,7 @@ export default function QuantizationSim() {
                 </tbody>
               </table>
             </div>
-            <div className="mt-1 text-xs text-muted">Logits = W x + b on 6 fixed points; bias kept in float. Bold = predicted class.</div>
+            <div className="mt-1 text-xs text-muted">Logits (raw scores) = W x + b on 6 fixed points. The bias stays in float. Bold = predicted class.</div>
           </div>
         </div>
       }
@@ -300,7 +300,7 @@ export default function QuantizationSim() {
         <Narration title={`Step ${stage + 1}: ${STAGES[stage]}`}>{narration}</Narration>
       </div>
       <p className="mt-2 text-xs text-muted">
-        Range of row {selRow}: [{sgn(rowMin, 3)}, {sgn(rowMax, 3)}]. Gold dashed lines mark the representable (clipping) range; ticks are grid levels.
+        Range of row {selRow}: [{sgn(rowMin, 3)}, {sgn(rowMax, 3)}]. Gold dashed lines mark the range the grid can hold (beyond it, values get clipped). Ticks are the grid values.
       </p>
     </SimShell>
   );

@@ -172,23 +172,23 @@ export default function RlGridworldSim() {
   let story: string;
   if (!tr) {
     title = "Before training: Q = 0 everywhere";
-    story = `The agent knows nothing; every action value is 0 and ties are broken at random. ${randomStart ? "Each episode starts in a random free cell (exploring starts)" : "Each episode starts at S"}. Press Step to take one action and apply one Q-learning update, or switch to "episode" to run whole episodes per tick.`;
+    story = `The agent knows nothing yet. Every action value (Q) is 0, so ties are broken at random. ${randomStart ? "Each episode (one trip) starts in a random free cell (exploring starts)" : "Each episode (one trip) starts at S"}. Press Step to take one action and do one Q-learning update. Or switch to "episode" to run whole trips per tick.`;
   } else {
     title = `Episode ${nEp + (L.t > 0 ? 1 : 0)} · update of Q${rc(tr.s)}, ${ARROWS[tr.a]}`;
     story =
-      `In ${rc(tr.s)} the agent took ${ARROWS[tr.a]} (${tr.explored ? `random, probability ε = ${fmt(epsilon, 2)}` : "greedy"}) and landed in ${rc(tr.s2)} with reward ${tr.r}. ` +
+      `In ${rc(tr.s)} the agent took ${ARROWS[tr.a]} (${tr.explored ? `random, probability ε = ${fmt(epsilon, 2)}` : "greedy, the best-looking move"}) and landed in ${rc(tr.s2)} with reward ${tr.r}. ` +
       (tr.done
-        ? `That cell is terminal, so the target is just r = ${fmt(tr.target, 3)}. `
+        ? `That cell ends the episode, so the target is just r = ${fmt(tr.target, 3)}. `
         : `Target = r + γ·maxₐ′Q(s′,a′) = ${tr.r} + ${fmt(tr.gamma, 2)}×${fmt(tr.maxNext, 3)} = ${fmt(tr.target, 3)}. `) +
-      `TD error = ${fmt(tr.target, 3)} − ${fmt(tr.oldQ, 3)} = ${fmt(tr.tdError, 3)}; Q ← ${fmt(tr.oldQ, 3)} + ${fmt(alpha, 2)}×${fmt(tr.tdError, 3)} = ${fmt(tr.newQ, 3)}.`;
-    if (agree.optimal === agree.total) story += ` The greedy policy is now optimal in all ${agree.total} states — even though some Q-values are still inaccurate, their ranking is right.`;
-    else if (nEp > 30) story += ` ${agree.total - agree.optimal} state(s) still have a non-optimal greedy arrow (red). ${randomStart ? "Keep training: rarely chosen actions are corrected only when exploration tries them." : "With a fixed start, cells far from the S→G path are almost never visited — try random starts or a larger ε."}`;
+      `TD error (target minus old guess) = ${fmt(tr.target, 3)} − ${fmt(tr.oldQ, 3)} = ${fmt(tr.tdError, 3)}. Q ← ${fmt(tr.oldQ, 3)} + ${fmt(alpha, 2)}×${fmt(tr.tdError, 3)} = ${fmt(tr.newQ, 3)}.`;
+    if (agree.optimal === agree.total) story += ` The greedy policy is now the best possible in all ${agree.total} states. Some Q-values are still off, but their order is right, and that is what counts.`;
+    else if (nEp > 30) story += ` ${agree.total - agree.optimal} state(s) still have a wrong greedy arrow (red). ${randomStart ? "Keep training. Rarely chosen actions only get fixed when exploring tries them." : "With a fixed start, cells far from the S→G path are almost never visited. Try random starts or a bigger ε."}`;
   }
 
   return (
     <SimShell
       title="Q-Learning in a Gridworld"
-      subtitle="Tabular Q-learning with an ε-greedy behaviour policy, trained step by step in your browser. Reaching G gives +1, falling into P gives −1, every other move 0."
+      subtitle="The agent learns a table of action values (Q) by trial and error. It explores at random with chance ε, otherwise picks the best-looking move. G gives +1, P gives −1, every other move 0."
       controls={
         <div className="space-y-2.5">
           <Controls
@@ -242,10 +242,10 @@ export default function RlGridworldSim() {
               last {lastN} episodes: {goals} reached G
             </div>
             <div className={agree.optimal === agree.total ? "text-accent" : ""}>
-              greedy action optimal in {agree.optimal}/{agree.total} states
+              greedy action is best in {agree.optimal}/{agree.total} states
             </div>
             <div>
-              greedy path from S: {gp.outcome === "goal" ? `reaches G in ${gp.path.length - 1} moves` : gp.outcome === "pit" ? "falls into P" : "loops"} (optimal: 9)
+              greedy path from S: {gp.outcome === "goal" ? `reaches G in ${gp.path.length - 1} moves` : gp.outcome === "pit" ? "falls into P" : "loops"} (best: 9)
             </div>
             <div className="text-muted">
               V*(S) = γ⁸ = {fmt(vStar(START), 3)} · V(S) = {fmt(L.V(START), 3)}
@@ -266,7 +266,7 @@ export default function RlGridworldSim() {
             <span className="text-gold">● agent</span>
             <span className="text-gold">- - greedy path from S</span>
             <span>□ gold box: cell just updated</span>
-            {view === "V" && <span className="text-clay">red arrow: not optimal (vs value iteration)</span>}
+            {view === "V" && <span className="text-clay">red arrow: not the best move (checked by value iteration)</span>}
           </figcaption>
         </figure>
         <figure className="min-w-0">
@@ -287,12 +287,12 @@ export default function RlGridworldSim() {
             {nEp > 0 && <path d={lineMA} fill="none" stroke="var(--accent)" strokeWidth={1.8} />}
           </svg>
           <figcaption className="text-xs text-muted">
-            <span className="text-accent">discounted return</span> (20-episode moving average; dashed: optimal {randomStart ? "average over random starts" : "from S"} = {fmt(optRet, 3)}) and <span>grey: fraction of states with an optimal greedy action</span> (−1 = 0 %, +1 = 100 %).
+            <span className="text-accent">discounted return</span> (20-episode average; dashed: best possible {randomStart ? "average over random starts" : "from S"} = {fmt(optRet, 3)}) and <span>grey: share of states where the greedy action is best</span> (−1 = 0 %, +1 = 100 %).
           </figcaption>
           <div className="mt-2 rounded-md border border-border p-2 text-xs text-muted">
-            <div className="mb-1 font-medium text-[var(--text)]">Update applied at every step</div>
+            <div className="mb-1 font-medium text-[var(--text)]">Update done at every step</div>
             <div className="font-mono text-[11px]">Q(s,a) ← Q(s,a) + α[r + γ·maxₐ′ Q(s′,a′) − Q(s,a)]</div>
-            <div className="mt-1">Behaviour: random action with probability ε, otherwise greedy. Q-learning is off-policy: it learns the values of the greedy policy while behaving ε-greedily.</div>
+            <div className="mt-1">How it acts: a random action with chance ε, otherwise greedy. Q-learning is off-policy: it learns the values of the greedy policy while it actually acts ε-greedily.</div>
           </div>
         </figure>
       </div>

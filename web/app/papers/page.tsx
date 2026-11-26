@@ -11,8 +11,8 @@ export default function PapersPage() {
   const eras = Array.from(new Set(PAPERS.map((p) => p.era)));
   return (
     <Container>
-      <PageHeader eyebrow="Research papers" title="The papers that built the field">
-        Each entry states the paper&apos;s contribution in one sentence and links to the lessons where the idea is taught. Arranged by theme, then year.
+      <PageHeader eyebrow="Research papers" title="The papers that shaped deep learning">
+        Each entry sums up what the paper added in one sentence, and links to the lessons that teach the idea. Grouped by theme, then sorted by year.
       </PageHeader>
       {eras.map((era) => (
         <section key={era} className="py-8">

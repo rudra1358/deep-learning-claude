@@ -10,8 +10,8 @@ export default function PlaygroundPage() {
   const entries = Object.entries(SIMS).sort((a, b) => Number(!!b[1].flagship) - Number(!!a[1].flagship));
   return (
     <Container>
-      <PageHeader eyebrow="Interactive playground" title="Every simulator in one place">
-        Each simulator runs the actual algorithm — the numbers you see are the numbers computed. All have play, pause, step, reset and speed controls.
+      <PageHeader eyebrow="Playground" title="Every simulator in one place">
+        Each simulator runs the real algorithm — the numbers you see are really computed. Every one has play, pause, step, reset and speed controls.
       </PageHeader>
       <div className="grid gap-4 py-10 sm:grid-cols-2 lg:grid-cols-3">
         {entries.map(([id, s]) => {

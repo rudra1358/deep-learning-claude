@@ -20,17 +20,17 @@ import {
 
 const MODEL_URL = "/models/word2vec.json";
 const TITLE = "Word Embedding Explorer";
-const SUBTITLE = "Real skip-gram vectors trained with negative sampling, plus a tiny model you can train step by step.";
+const SUBTITLE = "Each word becomes a list of numbers (a vector), and similar words get similar vectors. Explore real skip-gram vectors, or train a tiny model step by step.";
 
 type Tour = { kind: "nb"; word: string; text: string } | { kind: "an"; a: string; b: string; c: string; text: string };
 const TOUR: Tour[] = [
-  { kind: "nb", word: "king", text: "Nearest neighbours of 'king' by cosine similarity: the other royal titles. Nobody told the model they are related — they occur in the same kinds of sentences (throne, crown, palace)." },
-  { kind: "nb", word: "january", text: "Months cluster tightly and are ordered by season: january's nearest neighbours are the other winter months, because they share weather words (snowy, cold) and appear next to each other in 'X comes after Y'." },
-  { kind: "nb", word: "happy", text: "A classic caveat: the nearest neighbours of 'happy' include its opposite 'sad'. Antonyms occur in the same contexts, so distributional similarity is relatedness, not synonymy." },
-  { kind: "an", a: "man", b: "king", c: "woman", text: "king − man + woman: the query vector b − a + c lands next to 'queen'. The offset man→king (adding 'royalty') is roughly the same vector as woman→queen." },
-  { kind: "an", a: "france", b: "paris", c: "italy", text: "paris − france + italy = rome. Capital–country is one of the best-recovered relations in this model (about 79% top-1 over 2,756 questions)." },
-  { kind: "an", a: "walk", b: "walked", c: "swim", text: "An irregular past tense often fails: walked − walk + swim does not give 'swam'. The relation 'past tense' is only 39% correct here — open the evaluation table below." },
-  { kind: "nb", word: "orange", text: "Polysemy: one vector per word type. 'orange' is both a fruit and a colour in the corpus; its first ten neighbours are fruits, and colours (red, purple) follow just behind — raise k to 15 to see them." },
+  { kind: "nb", word: "king", text: "The closest words to 'king' (by cosine similarity, the angle between vectors) are the other royal titles. Nobody told the model they are related. They just appear in the same kinds of sentences (throne, crown, palace)." },
+  { kind: "nb", word: "january", text: "Months bunch together, sorted by season. January's closest words are the other winter months. They share weather words (snowy, cold) and appear side by side in 'X comes after Y'." },
+  { kind: "nb", word: "happy", text: "A classic catch: the closest words to 'happy' include its opposite, 'sad'. Opposites appear in the same contexts. So close vectors mean related words, not words with the same meaning." },
+  { kind: "an", a: "man", b: "king", c: "woman", text: "king − man + woman: the query vector b − a + c lands next to 'queen'. The step from man→king (adding 'royalty') is roughly the same arrow as woman→queen." },
+  { kind: "an", a: "france", b: "paris", c: "italy", text: "paris − france + italy = rome. Capital–country is one of the relations this model gets right most often (about 79% top-1 over 2,756 questions)." },
+  { kind: "an", a: "walk", b: "walked", c: "swim", text: "Irregular past tenses often fail: walked − walk + swim does not give 'swam'. 'Past tense' is only 39% correct here. Open the score table below." },
+  { kind: "nb", word: "orange", text: "One word, two meanings, but only one vector. 'orange' is both a fruit and a colour in the text. Its first ten neighbours are fruits, with colours (red, purple) just behind. Raise k to 15 to see them." },
 ];
 
 function useModel() {
@@ -83,7 +83,7 @@ export default function WordEmbeddingsSim() {
     >
       {tab === "explore" ? (
         error ? (
-          <p className="text-sm text-clay">Could not load the word vectors ({error}). Check your connection and reload the page.</p>
+          <p className="text-sm text-clay">Couldn&apos;t load the word vectors ({error}). Check your connection and reload the page.</p>
         ) : !model ? (
           <div className="flex h-40 items-center justify-center text-sm text-muted" role="status">
             Loading the trained word vectors (≈380 KB)…
@@ -158,7 +158,7 @@ function Explorer({ model, check, tourStep }: { model: W2VModel; check: ReturnTy
   const pick = useCallback((w: string) => {
     setQuery(w);
     setWord(w);
-    setNarr(`Selected '${w}'. Its neighbours are ranked by cosine similarity of the 50-dimensional vectors; dashed lines show where those neighbours land in the 2-D projection.`);
+    setNarr(`Selected '${w}'. Its neighbours are ranked by cosine similarity of the 50-number vectors. Dashed lines show where they land in the flattened 2-D picture.`);
   }, []);
 
   const count = j.counts[wi];
@@ -168,7 +168,7 @@ function Explorer({ model, check, tourStep }: { model: W2VModel; check: ReturnTy
     <div className="space-y-4">
       <p className="text-xs text-muted">
         Real model: {j.words.length.toLocaleString()} words × {j.config.dim} dimensions, skip-gram with {j.config.negatives} negative samples, window {j.config.window}, {j.config.epochs} epochs, trained by{" "}
-        <code>scripts/train-word2vec.py</code> on a <b>generated</b> “Toyland English” corpus ({j.corpus.sentences.toLocaleString()} template sentences, {j.corpus.tokens.toLocaleString()} tokens, {(j.corpus.bytes / 1e6).toFixed(1)} MB) — far more regular than real text.{" "}
+        <code>scripts/train-word2vec.py</code> on a <b>generated</b> “Toyland English” corpus ({j.corpus.sentences.toLocaleString()} template sentences, {j.corpus.tokens.toLocaleString()} tokens, {(j.corpus.bytes / 1e6).toFixed(1)} MB) — much more regular than real text.{" "}
         {check && (
           <span>
             Browser check against Python: {check.checked} neighbour/analogy results {check.sameWords ? "identical" : "DIFFER"}, max |Δcos| = {check.maxErr.toExponential(1)}.
@@ -184,7 +184,7 @@ function Explorer({ model, check, tourStep }: { model: W2VModel; check: ReturnTy
           </label>
           {!known && q && (
             <div className="text-xs text-clay">
-              “{q}” is not in the {j.words.length.toLocaleString()}-word vocabulary — a word2vec model has no vector for unseen words (FastText would build one from subwords).
+              “{q}” is not in the {j.words.length.toLocaleString()}-word vocabulary. word2vec has no vector for words it never saw (FastText would build one from word pieces).
               {suggestions.length > 0 && (
                 <span className="ml-1 text-muted">
                   Did you mean:{" "}
@@ -213,7 +213,7 @@ function Explorer({ model, check, tourStep }: { model: W2VModel; check: ReturnTy
             ))}
           </div>
           <div className="font-mono text-xs text-muted">
-            query = v({abc[1]}) − v({abc[0]}) + v({abc[2]}); rank all words by cosine, excluding the three inputs
+            query = v({abc[1]}) − v({abc[0]}) + v({abc[2]}); rank all words by cosine, skipping the three inputs
           </div>
           <div className="flex flex-wrap gap-1">
             {[["man", "king", "woman"], ["france", "paris", "japan"], ["big", "bigger", "cold"], ["germany", "german", "greece"], ["eat", "eating", "sing"], ["walk", "walked", "swim"]].map((x) => (
@@ -283,8 +283,8 @@ function Explorer({ model, check, tourStep }: { model: W2VModel; check: ReturnTy
             </tbody>
           </table>
           <p className="mt-1 text-xs text-muted">
-            Every ordered pair of word pairs in a relation is one question (a:b :: c:d). The baseline answers with the nearest neighbour of c alone. Top-10 neighbours share the word&apos;s
-            ground-truth category {(j.purity * 100).toFixed(1)}% of the time.
+            Every ordered pair of word pairs in a relation is one question (a:b :: c:d). The baseline just answers with the closest word to c. Top-10 neighbours share the word&apos;s
+            true category {(j.purity * 100).toFixed(1)}% of the time.
           </p>
         </div>
       </details>
@@ -370,7 +370,7 @@ function Scatter({ model, word, nbs, analogyHit, proj, zoom, cat, onPick }: { mo
         </text>
       ))}
       <text x={SW - PAD} y={SH - 4} fontSize={10} textAnchor="end" fill="var(--text-muted)">
-        {proj === "tsne" ? "t-SNE (cosine)" : "PCA"} of the 50-D vectors · gold = selected · accent = its {nbs.length} nearest neighbours in 50-D · clay = analogy answer
+        {proj === "tsne" ? "t-SNE (cosine)" : "PCA"} of the 50-D vectors · gold = selected · accent = its {nbs.length} closest words in 50-D · clay = analogy answer
       </text>
     </svg>
   );
@@ -459,7 +459,7 @@ function ToyTrainer() {
         <Slider label="seed" value={seed} min={1} max={9} step={1} onChange={setSeed} fmt={(v) => String(v)} />
       </div>
       <p className="text-xs text-muted">
-        Corpus ({TOY_CORPUS.length} sentences, stop words removed): {TOY_CORPUS.map((x) => `“${x}”`).join(" ")}. {W.length} word types, {st.pairs.length} (centre, context) pairs per epoch, d = 2 so the vectors can be drawn directly. Both tables start random (word2vec itself starts the output table at zero).
+        Corpus ({TOY_CORPUS.length} sentences, stop words removed): {TOY_CORPUS.map((x) => `“${x}”`).join(" ")}. {W.length} word types, {st.pairs.length} (centre, context) pairs per epoch, d = 2, so we can draw the vectors directly. Both tables start random (real word2vec starts the output table at zero).
       </p>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="min-w-0">
@@ -501,7 +501,7 @@ function ToyTrainer() {
           </div>
         </div>
         <div className="min-w-0 space-y-2 text-xs">
-          {upd ? <UpdateTable u={upd} words={W} lr={st.cfg.lr} /> : <p className="text-muted">Press <b>Step</b> to perform one SGD update on one (centre, context) pair.</p>}
+          {upd ? <UpdateTable u={upd} words={W} lr={st.cfg.lr} /> : <p className="text-muted">Press <b>Step</b> to do one SGD update on one (centre, context) pair.</p>}
           <div>
             <div className="mb-1 font-medium">Mean loss per epoch</div>
             {hist.length ? (
@@ -525,12 +525,12 @@ function ToyTrainer() {
       <Narration title={upd ? `Update ${st.updates}: centre “${W[upd.c]}”, context “${W[upd.o]}”` : "Skip-gram with negative sampling, one pair at a time"}>
         {upd ? (
           <>
-            The true pair scores s₊ = u<sub>{W[upd.o]}</sub>·v<sub>{W[upd.c]}</sub> = {fmt(upd.sPos, 3)}, so the model believes it with probability σ(s₊) = {fmt(upd.sigPos, 3)}. The {upd.negs.length} noise words ({upd.negs.map((n) => W[n]).join(", ")}) were drawn from
-            the unigram distribution raised to 0.75. The loss −log σ(s₊) − Σ log σ(−sₖ) = {fmt(upd.loss, 3)}. The gradient pulls u<sub>{W[upd.o]}</sub> towards v<sub>{W[upd.c]}</sub> (scale 1 − σ(s₊) = {fmt(1 - upd.sigPos, 3)}),
-            pushes each noise vector away (scale σ(sₖ)), and moves v<sub>{W[upd.c]}</sub> towards u<sub>{W[upd.o]}</sub> and away from the noise vectors. Train for a few dozen epochs: words that share contexts (king/queen, man/woman, milk/water) end up pointing in the same direction.
+            The true pair scores s₊ = u<sub>{W[upd.o]}</sub>·v<sub>{W[upd.c]}</sub> = {fmt(upd.sPos, 3)}, so the model thinks it is a real pair with probability σ(s₊) = {fmt(upd.sigPos, 3)}. The {upd.negs.length} noise words ({upd.negs.map((n) => W[n]).join(", ")}) were picked at random,
+            with common words more likely (word frequency raised to 0.75). The loss −log σ(s₊) − Σ log σ(−sₖ) = {fmt(upd.loss, 3)}. The gradient pulls u<sub>{W[upd.o]}</sub> towards v<sub>{W[upd.c]}</sub> (scale 1 − σ(s₊) = {fmt(1 - upd.sigPos, 3)}),
+            pushes each noise vector away (scale σ(sₖ)), and moves v<sub>{W[upd.c]}</sub> towards u<sub>{W[upd.o]}</sub> and away from the noise. Train for a few dozen epochs: words that share contexts (king/queen, man/woman, milk/water) end up pointing the same way.
           </>
         ) : (
-          <>Each update takes one centre word and one word from its window, plus K random “noise” words, and nudges three kinds of vectors with a logistic-regression gradient. Words never compared directly still end up close, because they are pulled towards the same context vectors.</>
+          <>Each update takes one centre word, one word near it, and K random “noise” words. It nudges their vectors with a logistic-regression gradient. Words that are never compared directly still end up close, because they get pulled toward the same context vectors.</>
         )}
       </Narration>
     </div>
@@ -581,7 +581,7 @@ function UpdateTable({ u, words, lr }: { u: ToyUpdate; words: string[]; lr: numb
         </tbody>
       </table>
       <div className="mt-1 text-muted">
-        v before <V2 v={u.vBefore} /> · loss {fmt(u.loss, 4)} · η = {fmt(lr, 2)} · every vector moves by −η × gradient
+        v before <V2 v={u.vBefore} /> · loss {fmt(u.loss, 4)} · η = {fmt(lr, 2)} · each vector moves by −η × gradient
       </div>
     </div>
   );

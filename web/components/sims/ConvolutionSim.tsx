@@ -72,14 +72,14 @@ function makeInput(preset: InputPreset, n: number): Grid {
 type KernelPreset = "lesson" | "identity" | "sobelX" | "sobelY" | "box" | "gauss" | "sharpen" | "laplacian" | "custom";
 
 const KERNELS: Record<Exclude<KernelPreset, "custom">, { label: string; k: Grid; note: string }> = {
-  lesson: { label: "Vertical edge [1 0 −1] (lesson)", k: [[1, 0, -1], [1, 0, -1], [1, 0, -1]], note: "Left column minus right column: large positive where the image gets darker from left to right, negative where it gets brighter." },
-  identity: { label: "Identity", k: [[0, 0, 0], [0, 1, 0], [0, 0, 0]], note: "Copies the centre pixel: the output is the input (cropped by the borders when p = 0)." },
-  sobelX: { label: "Sobel — vertical edges", k: [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], note: "Horizontal derivative with extra weight on the centre row. Responds to vertical edges, positive for dark → bright (left to right)." },
-  sobelY: { label: "Sobel — horizontal edges", k: [[-1, -2, -1], [0, 0, 0], [1, 2, 1]], note: "Vertical derivative. Responds to horizontal edges, positive for dark → bright (top to bottom)." },
-  box: { label: "Box blur (1/9)", k: [[1, 1, 1], [1, 1, 1], [1, 1, 1]].map((r) => r.map((v) => v / 9)), note: "Average of the 3×3 neighbourhood: smooths noise, softens edges. Weights sum to 1 so flat regions keep their brightness." },
-  gauss: { label: "Gaussian blur (1/16)", k: [[1, 2, 1], [2, 4, 2], [1, 2, 1]].map((r) => r.map((v) => v / 16)), note: "Weighted average that trusts the centre most — a smoother blur than the box filter. Weights sum to 1." },
-  sharpen: { label: "Sharpen", k: [[0, -1, 0], [-1, 5, -1], [0, -1, 0]], note: "Identity plus a negative Laplacian: amplifies a pixel's difference from its neighbours. Weights sum to 1." },
-  laplacian: { label: "Laplacian", k: [[0, 1, 0], [1, -4, 1], [0, 1, 0]], note: "Discrete second derivative: zero on flat regions and on linear ramps, large on edges, corners and isolated dots. Weights sum to 0." },
+  lesson: { label: "Vertical edge [1 0 −1] (lesson)", k: [[1, 0, -1], [1, 0, -1], [1, 0, -1]], note: "Left column minus right column. Big positive where the image gets darker from left to right; negative where it gets brighter." },
+  identity: { label: "Identity", k: [[0, 0, 0], [0, 1, 0], [0, 0, 0]], note: "Copies the centre pixel, so the output is the input (trimmed at the borders when p = 0)." },
+  sobelX: { label: "Sobel — vertical edges", k: [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], note: "Measures change from left to right, with extra weight on the centre row. Finds vertical edges; positive for dark → bright (left to right)." },
+  sobelY: { label: "Sobel — horizontal edges", k: [[-1, -2, -1], [0, 0, 0], [1, 2, 1]], note: "Measures change from top to bottom. Finds horizontal edges; positive for dark → bright (top to bottom)." },
+  box: { label: "Box blur (1/9)", k: [[1, 1, 1], [1, 1, 1], [1, 1, 1]].map((r) => r.map((v) => v / 9)), note: "Averages the 3×3 patch: smooths noise and softens edges. Weights add up to 1, so flat areas keep their brightness." },
+  gauss: { label: "Gaussian blur (1/16)", k: [[1, 2, 1], [2, 4, 2], [1, 2, 1]].map((r) => r.map((v) => v / 16)), note: "A weighted average that trusts the centre most. It blurs more smoothly than the box filter. Weights add up to 1." },
+  sharpen: { label: "Sharpen", k: [[0, -1, 0], [-1, 5, -1], [0, -1, 0]], note: "Identity plus a negative Laplacian: it boosts how different a pixel is from its neighbours. Weights add up to 1." },
+  laplacian: { label: "Laplacian", k: [[0, 1, 0], [1, -4, 1], [0, 1, 0]], note: "A second derivative (how fast the change changes). Zero on flat areas and smooth ramps; large on edges, corners and lone dots. Weights add up to 0." },
 };
 
 /* ------------------------------------------------------------------ */
@@ -312,7 +312,7 @@ export default function ConvolutionSim() {
 
   const poolWindow = pooled && pi >= 0 ? [act[2 * pi][2 * pj], act[2 * pi][2 * pj + 1], act[2 * pi + 1][2 * pj], act[2 * pi + 1][2 * pj + 1]] : [];
 
-  const kernelNote = kernelPreset === "custom" ? "Your own kernel. Try making the weights sum to 0 (an edge/difference detector) or to 1 (a brightness-preserving filter)." : KERNELS[kernelPreset].note;
+  const kernelNote = kernelPreset === "custom" ? "Your own kernel. Try weights that add up to 0 (finds edges and differences) or to 1 (keeps overall brightness)." : KERNELS[kernelPreset].note;
 
   const selCls = "field py-1 text-xs";
 
@@ -362,7 +362,7 @@ export default function ConvolutionSim() {
           <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={usePool} onChange={(e) => setUsePool(e.target.checked)} /> 2×2 max-pool
           </label>
-          <label className="flex items-center gap-1.5" title="Rotate the kernel by 180° before sliding: the textbook (signal-processing) convolution">
+          <label className="flex items-center gap-1.5" title="Rotate the kernel by 180° before sliding. This is the textbook (signal-processing) convolution">
             <input type="checkbox" checked={flip} onChange={(e) => setFlip(e.target.checked)} /> Flip kernel (true convolution)
           </label>
         </div>
@@ -394,7 +394,7 @@ export default function ConvolutionSim() {
       {!inPool ? (
         <div>
           <div className="mb-1 text-xs font-medium uppercase tracking-wide text-faint">
-            Output [{ci}, {cj}] — 9 multiply-adds
+            Output [{ci}, {cj}]: 9 multiply-adds
           </div>
           <div className="rounded-md border border-border p-2 font-mono text-[11px] leading-relaxed">
             <div className="grid grid-cols-3 gap-1">
@@ -433,31 +433,31 @@ export default function ConvolutionSim() {
       <Narration title={inPool ? `Max-pool step ${pIdx + 1} of ${poolCount}` : `Convolution step ${step + 1} of ${convCount}`}>
         {!inPool ? (
           <>
-            The kernel’s top-left corner sits at padded row {cur.r}, column {cur.c}
-            {step > 0 && cj > 0 ? ` — it moved ${stride} cell${stride > 1 ? "s" : ""} right` : step > 0 ? ` — it jumped back to the left edge and ${stride} row${stride > 1 ? "s" : ""} down` : ""}. Each of the 9 window values is multiplied by the kernel weight on top of it and the products are added
-            {bias !== 0 ? ", then the bias is added" : ""}: the result {nf(cur.value)} becomes output cell [{ci}, {cj}]
-            {useRelu && cur.value < 0 ? ", which ReLU clips to 0" : ""}.
-            {padCellsInWindow > 0 && ` ${padCellsInWindow} of the 9 window cells are padding zeros, so they contribute nothing.`}
-            {step === convCount - 1 && leftover > 0 && ` Note: (n + 2p − k) = ${span} is not divisible by s = ${stride}, so the last ${leftover} row(s)/column(s) of the padded input are never covered — that is the floor in the formula.`}
-            {step === convCount - 1 && !pooled && " The feature map is complete."}
+            The kernel’s top-left corner is at padded row {cur.r}, column {cur.c}
+            {step > 0 && cj > 0 ? ` (it moved ${stride} cell${stride > 1 ? "s" : ""} right)` : step > 0 ? ` (it jumped back to the left edge and ${stride} row${stride > 1 ? "s" : ""} down)` : ""}. Each of the 9 window values is multiplied by the kernel weight on top of it, and the products are added up
+            {bias !== 0 ? ", then the bias is added" : ""}. The result, {nf(cur.value)}, becomes output cell [{ci}, {cj}]
+            {useRelu && cur.value < 0 ? ", which ReLU turns into 0" : ""}.
+            {padCellsInWindow > 0 && ` ${padCellsInWindow} of the 9 window cells are padding zeros, so they add nothing.`}
+            {step === convCount - 1 && leftover > 0 && ` Note: (n + 2p − k) = ${span} is not a multiple of s = ${stride}. So the last ${leftover} row(s)/column(s) of the padded input are never covered. That is what the floor ⌊ ⌋ in the formula does.`}
+            {step === convCount - 1 && !pooled && " The feature map is finished."}
             <span className="mt-1 block text-xs">{kernelNote}</span>
           </>
         ) : (
           <>
-            A 2×2 window with stride 2 slides over the {useRelu ? "ReLU-activated " : ""}feature map and keeps only the largest value. Each pooled cell summarises a non-overlapping 2×2 block, halving height and width ({Ho} → {Po}).
-            {Ho % 2 === 1 && pIdx === poolCount - 1 && ` Because ${Ho} is odd, the last row and column of the feature map are dropped (floor).`}
+            A 2×2 window with stride 2 slides over the {useRelu ? "ReLU-activated " : ""}feature map and keeps only the biggest value. Each pooled cell stands for one 2×2 block (blocks do not overlap), so height and width are halved ({Ho} → {Po}).
+            {Ho % 2 === 1 && pIdx === poolCount - 1 && ` Because ${Ho} is odd, the last row and column of the feature map are dropped (the floor).`}
           </>
         )}
       </Narration>
     </div>
   );
 
-  const flipNote = flip ? "Kernel shown rotated 180° — this is what actually slides." : "Kernel slides as shown (cross-correlation, like PyTorch).";
+  const flipNote = flip ? "Kernel shown rotated 180°. This is what really slides." : "Kernel slides as shown (cross-correlation, like PyTorch).";
 
   return (
     <SimShell
       title="Convolution Operation"
-      subtitle="A 3×3 kernel slides over the (padded) input; every output cell is a 9-term multiply-add."
+      subtitle="A 3×3 kernel slides over the (padded) input. Each output cell is 9 multiplications, added up."
       controls={
         <Controls
           s={s}

@@ -108,7 +108,7 @@ function LogBars({
             {lineLabel}
           </span>
         )}
-        <span className="text-faint">log scale · click a bar to inspect that layer</span>
+        <span className="text-faint">log scale · click a bar to look at that layer</span>
       </figcaption>
       <svg viewBox={`0 0 ${CW} ${CH}`} className="h-auto w-full" role="img" aria-label={ariaLabel}>
         {ticks.map((k) => (
@@ -256,14 +256,14 @@ export default function GradientFlowSim() {
   const minRel = Math.min(...rels);
 
   const verdict = (r: number) => {
-    if (!Number.isFinite(r) || !Number.isFinite(maxRel)) return "the numbers overflowed — the signal exploded beyond floating-point range.";
-    if (r < 1e-3) return "vanishing: the first layer receives a gradient more than 1000× smaller than the last, so it learns far more slowly (or not at all).";
-    if (r > 1e3) return "exploding: the first layer's gradient is more than 1000× the last layer's; a learning rate that suits one layer is catastrophic for the other.";
+    if (!Number.isFinite(r) || !Number.isFinite(maxRel)) return "the numbers overflowed: the signal grew too big for the computer to store.";
+    if (r < 1e-3) return "vanishing. The first layer gets a gradient over 1000× smaller than the last, so it learns far more slowly (or not at all).";
+    if (r > 1e3) return "exploding. The first layer's gradient is over 1000× the last layer's. A learning rate that suits one layer would wreck the other.";
     if (maxRel > 100)
-      return `exploding in absolute size: the layers are balanced, but ‖∂L/∂W‖ is up to ${sci(maxRel)}× ‖W‖, so even a small learning rate would overwrite the weights in one step (compare the δ ratio: δ grows backwards while the activations shrink backwards, and the two cancel in δ·hᵀ).`;
+      return `exploding in size. The layers are balanced, but ‖∂L/∂W‖ is up to ${sci(maxRel)}× ‖W‖. So even a small learning rate would wipe out the weights in one step. (Compare the δ ratio: δ grows going backward while the activations shrink, and the two cancel in δ·hᵀ.)`;
     if (maxRel < 1e-6)
-      return `vanishing everywhere: the forward signal itself collapsed, so every layer's ‖∂L/∂W‖ is below ${sci(maxRel)}× ‖W‖ — the network barely moves at any depth.`;
-    return `healthy: all layers receive gradients within three orders of magnitude of each other, and ‖∂L/∂W‖/‖W‖ lies between ${sci(minRel)} and ${sci(maxRel)}.`;
+      return `vanishing everywhere. The forward signal itself died out, so every layer's ‖∂L/∂W‖ is below ${sci(maxRel)}× ‖W‖. The network barely learns at any depth.`;
+    return `healthy. All layers get gradients within 1000× of each other, and ‖∂L/∂W‖/‖W‖ lies between ${sci(minRel)} and ${sci(maxRel)}.`;
   };
 
   /* ---------------- narration ---------------- */
@@ -273,39 +273,39 @@ export default function GradientFlowSim() {
     nTitle = "Setup";
     nBody = (
       <>
-        A batch of {BATCH} inputs x ~ N(0, 1) enters a {L}-layer MLP of width {res.cfg.width} ({A.label}
+        A batch of {BATCH} inputs x ~ N(0, 1) goes into a {L}-layer MLP of width {res.cfg.width} ({A.label}
         {res.cfg.residual ? ", residual connections" : ""}
-        {res.cfg.layerNorm ? ", LayerNorm before each activation" : ""}). Every weight is drawn from N(0, {fmt(res.std, 4)}²) ({INIT_LABEL[res.cfg.init]}). Press <strong>Play</strong> or <strong>Step</strong>: first the forward pass fills the top chart left → right, then the backward pass fills the bottom chart right → left.
+        {res.cfg.layerNorm ? ", LayerNorm before each activation" : ""}). Every weight is drawn from N(0, {fmt(res.std, 4)}²) ({INIT_LABEL[res.cfg.init]}). Press <strong>Play</strong> or <strong>Step</strong>. First the forward pass fills the top chart left → right. Then the backward pass fills the bottom chart right → left.
       </>
     );
   } else if (phase === "forward" && curLayer !== null) {
     const st = layers[curLayer - 1];
-    nTitle = `Forward pass — layer ${curLayer} of ${L}`;
+    nTitle = `Forward pass: layer ${curLayer} of ${L}`;
     nBody = (
       <>
         z = W<sup>[{curLayer}]</sup>h<sup>[{curLayer - 1}]</sup>
         {res.cfg.layerNorm ? ", normalised per example," : ""} then a = f(z)
         {res.cfg.residual ? ` and h = h[${curLayer - 1}] + a` : ""}. The std of h<sup>[{curLayer}]</sup> is <strong className="text-text">{sci(st.hStd)}</strong> (input: {fmt(res.inputStd, 3)}).{" "}
         {isRelu
-          ? `${pct(st.deadUnits)} of the units are zero for every example in the batch (dead for this batch); the mean slope f′ is ${fmt(st.meanSlope, 3)}.`
+          ? `${pct(st.deadUnits)} of the units are zero for every example in the batch (dead for this batch). The average slope f′ is ${fmt(st.meanSlope, 3)}.`
           : res.cfg.act === "linear"
-            ? "The activation is linear, so f′ = 1 everywhere: only the weights scale the signal."
-            : `${pct(st.lowSlope)} of the entries sit where f′ is below 10% of its maximum (saturated); the mean slope f′ is ${fmt(st.meanSlope, 3)} (max ${A.dfMax}).`}
+            ? "The activation is linear, so f′ = 1 everywhere. Only the weights change the signal's size."
+            : `${pct(st.lowSlope)} of the values sit where f′ is below 10% of its max (saturated, the curve is flat there). The average slope f′ is ${fmt(st.meanSlope, 3)} (max ${A.dfMax}).`}
       </>
     );
   } else if (phase === "backward" && curLayer !== null) {
     const st = layers[curLayer - 1];
     const rel = st.gradWNorm / gW[L - 1];
-    nTitle = `Backward pass — layer ${curLayer}`;
+    nTitle = `Backward pass: layer ${curLayer}`;
     nBody = (
       <>
-        δ<sup>[{curLayer}]</sup> = (W<sup>[{curLayer + 1}]ᵀ</sup>δ<sup>[{curLayer + 1}]</sup>) ⊙ f′(z<sup>[{curLayer}]</sup>){res.cfg.residual ? " + the identity path" : ""}. ‖δ<sup>[{curLayer}]</sup>‖ = <strong className="text-text">{sci(st.deltaNorm)}</strong>, ‖∂L/∂W<sup>[{curLayer}]</sup>‖ = <strong className="text-text">{sci(st.gradWNorm)}</strong>. Compared with the last layer, this layer&apos;s weight gradient is <strong className="text-text">{sci(rel)}×</strong> as large.
+        δ<sup>[{curLayer}]</sup> = (W<sup>[{curLayer + 1}]ᵀ</sup>δ<sup>[{curLayer + 1}]</sup>) ⊙ f′(z<sup>[{curLayer}]</sup>){res.cfg.residual ? " + the identity path" : ""}. ‖δ<sup>[{curLayer}]</sup>‖ = <strong className="text-text">{sci(st.deltaNorm)}</strong>, ‖∂L/∂W<sup>[{curLayer}]</sup>‖ = <strong className="text-text">{sci(st.gradWNorm)}</strong>. Compared with the last layer, this layer&apos;s weight gradient is <strong className="text-text">{sci(rel)}×</strong> as big.
       </>
     );
     if (curLayer === L) {
       nBody = (
         <>
-          The loss ({res.cfg.loss === "mse" ? `MSE = ${sci(res.loss)}` : "random upstream gradient"}) gives ∂L/∂h<sup>[{L}]</sup>; multiplying by f′ gives δ<sup>[{L}]</sup> with ‖δ<sup>[{L}]</sup>‖ = <strong className="text-text">{sci(st.deltaNorm)}</strong> and ‖∂L/∂W<sup>[{L}]</sup>‖ = <strong className="text-text">{sci(st.gradWNorm)}</strong>. This is the reference every earlier layer is compared with.
+          The loss ({res.cfg.loss === "mse" ? `MSE = ${sci(res.loss)}` : "random upstream gradient"}) gives ∂L/∂h<sup>[{L}]</sup>; multiplying by f′ gives δ<sup>[{L}]</sup> with ‖δ<sup>[{L}]</sup>‖ = <strong className="text-text">{sci(st.deltaNorm)}</strong> and ‖∂L/∂W<sup>[{L}]</sup>‖ = <strong className="text-text">{sci(st.gradWNorm)}</strong>. Every earlier layer is compared with this one.
         </>
       );
     }
@@ -314,7 +314,7 @@ export default function GradientFlowSim() {
     nBody = (
       <>
         ‖∂L/∂W<sup>[1]</sup>‖ / ‖∂L/∂W<sup>[{L}]</sup>‖ = <strong className="text-text">{sci(res.ratioW)}</strong> and ‖δ<sup>[1]</sup>‖ / ‖δ<sup>[{L}]</sup>‖ = <strong className="text-text">{sci(res.ratioDelta)}</strong>
-        {Number.isFinite(factor) ? <> — an average factor of {fmt(factor, 3)} per layer</> : null}. Verdict: {verdict(res.ratioW)}
+        {Number.isFinite(factor) ? <>, an average factor of {fmt(factor, 3)} per layer</> : null}. Verdict: {verdict(res.ratioW)}
       </>
     );
   }
@@ -325,7 +325,7 @@ export default function GradientFlowSim() {
   return (
     <SimShell
       title="Gradient Flow Through Depth"
-      subtitle="A real forward and backward pass through a deep MLP. Top: how the signal's scale evolves layer by layer. Bottom: how large the gradient is at each layer."
+      subtitle="A real forward and backward pass through a deep MLP. Top: how big the signal is at each layer. Bottom: how big the gradient is at each layer."
       controls={
         <div className="space-y-2.5">
           <Controls s={s} />
@@ -408,14 +408,14 @@ export default function GradientFlowSim() {
             </tbody>
           </table>
           <p className="text-xs text-faint">
-            Biases are zero; batch = {BATCH}. ‖·‖ is the Frobenius norm over the batch. δ<sup>[l]</sup> = ∂L/∂z<sup>[l]</sup>. Leaky ReLU slope {0.01}. {stale ? "Updating…" : ""}
+            Biases are zero; batch = {BATCH}. ‖·‖ is the Frobenius norm (overall size) over the batch. δ<sup>[l]</sup> = ∂L/∂z<sup>[l]</sup>. Leaky ReLU slope {0.01}. {stale ? "Updating…" : ""}
           </p>
         </div>
       }
     >
       <div className="space-y-4">
         <LogBars
-          title="Forward: std of each layer's output h[l]"
+          title="Forward: std (spread) of each layer's output h[l]"
           values={hStd}
           color="var(--accent)"
           shown={shownFwd}

@@ -200,29 +200,29 @@ export default function MatmulSim() {
   let title: string;
   let body: ReactNode;
   if (!ok) {
-    title = "Shapes are incompatible";
+    title = "These shapes don't fit";
     body = (
       <>
-        A is {sA.rows}×{sA.cols} and B is {sB.rows}×{sB.cols}. Each output entry is the dot product of a <b>row of A</b> (length {sA.cols})
-        with a <b>column of B</b> (length {sB.rows}). Those lengths differ, so the dot product is undefined. The <b>inner</b> dimensions must
-        match: (n×<b>k</b>)·(<b>k</b>×m). Change A&apos;s columns or B&apos;s rows to make them equal.
+        A is {sA.rows}×{sA.cols} and B is {sB.rows}×{sB.cols}. Each output entry pairs up a <b>row of A</b> (length {sA.cols})
+        with a <b>column of B</b> (length {sB.rows}). These lengths differ, so they can&apos;t be paired. The <b>inner</b> sizes must
+        match: (n×<b>k</b>)·(<b>k</b>×m). Change A&apos;s columns or B&apos;s rows so they are equal.
       </>
     );
   } else if (st.kind === "intro") {
     title = "Ready";
     body = (
       <>
-        ({sA.rows}×<b>{sA.cols}</b>)·(<b>{sB.rows}</b>×{sB.cols}) → {sA.rows}×{sB.cols}. The inner dimensions agree, so C = AB exists. It has{" "}
-        {sA.rows * sB.cols} entries, each a dot product of length {k}: {sA.rows * sB.cols * k} multiplications in total. Press <b>Step</b> or{" "}
+        ({sA.rows}×<b>{sA.cols}</b>)·(<b>{sB.rows}</b>×{sB.cols}) → {sA.rows}×{sB.cols}. The inner sizes match, so C = AB exists. It has{" "}
+        {sA.rows * sB.cols} entries. Each is a dot product (multiply pairs, then add) of length {k}: {sA.rows * sB.cols * k} multiplications in total. Press <b>Step</b> or{" "}
         <b>Play</b>.
       </>
     );
   } else if (st.kind === "done") {
-    title = "All entries computed";
+    title = "All entries done";
     body = (
       <>
-        C is {sA.rows}×{sB.cols}, built from {sA.rows * sB.cols} dot products ({sA.rows * sB.cols * k} multiply-adds). Another view: column j of C
-        is A applied to column j of B, so A acts as one linear transformation applied to every column of B. Edit any entry to see C update.
+        C is {sA.rows}×{sB.cols}, built from {sA.rows * sB.cols} dot products ({sA.rows * sB.cols * k} multiply-adds). Another way to see it: column j of C
+        is A applied to column j of B. So A acts as one transformation applied to every column of B. Edit any entry to watch C update.
       </>
     );
   } else {
@@ -233,12 +233,12 @@ export default function MatmulSim() {
       mode === "term" ? (
         <>
           Term {st.p + 1} of {k}: A[{st.i + 1},{st.p + 1}]·B[{st.p + 1},{st.j + 1}] = {show(a)}×{show(b)} = <b>{show(st.products[st.p])}</b>. Running
-          sum so far = <b>{show(st.partial[st.p])}</b>
-          {st.p === k - 1 ? ` — complete, so C[${st.i + 1},${st.j + 1}] = ${show(st.partial[st.p])}.` : "."}
+          total so far = <b>{show(st.partial[st.p])}</b>
+          {st.p === k - 1 ? ` — done, so C[${st.i + 1},${st.j + 1}] = ${show(st.partial[st.p])}.` : "."}
         </>
       ) : (
         <>
-          Multiply the highlighted row and column element-wise, then add the {k} products: C[{st.i + 1},{st.j + 1}] ={" "}
+          Multiply the highlighted row and column pair by pair, then add the {k} products: C[{st.i + 1},{st.j + 1}] ={" "}
           <b>{show(st.partial[k - 1])}</b>.
         </>
       );
@@ -269,7 +269,7 @@ export default function MatmulSim() {
   return (
     <SimShell
       title="Matrix Multiplication"
-      subtitle="Each entry of C = AB is a row of A dotted with a column of B."
+      subtitle="Each entry of C = AB comes from one row of A and one column of B: multiply pairs, then add."
       controls={
         <Controls
           s={s}
@@ -317,7 +317,7 @@ export default function MatmulSim() {
             → ({sA.rows}×{sB.cols})
           </span>
         ) : (
-          <span className="text-clay">→ undefined: {sA.cols} ≠ {sB.rows}</span>
+          <span className="text-clay">→ no match: {sA.cols} ≠ {sB.rows}</span>
         )}
       </div>
 
@@ -337,8 +337,8 @@ export default function MatmulSim() {
         )}
       </div>
       <p className="mt-4 text-xs text-muted">
-        Entries are editable (decimals and negatives allowed). Gold marks the current row of A, column of B and the product term being added; filled
-        cells of C are shaded by sign (accent positive, clay negative).
+        You can edit any entry (decimals and negatives are fine). Gold marks the current row of A, column of B and the product being added. Filled
+        cells of C are coloured by sign (accent = positive, clay = negative).
       </p>
     </SimShell>
   );
